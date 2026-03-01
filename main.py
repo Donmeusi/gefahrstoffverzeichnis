@@ -14,7 +14,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
-app.secret_key = 'ein_sehr_geheimer_schluessel_fuer_die_entwicklung'
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'gefahrstoffe.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -22,6 +22,12 @@ UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
+
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 app.jinja_env.globals.update(getattr=getattr)
 
@@ -332,15 +338,21 @@ def add():
         
         if 'sicherheitsdatenblatt' in request.files:
             file = request.files['sicherheitsdatenblatt']
-            if file.filename != '':
+            if file and file.filename != '' and allowed_file(file.filename):
                 sdb_filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], sdb_filename))
+            elif file and file.filename != '':
+                flash('Ungültiger Dateityp für das Sicherheitsdatenblatt.', 'error')
+                return redirect(url_for('add'))
                 
         if 'betriebsanweisung' in request.files:
             file = request.files['betriebsanweisung']
-            if file.filename != '':
+            if file and file.filename != '' and allowed_file(file.filename):
                 ba_filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], ba_filename))
+            elif file and file.filename != '':
+                flash('Ungültiger Dateityp für die Betriebsanweisung.', 'error')
+                return redirect(url_for('add'))
 
         neuer_stoff = Gefahrstoff(
             name=name,
@@ -410,17 +422,23 @@ def edit_stoff(id):
             
         if 'sicherheitsdatenblatt' in request.files:
             file = request.files['sicherheitsdatenblatt']
-            if file.filename != '':
+            if file and file.filename != '' and allowed_file(file.filename):
                 sdb_filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], sdb_filename))
                 stoff.sicherheitsdatenblatt = sdb_filename
+            elif file and file.filename != '':
+                flash('Ungültiger Dateityp für das Sicherheitsdatenblatt.', 'error')
+                return redirect(url_for('edit_stoff', id=id))
                 
         if 'betriebsanweisung' in request.files:
             file = request.files['betriebsanweisung']
-            if file.filename != '':
+            if file and file.filename != '' and allowed_file(file.filename):
                 ba_filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], ba_filename))
                 stoff.betriebsanweisung = ba_filename
+            elif file and file.filename != '':
+                flash('Ungültiger Dateityp für die Betriebsanweisung.', 'error')
+                return redirect(url_for('edit_stoff', id=id))
 
         try:
             db.session.commit()
