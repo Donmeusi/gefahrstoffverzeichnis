@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ stoff.name }} bearbeiten - Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Gefahrstoff bearbeiten</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Abbrechen</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('edit_stoff', id=stoff.id) }}" class="form-grid"
+            enctype="multipart/form-data">
+            <div class="form-section">
+                <h3>Grunddaten</h3>
+                <div class="form-group">
+                    <label for="name" class="required">Name des Gefahrstoffs</label>
+                    <input type="text" id="name" name="name" value="{{ stoff.name }}" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cas_nummer">CAS-Nummer</label>
+                        <input type="text" id="cas_nummer" name="cas_nummer" value="{{ stoff.cas_nummer or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="eg_nummer">EG-Nummer</label>
+                        <input type="text" id="eg_nummer" name="eg_nummer" value="{{ stoff.eg_nummer or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Gefahrenhinweise (GHS)</h3>
+                <div class="form-group">
+                    <label for="signalwort">Signalwort</label>
+                    <select id="signalwort" name="signalwort">
+                        <option value="" {% if not stoff.signalwort %}selected{% endif %}>Keines</option>
+                        <option value="Achtung" {% if stoff.signalwort=='Achtung' %}selected{% endif %}>Achtung</option>
+                        <option value="Gefahr" {% if stoff.signalwort=='Gefahr' %}selected{% endif %}>Gefahr</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="h_saetze">H-Sätze</label>
+                        <input type="text" id="h_saetze" name="h_saetze" value="{{ stoff.h_saetze or '' }}" readonly
+                            style="cursor: pointer; background-color: var(--bg-main);"
+                            onclick="openHpModal('h_saetze')">
+                        <small class="form-text">Klicken zur Auswahl.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="p_saetze">P-Sätze</label>
+                        <input type="text" id="p_saetze" name="p_saetze" value="{{ stoff.p_saetze or '' }}" readonly
+                            style="cursor: pointer; background-color: var(--bg-main);"
+                            onclick="openHpModal('p_saetze')">
+                        <small class="form-text">Klicken zur Auswahl.</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Piktogramme wählen</label>
+                    <div class="pictogram-grid">
+                        {% set piktogramme_list = ['GHS01', 'GHS02', 'GHS03', 'GHS04', 'GHS05', 'GHS06', 'GHS07',
+                        'GHS08', 'GHS09'] %}
+                        {% set aktuelle_piktogramme = (stoff.piktogramme or '').split(',') %}
+                        {% for code in piktogramme_list %}
+                        <label class="pictogram-item" title="{{ code }}">
+                            <input type="checkbox" name="piktogramme" value="{{ code }}" {% if code in
+                                aktuelle_piktogramme %}checked{% endif %}>
+                            <img src="{{ url_for('static', filename='pictograms/' + code + '.svg') }}"
+                                class="pictogram-img" alt="{{ code }}">
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Bestand & Lagerung</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="menge">Menge</label>
+                        <input type="number" id="menge" name="menge" step="0.01" value="{{ stoff.menge or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="mengeneinheit">Einheit</label>
+                        <select id="mengeneinheit" name="mengeneinheit">
+                            <option value="L" {% if stoff.mengeneinheit=='L' %}selected{% endif %}>Liter (L)</option>
+                            <option value="ml" {% if stoff.mengeneinheit=='ml' %}selected{% endif %}>Milliliter (ml)
+                            </option>
+                            <option value="kg" {% if stoff.mengeneinheit=='kg' %}selected{% endif %}>Kilogramm (kg)
+                            </option>
+                            <option value="g" {% if stoff.mengeneinheit=='g' %}selected{% endif %}>Gramm (g)</option>
+                            <option value="Stk" {% if stoff.mengeneinheit=='Stk' %}selected{% endif %}>Stück</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="unterbereich_id">Standort (Bereich &rsaquo; Unterbereich)</label>
+                        <select id="unterbereich_id" name="unterbereich_id" class="form-control">
+                            <option value="">-- Kein Standort zugewiesen --</option>
+                            {% for bereich in bereiche %}
+                            <optgroup label="{{ bereich.name }}">
+                                {% for unter in bereich.unterbereiche %}
+                                <option value="{{ unter.id }}" {% if stoff.unterbereich_id==unter.id %}selected{% endif
+                                    %}>{{ unter.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="lagerort">Lagerort (Details)</label>
+                        <input type="text" id="lagerort" name="lagerort" value="{{ stoff.lagerort or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Dokumente (Optional)</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sicherheitsdatenblatt">Sicherheitsdatenblatt (SDB) ersetzen</label>
+                        {% if stoff.sicherheitsdatenblatt %}
+                        <div style="margin-bottom: 0.5rem; font-size: 0.875rem;">
+                            <i class="fa-solid fa-file-pdf" style="color: var(--danger-color);"></i> Aktuell: <a
+                                href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
+                                target="_blank">{{ stoff.sicherheitsdatenblatt }}</a>
+                        </div>
+                        {% endif %}
+                        <input type="file" id="sicherheitsdatenblatt" name="sicherheitsdatenblatt"
+                            accept=".pdf,.doc,.docx">
+                        <small class="form-text">Lädt ein neues Dokument hoch (überschreibt das alte).</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="betriebsanweisung">Betriebsanweisung (BA) ersetzen</label>
+                        {% if stoff.betriebsanweisung %}
+                        <div style="margin-bottom: 0.5rem; font-size: 0.875rem;">
+                            <i class="fa-solid fa-file-word" style="color: var(--primary-color);"></i> Aktuell: <a
+                                href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
+                                target="_blank">{{ stoff.betriebsanweisung }}</a>
+                        </div>
+                        {% endif %}
+                        <input type="file" id="betriebsanweisung" name="betriebsanweisung" accept=".pdf,.doc,.docx">
+                        <small class="form-text">Lädt ein neues Dokument hoch (überschreibt das alte).</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="https://gestis.dguv.de/search" target="_blank" class="btn btn-outline btn-sm"
+                    title="Externe Datenbank öffnen">
+                    <i class="fa-solid fa-search"></i> Stoff in GESTIS suchen
+                </a>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Änderungen
+                    speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

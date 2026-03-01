@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Stoff {{ action }} - Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <h1><i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %}"></i> Gefahrstoff {{
+        action|lower }}</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück zur
+        Übersicht</a>
+</div>
+
+<div class="card p-4 form-container" style="max-width: 600px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: #2563eb; margin-bottom: 5px;">{{ stoff.name }}</h3>
+        {% if stoff.unterbereich %}
+        <p class="text-muted" style="margin: 0;"><i class="fa-solid fa-map-marker-alt"></i> Aktueller Standort: {{
+            stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}</p>
+        {% else %}
+        <p class="text-muted" style="margin: 0;"><i class="fa-solid fa-question-circle"></i> Bisher keinem Standort
+            zugewiesen.</p>
+        {% endif %}
+    </div>
+
+    {% if action == 'Kopieren' %}
+    <div class="alert alert-info" style="font-size: 0.9rem;">
+        <i class="fa-solid fa-info-circle"></i> <strong>Hinweis:</strong> Beim Kopieren wird ein identischer neuer
+        Eintrag für diesen Gefahrstoff erstellt (inklusive aller Eigenschaften, Piktogramme und Dateiverweise) und dem
+        neuen Zielort zugewiesen. Der ursprüngliche Eintrag bleibt unverändert.
+    </div>
+    {% else %}
+    <div class="alert alert-warning" style="font-size: 0.9rem;">
+        <i class="fa-solid fa-exclamation-triangle"></i> <strong>Hinweis:</strong> Beim Verschieben wird lediglich der
+        gewählte Standort dieses Gefahrstoffs geändert.
+    </div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="form-group mb-4">
+            <label for="unterbereich_id">Neuer Zielort (Unterbereich)</label>
+            <select id="unterbereich_id" name="unterbereich_id" class="form-control" required size="8"
+                style="padding: 10px;">
+                {% if not bereiche %}
+                <option disabled>Keine Bereiche vorhanden. Bitte zuerst Standorte anlegen.</option>
+                {% else %}
+                {% for bereich in bereiche %}
+                <optgroup label="{{ bereich.name }}">
+                    {% for unter in bereich.unterbereiche %}
+                    <option value="{{ unter.id }}">{{ unter.name }}</option>
+                    {% endfor %}
+                    {% if not bereich.unterbereiche %}
+                    <option disabled>&nbsp;&nbsp;&nbsp;Keine Unterbereiche</option>
+                    {% endif %}
+                </optgroup>
+                {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-primary w-100" {% if not bereiche %}disabled{% endif %}>
+                <i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %}"></i> Jetzt {{
+                action|lower }}
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline"
+                style="width: 100px; text-align: center;">Abbrechen</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

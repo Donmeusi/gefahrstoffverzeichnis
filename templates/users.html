@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Benutzerverwaltung - Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <h1><i class="fa-solid fa-users-cog"></i> Benutzerverwaltung</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+</div>
+
+<div class="card p-4">
+    <p class="text-muted mb-4">Hier kannst du als Administrator alle registrierten Benutzer der App verwalten. Du kannst
+        Benutzern Admin-Rechte vergeben oder Accounts vollständig löschen.</p>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Benutzername</th>
+                    <th>Rolle</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td><strong>{{ user.username }}</strong></td>
+                    <td>
+                        {% if user.is_admin %}
+                        <span class="badge badge-danger"><i class="fa-solid fa-crown"></i> Admin</span>
+                        {% else %}
+                        <span class="badge badge-info">Benutzer</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions" style="display: flex; gap: 8px;">
+                        {% if user.username != 'admin' %}
+                        <form action="{{ url_for('make_admin', id=user.id) }}" method="POST" style="margin: 0;">
+                            <button type="submit"
+                                class="btn btn-sm {% if user.is_admin %}btn-outline{% else %}btn-primary{% endif %}"
+                                title="Admin-Rechte umschalten">
+                                <i class="fa-solid fa-crown"></i> {% if user.is_admin %}Rechte entziehen{% else %}Zum
+                                Admin machen{% endif %}
+                            </button>
+                        </form>
+
+                        {% if current_user.id != user.id %}
+                        <form action="{{ url_for('delete_user', id=user.id) }}" method="POST" style="margin: 0;"
+                            onsubmit="return confirm('Möchten Sie den Benutzer {{ user.username }} wirklich unwiderruflich löschen?');">
+                            <button type="submit" class="btn btn-sm btn-outline text-danger" title="Löschen"
+                                style="border-color: transparent;">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-muted" style="font-size: 0.85rem; font-style: italic;">Haupt-Account
+                            (geschützt)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

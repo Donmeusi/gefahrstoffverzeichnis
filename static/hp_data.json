@@ -1,0 +1,1264 @@
+{
+  "h_saetze": [
+    {
+      "code": "H314 \"Verursacht schwere Verätzungen der Haut und schwere Augenschäden\"",
+      "text": "H318 \"Verursacht schwere Augenschäden\""
+    },
+    {
+      "code": "H410 \"Sehr giftig für Wasserorganismen, mit langfristiger Wirkung\"",
+      "text": "H400 \"Sehr giftig für Wasserorganismen\""
+    },
+    {
+      "code": "H451 \"Kann sehr lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen\"",
+      "text": "H450 \"Kann lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen\""
+    },
+    {
+      "code": "H200",
+      "text": "Instabil, explosiv"
+    },
+    {
+      "code": "H201",
+      "text": "Explosiv, Gefahr der Massenexplosion."
+    },
+    {
+      "code": "H202",
+      "text": "Explosiv; große Gefahr durch Splitter, Spreng- und Wurfstücke."
+    },
+    {
+      "code": "H203",
+      "text": "Explosiv; Gefahr durch Feuer, Luftdruck oder Splitter, Spreng- und Wurfstücke."
+    },
+    {
+      "code": "H204",
+      "text": "Gefahr durch Feuer oder Splitter, Spreng- und Wurfstücke."
+    },
+    {
+      "code": "H205",
+      "text": "Gefahr der Massenexplosion bei Feuer."
+    },
+    {
+      "code": "H206",
+      "text": "Gefahr durch Feuer, Druckstoß oder Sprengstücke; erhöhte Explosionsgefahr, wenn das Desensibilisierungsmittel reduziert wird."
+    },
+    {
+      "code": "H207",
+      "text": "Gefahr durch Feuer oder Sprengstücke; erhöhte Explosionsgefahr, wenn das Desensibilisierungsmittel reduziert wird."
+    },
+    {
+      "code": "H208",
+      "text": "Gefahr durch Feuer; erhöhte Explosionsgefahr, wenn das Desensibilisierungsmittel reduziert wird."
+    },
+    {
+      "code": "H209",
+      "text": "Explosiv."
+    },
+    {
+      "code": "H210",
+      "text": "Sehr empfindlich."
+    },
+    {
+      "code": "H211",
+      "text": "Kann empfindlich sein."
+    },
+    {
+      "code": "H220",
+      "text": "Extrem entzündbares Gas."
+    },
+    {
+      "code": "H221",
+      "text": "Entzündbares Gas."
+    },
+    {
+      "code": "H222",
+      "text": "Extrem entzündbares Aerosol."
+    },
+    {
+      "code": "H223",
+      "text": "Entzündbares Aerosol."
+    },
+    {
+      "code": "H224",
+      "text": "Flüssigkeit und Dampf extrem entzündbar."
+    },
+    {
+      "code": "H225",
+      "text": "Flüssigkeit und Dampf leicht entzündbar."
+    },
+    {
+      "code": "H226",
+      "text": "Flüssigkeit und Dampf entzündbar."
+    },
+    {
+      "code": "H227",
+      "text": "Brennbare Flüssigkeit."
+    },
+    {
+      "code": "H228",
+      "text": "Entzündbarer Feststoff."
+    },
+    {
+      "code": "H229",
+      "text": "Behälter steht unter Druck: kann bei Erwärmung bersten."
+    },
+    {
+      "code": "H230",
+      "text": "Kann auch in Abwesenheit von Luft explosionsartig reagieren."
+    },
+    {
+      "code": "H231",
+      "text": "Kann auch in Abwesenheit von Luft bei erhöhtem Druck und/oder erhöhter Temperatur explosionsartig reagieren."
+    },
+    {
+      "code": "H232",
+      "text": "Kann sich bei Kontakt mit Luft spontan entzünden."
+    },
+    {
+      "code": "H240",
+      "text": "Erwärmung kann Explosion verursachen."
+    },
+    {
+      "code": "H241",
+      "text": "Erwärmung kann Brand oder Explosion verursachen."
+    },
+    {
+      "code": "H242",
+      "text": "Erwärmung kann Brand verursachen."
+    },
+    {
+      "code": "H250",
+      "text": "Entzündet sich in Berührung mit Luft von selbst."
+    },
+    {
+      "code": "H251",
+      "text": "Selbsterhitzungsfähig; kann in Brand geraten."
+    },
+    {
+      "code": "H252",
+      "text": "In großen Mengen selbsterhitzungsfähig; kann in Brand geraten."
+    },
+    {
+      "code": "H260",
+      "text": "In Berührung mit Wasser entstehen entzündbare Gase, die sich spontan entzünden können."
+    },
+    {
+      "code": "H261",
+      "text": "In Berührung mit Wasser entstehen entzündbare Gase."
+    },
+    {
+      "code": "H270",
+      "text": "Kann Brand verursachen oder verstärken; Oxidationsmittel."
+    },
+    {
+      "code": "H271",
+      "text": "Kann Brand oder Explosion verursachen; starkes Oxidationsmittel."
+    },
+    {
+      "code": "H272",
+      "text": "Kann Brand verstärken; Oxidationsmittel."
+    },
+    {
+      "code": "H280",
+      "text": "Enthält Gas unter Druck; kann bei Erwärmung explodieren."
+    },
+    {
+      "code": "H281",
+      "text": "Enthält tiefgekühltes Gas; kann Kälteverbrennungen oder -verletzungen verursachen."
+    },
+    {
+      "code": "H282",
+      "text": "Extrem entzündbare Chemikalie unter Druck; kann bei Erwärmung explodieren."
+    },
+    {
+      "code": "H283",
+      "text": "Entzündbare Chemikalie unter Druck; kann bei Erwärmung explodieren."
+    },
+    {
+      "code": "H284",
+      "text": "Chemikalie unter Druck; kann bei Erwärmung explodieren."
+    },
+    {
+      "code": "H290",
+      "text": "Kann gegenüber Metallen korrosiv sein."
+    },
+    {
+      "code": "H300",
+      "text": "Lebensgefahr bei Verschlucken."
+    },
+    {
+      "code": "H301",
+      "text": "Giftig bei Verschlucken."
+    },
+    {
+      "code": "H302",
+      "text": "Gesundheitsschädlich bei Verschlucken."
+    },
+    {
+      "code": "H303",
+      "text": "Kann bei Verschlucken gesundheitsschädlich sein."
+    },
+    {
+      "code": "H304",
+      "text": "Kann bei Verschlucken und Eindringen in die Atemwege tödlich sein."
+    },
+    {
+      "code": "H305",
+      "text": "Kann bei Verschlucken und Eindringen in die Atemwege gesundheitsschädlich sein."
+    },
+    {
+      "code": "H310",
+      "text": "Lebensgefahr bei Hautkontakt."
+    },
+    {
+      "code": "H311",
+      "text": "Giftig bei Hautkontakt."
+    },
+    {
+      "code": "H312",
+      "text": "Gesundheitsschädlich bei Hautkontakt."
+    },
+    {
+      "code": "H313",
+      "text": "Kann bei Hautkontakt gesundheitsschädlich sein."
+    },
+    {
+      "code": "H314",
+      "text": "Verursacht schwere Verätzungen der Haut und schwere Augenschäden."
+    },
+    {
+      "code": "H315",
+      "text": "Verursacht Hautreizungen."
+    },
+    {
+      "code": "H316",
+      "text": "Verursacht leichte Hautreizungen."
+    },
+    {
+      "code": "H317",
+      "text": "Kann allergische Hautreaktionen verursachen."
+    },
+    {
+      "code": "H318",
+      "text": "Verursacht schwere Augenschäden."
+    },
+    {
+      "code": "H319",
+      "text": "Verursacht schwere Augenreizung."
+    },
+    {
+      "code": "H320",
+      "text": "Verursacht Augenreizung."
+    },
+    {
+      "code": "H330",
+      "text": "Lebensgefahr bei Einatmen."
+    },
+    {
+      "code": "H331",
+      "text": "Giftig bei Einatmen."
+    },
+    {
+      "code": "H332",
+      "text": "Gesundheitsschädlich bei Einatmen."
+    },
+    {
+      "code": "H333",
+      "text": "Kann bei Einatmen gesundheitsschädlich sein."
+    },
+    {
+      "code": "H334",
+      "text": "Kann bei Einatmen Allergie, asthmaartige Symptome oder Atembeschwerden verursachen."
+    },
+    {
+      "code": "H335",
+      "text": "Kann die Atemwege reizen."
+    },
+    {
+      "code": "H336",
+      "text": "Kann Schläfrigkeit und Benommenheit verursachen."
+    },
+    {
+      "code": "H340",
+      "text": "Kann genetische Defekte verursachen (Expositionsweg angeben, sofern schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H341",
+      "text": "Kann vermutlich genetische Defekte verursachen (Expositionsweg angeben, sofern schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H350",
+      "text": "Kann Krebs erzeugen (Expositionsweg angeben, sofern schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H350i",
+      "text": "Kann bei Einatmen Krebs erzeugen."
+    },
+    {
+      "code": "H351",
+      "text": "Kann vermutlich Krebs erzeugen (Expositionsweg angeben, sofern schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H360",
+      "text": "Kann die Fruchtbarkeit beeinträchtigen oder das Kind im Mutterleib schädigen (konkrete Wirkung angeben, sofern bekannt) (Expositionsweg angeben, sofern schlüssig belegt ist, dass die Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H360F",
+      "text": "Kann die Fruchtbarkeit beeinträchtigen."
+    },
+    {
+      "code": "H360D",
+      "text": "Kann das Kind im Mutterleib schädigen."
+    },
+    {
+      "code": "H360FD",
+      "text": "Kann die Fruchtbarkeit beeinträchtigen. Kann das Kind im Mutterleib schädigen."
+    },
+    {
+      "code": "H360Fd",
+      "text": "Kann die Fruchtbarkeit beeinträchtigen. Kann vermutlich das Kind im Mutterleib schädigen."
+    },
+    {
+      "code": "H360Df",
+      "text": "Kann das Kind im Mutterleib schädigen. Kann vermutlich die Fruchtbarkeit beeinträchtigen."
+    },
+    {
+      "code": "H361",
+      "text": "Kann vermutlich die Fruchtbarkeit beeinträchtigen oder das Kind im Mutterleib schädigen (konkrete Wirkung angeben, sofern bekannt) (Expositionsweg angeben, sofern schlüssig belegt ist, dass die Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H361f",
+      "text": "Kann vermutlich die Fruchtbarkeit beeinträchtigen."
+    },
+    {
+      "code": "H361d",
+      "text": "Kann vermutlich das Kind im Mutterleib schädigen."
+    },
+    {
+      "code": "H361fd",
+      "text": "Kann vermutlich die Fruchtbarkeit beeinträchtigen. Kann vermutlich das Kind im Mutterleib schädigen."
+    },
+    {
+      "code": "H362",
+      "text": "Kann Säuglinge über die Muttermilch schädigen."
+    },
+    {
+      "code": "H370",
+      "text": "Schädigt die Organe (oder alle betroffenen Organe nennen, sofern bekannt) (Expositionsweg angeben, sofern schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H371",
+      "text": "Kann die Organe schädigen (oder alle betroffenen Organe nennen, sofern bekannt) (Expositionsweg angeben, sofern schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H372",
+      "text": "Schädigt die Organe (alle betroffenen Organe nennen) bei längerer oder wiederholter Exposition (Expositionsweg angeben, wenn schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H373",
+      "text": "Kann die Organe schädigen (alle betroffenen Organe nennen, sofern bekannt) bei längerer oder wiederholter Exposition (Expositionsweg angeben, wenn schlüssig belegt ist, dass diese Gefahr bei keinem anderen Expositionsweg besteht)."
+    },
+    {
+      "code": "H300+H310",
+      "text": "Lebensgefahr bei Verschlucken oder Hautkontakt."
+    },
+    {
+      "code": "H300+H330",
+      "text": "Lebensgefahr bei Verschlucken oder Einatmen."
+    },
+    {
+      "code": "H310+H330",
+      "text": "Lebensgefahr bei Hautkontakt oder Einatmen."
+    },
+    {
+      "code": "H300+H310+H330",
+      "text": "Lebensgefahr bei Verschlucken, Hautkontakt oder Einatmen."
+    },
+    {
+      "code": "H301+H311",
+      "text": "Giftig bei Verschlucken oder Hautkontakt."
+    },
+    {
+      "code": "H301+H331",
+      "text": "Giftig bei Verschlucken oder Einatmen."
+    },
+    {
+      "code": "H311+H331",
+      "text": "Giftig bei Hautkontakt oder Einatmen."
+    },
+    {
+      "code": "H301+H311+H331",
+      "text": "Giftig bei Verschlucken, Hautkontakt oder Einatmen."
+    },
+    {
+      "code": "H302+H312",
+      "text": "Gesundheitsschädlich bei Verschlucken oder Hautkontakt."
+    },
+    {
+      "code": "H302+H332",
+      "text": "Gesundheitsschädlich bei Verschlucken oder Einatmen."
+    },
+    {
+      "code": "H312+H332",
+      "text": "Gesundheitsschädlich bei Hautkontakt oder Einatmen."
+    },
+    {
+      "code": "H302+H312+H332",
+      "text": "Gesundheitsschädlich bei Verschlucken, Hautkontakt oder Einatmen."
+    },
+    {
+      "code": "H400",
+      "text": "Sehr giftig für Wasserorganismen."
+    },
+    {
+      "code": "H401",
+      "text": "Giftig für Wasserorganismen."
+    },
+    {
+      "code": "H402",
+      "text": "Schädlich für Wasserorganismen."
+    },
+    {
+      "code": "H410",
+      "text": "Sehr giftig für Wasserorganismen mit langfristiger Wirkung."
+    },
+    {
+      "code": "H411",
+      "text": "Giftig für Wasserorganismen, mit langfristiger Wirkung."
+    },
+    {
+      "code": "H412",
+      "text": "Schädlich für Wasserorganismen, mit langfristiger Wirkung."
+    },
+    {
+      "code": "H413",
+      "text": "Kann für Wasserorganismen schädlich sein, mit langfristiger Wirkung."
+    },
+    {
+      "code": "H420",
+      "text": "Schädigt die öffentliche Gesundheit und die Umwelt durch Ozonabbau in der äußeren Atmosphäre."
+    }
+  ],
+  "p_saetze": [
+    {
+      "code": "P101",
+      "text": "Ist ärztlicher Rat erforderlich, Verpackung oder Kennzeichnungsetikett bereithalten."
+    },
+    {
+      "code": "P102",
+      "text": "Darf nicht in die Hände von Kindern gelangen."
+    },
+    {
+      "code": "P103",
+      "text": "Vor Gebrauch Kennzeichnungsetikett lesen."
+    },
+    {
+      "code": "P201",
+      "text": "Vor Gebrauch besondere Anweisungen einholen."
+    },
+    {
+      "code": "P202",
+      "text": "Vor Gebrauch alle Sicherheitshinweise lesen und verstehen."
+    },
+    {
+      "code": "P210",
+      "text": "Von Hitze, heißen Oberflächen, Funken, offenen Flammen sowie anderen Zündquellenarten fernhalten. Nicht rauchen."
+    },
+    {
+      "code": "P211",
+      "text": "Nicht gegen offene Flamme oder andere Zündquelle sprühen."
+    },
+    {
+      "code": "P212",
+      "text": "Erhitzen unter Einschluss und Reduzierung des Desensibilisierungs­mittels vermeiden."
+    },
+    {
+      "code": "P220",
+      "text": "Von Kleidung und anderen brennbaren Materialien fernhalten. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Von Kleidung /…/ brennbaren Materialien fernhalten/entfernt aufbewahren.)"
+    },
+    {
+      "code": "P221",
+      "text": "(Mischen mit brennbaren Stoffen / … unbedingt verhindern.) aufgehoben"
+    },
+    {
+      "code": "P222",
+      "text": "Keinen Kontakt mit Luft zulassen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Kontakt mit Luft nicht zulassen; Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Berührung mit Luft vermeiden.)"
+    },
+    {
+      "code": "P223",
+      "text": "Keinen Kontakt mit Wasser zulassen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Kontakt mit Wasser wegen heftiger Reaktion und möglichem Aufflammen unbedingt verhindern.)"
+    },
+    {
+      "code": "P230",
+      "text": "Feucht halten mit … . (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P231",
+      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Unter inertem Gas handhaben.)"
+    },
+    {
+      "code": "P232",
+      "text": "Vor Feuchtigkeit schützen."
+    },
+    {
+      "code": "P233",
+      "text": "Behälter dicht verschlossen halten."
+    },
+    {
+      "code": "P234",
+      "text": "Nur in Originalverpackung aufbewahren. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Nur im Originalbehälter aufbewahren.)"
+    },
+    {
+      "code": "P235",
+      "text": "Kühl halten."
+    },
+    {
+      "code": "P240",
+      "text": "Behälter und zu befüllende Anlage erden."
+    },
+    {
+      "code": "P241",
+      "text": "Explosionsgeschützte"
+    },
+    {
+      "code": "P242",
+      "text": "Funkenarmes Werkzeug verwenden. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Nur funkenfreies Werkzeug verwenden.)"
+    },
+    {
+      "code": "P243",
+      "text": "Maßnahmen gegen elektrostatische Entladungen treffen."
+    },
+    {
+      "code": "P244",
+      "text": "Druckminderer frei von Fett und Öl halten."
+    },
+    {
+      "code": "P250",
+      "text": "Nicht schleifen / stoßen / reiben / … . (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P251",
+      "text": "Nicht durchstechen oder verbrennen, auch nicht nach der Verwendung."
+    },
+    {
+      "code": "P260",
+      "text": "Staub / Rauch / Gas / Nebel / Dampf / Aerosol nicht einatmen."
+    },
+    {
+      "code": "P261",
+      "text": "Einatmen von Staub / Rauch / Gas / Nebel / Dampf / Aerosol vermeiden."
+    },
+    {
+      "code": "P262",
+      "text": "Nicht in die Augen, auf die Haut oder auf die Kleidung gelangen lassen."
+    },
+    {
+      "code": "P263",
+      "text": "Berührung während der Schwangerschaft und Stillzeit vermeiden. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Kontakt während der Schwangerschaft / und der Stillzeit vermeiden.)"
+    },
+    {
+      "code": "P264",
+      "text": "Nach Gebrauch … gründlich waschen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P270",
+      "text": "Bei Gebrauch nicht essen, trinken oder rauchen."
+    },
+    {
+      "code": "P271",
+      "text": "Nur im Freien oder in gut belüfteten Räumen verwenden."
+    },
+    {
+      "code": "P272",
+      "text": "Kontaminierte Arbeitskleidung nicht außerhalb des Arbeitsplatzes tragen."
+    },
+    {
+      "code": "P273",
+      "text": "Freisetzung in die Umwelt vermeiden."
+    },
+    {
+      "code": "P280",
+      "text": "Schutzhandschuhe / Schutzkleidung / Augenschutz / Gesichtsschutz tragen."
+    },
+    {
+      "code": "P281",
+      "text": "(Vorgeschriebene persönliche Schutzausrüstung verwenden.) aufgehoben"
+    },
+    {
+      "code": "P282",
+      "text": "Schutzhandschuhe mit Kälteisolierung und zusätzlich Gesichtsschild oder Augenschutz tragen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Schutzhandschuhe / Gesichtsschild / Augenschutz mit Kälteisolierung tragen.)"
+    },
+    {
+      "code": "P283",
+      "text": "Schwer entflammbare oder flammhemmende Kleidung tragen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Schwer entflammbare / flammhemmende Kleidung tragen.)"
+    },
+    {
+      "code": "P284",
+      "text": ""
+    },
+    {
+      "code": "P285",
+      "text": "(Bei unzureichender Belüftung Atemschutz tragen.) aufgehoben"
+    },
+    {
+      "code": "P231+P232",
+      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. Vor Feuchtigkeit schützen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Unter inertem Gas handhaben. Vor Feuchtigkeit schützen.)"
+    },
+    {
+      "code": "P235+P410",
+      "text": "Kühl halten. Vor Sonnenbestrahlung schützen. aufgehoben"
+    },
+    {
+      "code": "P301",
+      "text": "Bei Verschlucken:"
+    },
+    {
+      "code": "P302",
+      "text": "Bei Berührung mit der Haut:"
+    },
+    {
+      "code": "P303",
+      "text": "Bei Berührung mit der Haut (oder dem Haar):"
+    },
+    {
+      "code": "P304",
+      "text": "Bei Einatmen:"
+    },
+    {
+      "code": "P305",
+      "text": "Bei Kontakt mit den Augen:"
+    },
+    {
+      "code": "P306",
+      "text": "Bei kontaminierter Kleidung:"
+    },
+    {
+      "code": "P307",
+      "text": "(Bei Exposition: … ) aufgehoben"
+    },
+    {
+      "code": "P308",
+      "text": "Bei Exposition oder falls betroffen:"
+    },
+    {
+      "code": "P309",
+      "text": "(Bei Exposition oder Unwohlsein: … ) aufgehoben"
+    },
+    {
+      "code": "P310",
+      "text": "Sofort Giftinformationszentrum, Arzt oder … anrufen."
+    },
+    {
+      "code": "P311",
+      "text": "Giftinformationszentrum, Arzt oder … anrufen."
+    },
+    {
+      "code": "P312",
+      "text": "Bei Unwohlsein Giftinformationszentrum / Arzt / … anrufen."
+    },
+    {
+      "code": "P313",
+      "text": "Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P314",
+      "text": "Bei Unwohlsein ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P315",
+      "text": "Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P320",
+      "text": "Besondere Behandlung dringend erforderlich (siehe … auf diesem Kennzeichnungsetikett). (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P321",
+      "text": "Besondere Behandlung (siehe … auf diesem Kennzeichnungsetikett). (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P322",
+      "text": "(Gezielte Maßnahmen (siehe … auf diesem Kennzeichnungsetikett).) aufgehoben"
+    },
+    {
+      "code": "P330",
+      "text": "Mund ausspülen."
+    },
+    {
+      "code": "P331",
+      "text": "Kein Erbrechen herbeiführen."
+    },
+    {
+      "code": "P332",
+      "text": "Bei Hautreizung:"
+    },
+    {
+      "code": "P333",
+      "text": "Bei Hautreizung oder -ausschlag:"
+    },
+    {
+      "code": "P334",
+      "text": "In kaltes Wasser tauchen"
+    },
+    {
+      "code": "P335",
+      "text": "Lose Partikel von der Haut abbürsten."
+    },
+    {
+      "code": "P336",
+      "text": "Vereiste Bereiche mit lauwarmem Wasser auftauen. Betroffenen Bereich nicht reiben."
+    },
+    {
+      "code": "P337",
+      "text": "Bei anhaltender Augenreizung:"
+    },
+    {
+      "code": "P338",
+      "text": "Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter ausspülen."
+    },
+    {
+      "code": "P340",
+      "text": "Die betroffene Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
+    },
+    {
+      "code": "P341",
+      "text": "(Bei Atembeschwerden an die frische Luft bringen und in einer Position ruhigstellen, die das Atmen erleichtert.) aufgehoben"
+    },
+    {
+      "code": "P342",
+      "text": "Bei Symptomen der Atemwege:"
+    },
+    {
+      "code": "P350",
+      "text": "(Behutsam mit viel Wasser und Seife waschen.) aufgehoben"
+    },
+    {
+      "code": "P351",
+      "text": "Einige Minuten lang behutsam mit Wasser ausspülen."
+    },
+    {
+      "code": "P352",
+      "text": "Mit viel Wasser / … waschen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Mit viel Wasser und Seife waschen.)"
+    },
+    {
+      "code": "P353",
+      "text": "Haut mit Wasser abwaschen"
+    },
+    {
+      "code": "P360",
+      "text": "Kontaminierte Kleidung und Haut sofort mit viel Wasser abwaschen und danach Kleidung ausziehen."
+    },
+    {
+      "code": "P361",
+      "text": "Alle kontaminierten Kleidungsstücke sofort ausziehen."
+    },
+    {
+      "code": "P362",
+      "text": "Kontaminierte Kleidung ausziehen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Kontaminierte Kleidung ausziehen und vor erneutem Tragen waschen.)"
+    },
+    {
+      "code": "P363",
+      "text": "Kontaminierte Kleidung vor erneutem Tragen waschen."
+    },
+    {
+      "code": "P364",
+      "text": "Und vor erneutem Tragen waschen."
+    },
+    {
+      "code": "P370",
+      "text": "Bei Brand:"
+    },
+    {
+      "code": "P371",
+      "text": "Bei Großbrand und großen Mengen:"
+    },
+    {
+      "code": "P372",
+      "text": "Explosionsgefahr. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Explosionsgefahr bei Brand.)"
+    },
+    {
+      "code": "P373",
+      "text": "Keine Brandbekämpfung, wenn das Feuer explosive Stoffe / Gemische / Erzeugnisse erreicht."
+    },
+    {
+      "code": "P374",
+      "text": "(Brandbekämpfung mit üblichen Vorsichtsmaßnahmen aus angemessener Entfernung.) aufgehoben"
+    },
+    {
+      "code": "P375",
+      "text": "Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
+    },
+    {
+      "code": "P376",
+      "text": "Undichtigkeit beseitigen, wenn gefahrlos möglich."
+    },
+    {
+      "code": "P377",
+      "text": "Brand von ausströmendem Gas: Nicht löschen, bis Undichtigkeit gefahrlos beseitigt werden kann."
+    },
+    {
+      "code": "P378",
+      "text": "… zum Löschen … verwenden. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P380",
+      "text": "Umgebung räumen."
+    },
+    {
+      "code": "P381",
+      "text": "Bei Undichtigkeit alle Zündquellen entfernen (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Alle Zündquellen entfernen, wenn gefahrlos möglich.)"
+    },
+    {
+      "code": "P390",
+      "text": "Verschüttete Mengen aufnehmen, um Materialschäden zu vermeiden."
+    },
+    {
+      "code": "P391",
+      "text": "Verschüttete Mengen aufnehmen."
+    },
+    {
+      "code": "P301+P310",
+      "text": "Bei Verschlucken: Sofort Giftinformationszentrum, Arzt oder … anrufen."
+    },
+    {
+      "code": "P301+P330+P331+P310",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P301+P312",
+      "text": "Bei Verschlucken: Bei Unwohlsein Giftinformationszentrum / Arzt / … anrufen."
+    },
+    {
+      "code": "P301+P330+P331",
+      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen. (Mit Inkrafttreten der 4. ATP am 1. Dezember 2014 aufgehoben, mit Inkrafttreten der 8. ATP am 1. Februar 2018 wieder aufgenommen)"
+    },
+    {
+      "code": "P302+P334",
+      "text": "Bei Berührung mit der Haut: In kaltes Wasser tauchen"
+    },
+    {
+      "code": "P302+P335+P334",
+      "text": "Bei Berührung mit der Haut: Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen"
+    },
+    {
+      "code": "P302+P350",
+      "text": "(Bei Kontakt mit der Haut: Behutsam mit viel Wasser und Seife waschen.) aufgehoben"
+    },
+    {
+      "code": "P302+P352",
+      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Bei Kontakt mit der Haut: Mit viel Wasser und Seife waschen.)"
+    },
+    {
+      "code": "P302+P352+P310",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P302+P352+P312",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P303+P361+P353",
+      "text": "Bei Berührung mit der Haut"
+    },
+    {
+      "code": "P303+P361+P353+P315",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P304+P340",
+      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
+    },
+    {
+      "code": "P304+P340+P310",
+      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Sofort Giftinformationszentrum oder Arzt anrufen."
+    },
+    {
+      "code": "P304+P340+P311",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P304+P340+P315",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P304+P341",
+      "text": "(Bei Einatmen: Bei Atembeschwerden an die frische Luft bringen und in einer Position ruhigstellen, die das Atmen erleichtert.) aufgehoben"
+    },
+    {
+      "code": "P305+P351+P338",
+      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen.)"
+    },
+    {
+      "code": "P305+P351+P338+P315",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P306+P360",
+      "text": "Bei Kontakt mit der Kleidung: Kontaminierte Kleidung und Haut sofort mit viel Wasser abwaschen und danach Kleidung ausziehen."
+    },
+    {
+      "code": "P307+P310",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P307+P311",
+      "text": "(Bei Exposition: Giftinformationszentrum oder Arzt anrufen.) aufgehoben"
+    },
+    {
+      "code": "P308+P310",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P308+P311",
+      "text": "Bei Exposition oder falls betroffen: Giftinformationszentrum, Arzt oder … anrufen."
+    },
+    {
+      "code": "P308+P313",
+      "text": "Bei Exposition oder falls betroffen: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P309+P310",
+      "text": "keine offizielle Kombination"
+    },
+    {
+      "code": "P309+P311",
+      "text": "(Bei Exposition oder Unwohlsein: Giftinformationszentrum oder Arzt anrufen.) aufgehoben"
+    },
+    {
+      "code": "P332+P313",
+      "text": "Bei Hautreizung: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P333+P313",
+      "text": "Bei Hautreizung oder -ausschlag: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P335+P334",
+      "text": "(Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen / nassen Verband anlegen.) aufgehoben"
+    },
+    {
+      "code": "P336+P315",
+      "text": "Vereiste Bereiche mit lauwarmem Wasser auftauen. Betroffenen Bereich nicht reiben. Sofort ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen. (Mit Inkrafttreten der 8. ATP am 1. Februar 2018 neu aufgenommen)"
+    },
+    {
+      "code": "P337+P313",
+      "text": "Bei anhaltender Augenreizung: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+    },
+    {
+      "code": "P342+P311",
+      "text": "Bei Symptomen der Atemwege: Giftinformationszentrum, Arzt oder … anrufen."
+    },
+    {
+      "code": "P361+P364",
+      "text": "Alle kontaminierten Kleidungsstücke sofort ausziehen und vor erneutem Tragen waschen."
+    },
+    {
+      "code": "P362+P364",
+      "text": "Kontaminierte Kleidung ausziehen und vor erneutem Tragen waschen."
+    },
+    {
+      "code": "P370+P376",
+      "text": "Bei Brand: Undichtigkeit beseitigen, wenn gefahrlos möglich."
+    },
+    {
+      "code": "P370+P378",
+      "text": "Bei Brand: … zum Löschen … verwenden. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P370+P380",
+      "text": "(Bei Brand: Umgebung räumen.) aufgehoben"
+    },
+    {
+      "code": "P370+P380+P375",
+      "text": "Bei Brand: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
+    },
+    {
+      "code": "P371+P380+P375",
+      "text": "Bei Großbrand und großen Mengen: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
+    },
+    {
+      "code": "P370+P372+P380+P373",
+      "text": "Bei Brand: Explosionsgefahr. Umgebung räumen. KEINE Brandbekämpfung, wenn das Feuer explosive Stoffe/Gemische/Erzeugnisse erreicht. (Mit Inkrafttreten der 8. ATP am 1. Februar 2018 neu aufgenommen)"
+    },
+    {
+      "code": "P370+P380+P375+",
+      "text": "Bei Brand: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
+    },
+    {
+      "code": "P401",
+      "text": "Aufbewahren gemäß … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: … aufbewahren.)"
+    },
+    {
+      "code": "P402",
+      "text": "An einem trockenen Ort aufbewahren."
+    },
+    {
+      "code": "P403",
+      "text": "An einem gut belüfteten Ort aufbewahren."
+    },
+    {
+      "code": "P404",
+      "text": "In einem geschlossenen Behälter aufbewahren."
+    },
+    {
+      "code": "P405",
+      "text": "Unter Verschluss aufbewahren."
+    },
+    {
+      "code": "P406",
+      "text": "In korrosionsbeständigem / … Behälter mit korrosionsbeständiger Innenauskleidung aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: In korrosionsbeständigem / … Behälter mit korrosionsbeständiger Auskleidung aufbewahren.)"
+    },
+    {
+      "code": "P407",
+      "text": "Luftspalt zwischen Stapeln / Paletten lassen."
+    },
+    {
+      "code": "P410",
+      "text": "Vor Sonnenbestrahlung schützen."
+    },
+    {
+      "code": "P411",
+      "text": "Bei Temperaturen nicht über … °C / … °F aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Bei Temperaturen von nicht mehr als … °C / … aufbewahren.)"
+    },
+    {
+      "code": "P412",
+      "text": "Nicht Temperaturen über 50 °C / 122 °F aussetzen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Nicht Temperaturen von mehr als 50 °C aussetzen.)"
+    },
+    {
+      "code": "P413",
+      "text": "Schüttgut in Mengen von mehr als … kg / … lbs bei Temperaturen nicht über … °C / … °F aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Schüttgut in Mengen von mehr als … kg bei Temperaturen von nicht mehr als … °C aufbewahren.)"
+    },
+    {
+      "code": "P420",
+      "text": "Getrennt aufbewahren. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Von anderen Materialien entfernt aufbewahren.)"
+    },
+    {
+      "code": "P422",
+      "text": "(Inhalt in / unter … aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)) aufgehoben"
+    },
+    {
+      "code": "P402+P404",
+      "text": "In einem geschlossenen Behälter an einem trockenen Ort aufbewahren."
+    },
+    {
+      "code": "P403+P233",
+      "text": "An einem gut belüfteten Ort aufbewahren. Behälter dicht verschlossen halten. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Behälter dicht verschlossen an einem gut belüfteten Ort aufbewahren.)"
+    },
+    {
+      "code": "P403+P235",
+      "text": "An einem gut belüfteten Ort aufbewahren. Kühl halten. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Kühl an einem gut belüfteten Ort aufbewahren.)"
+    },
+    {
+      "code": "P410+P403",
+      "text": "Vor Sonnenbestrahlung schützen. An einem gut belüfteten Ort aufbewahren. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Vor Sonnenbestrahlung geschützt an einem gut belüfteten Ort aufbewahren.)"
+    },
+    {
+      "code": "P410+P412",
+      "text": "Vor Sonnenbestrahlung schützen. Nicht Temperaturen über 50 °C / 122 °F aussetzen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Vor Sonnenbestrahlung schützen und nicht Temperaturen von mehr als 50 °C aussetzen.)"
+    },
+    {
+      "code": "P411+P235",
+      "text": "(Kühl und bei Temperaturen von nicht mehr als … °C aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)) aufgehoben"
+    },
+    {
+      "code": "P501",
+      "text": "Inhalt / Behälter … zuführen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+    },
+    {
+      "code": "P502",
+      "text": "Informationen zur Wiederverwendung oder Wiederverwertung bei Hersteller oder Lieferant erfragen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Informationen zur Wiederverwendung/Wiederverwertung beim Hersteller/Lieferanten erfragen.)"
+    },
+    {
+      "code": "P503",
+      "text": "Informationen zur Entsorgung/Wiederverwendung/Wiederverwertung beim Hersteller/Lieferanten/… erfragen."
+    },
+    {
+      "code": "P301+P330+P331+P310",
+      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen. Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P302+P352+P310",
+      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P302+P352+P312",
+      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Bei Unwohlsein Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P303+P361+P353+P315",
+      "text": "Bei Berührung mit der Haut"
+    },
+    {
+      "code": "P304+P340+P311",
+      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P304+P340+P315",
+      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen. (Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P305+P351+P338+P315",
+      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen. (Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P307+P310",
+      "text": "Bei Exposition: Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P308+P310",
+      "text": "Bei Exposition oder falls betroffen: Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    },
+    {
+      "code": "P309+P310",
+      "text": "Bei Exposition oder Unwohlsein: Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+    }
+  ],
+  "euh_saetze": [
+    {
+      "code": "EUH441 \"Reichert sich stark in der Umwelt und in lebenden Organismen, einschließlich Menschen, an\"",
+      "text": "EUH440 \"Reichert sich in der Umwelt und in lebenden Organismen, einschließlich Menschen, an\""
+    },
+    {
+      "code": "EUH001",
+      "text": "In trockenem Zustand explosiv. aufgehoben, durch H206 – H208 ersetzt"
+    },
+    {
+      "code": "EUH006",
+      "text": "Mit und ohne Luft explosionsfähig. aufgehoben, durch H230/P420 ersetzt"
+    },
+    {
+      "code": "EUH014",
+      "text": "Reagiert heftig mit Wasser."
+    },
+    {
+      "code": "EUH018",
+      "text": "Kann bei Verwendung explosionsfähige / entzündbare Dampf/Luft-Gemische bilden."
+    },
+    {
+      "code": "EUH019",
+      "text": "Kann explosionsfähige Peroxide bilden."
+    },
+    {
+      "code": "EUH029",
+      "text": "Entwickelt bei Berührung mit Wasser giftige Gase."
+    },
+    {
+      "code": "EUH031",
+      "text": "Entwickelt bei Berührung mit Säure giftige Gase."
+    },
+    {
+      "code": "EUH032",
+      "text": "Entwickelt bei Berührung mit Säure sehr giftige Gase."
+    },
+    {
+      "code": "EUH044",
+      "text": "Explosionsgefahr bei Erhitzen unter Einschluss."
+    },
+    {
+      "code": "EUH059",
+      "text": "Die Ozonschicht schädigend. aufgehoben, durch H420 ersetzt"
+    },
+    {
+      "code": "EUH066",
+      "text": "Wiederholter Kontakt kann zu spröder oder rissiger Haut führen."
+    },
+    {
+      "code": "EUH070",
+      "text": "Giftig bei Berührung mit den Augen."
+    },
+    {
+      "code": "EUH071",
+      "text": "Wirkt ätzend auf die Atemwege."
+    },
+    {
+      "code": "EUH201",
+      "text": "Enthält Blei. Nicht für den Anstrich von Gegenständen verwenden, die von Kindern gekaut oder gelutscht werden könnten."
+    },
+    {
+      "code": "EUH201A",
+      "text": "Achtung! Enthält Blei."
+    },
+    {
+      "code": "EUH202",
+      "text": "Cyanacrylat. Gefahr. Klebt innerhalb von Sekunden Haut und Augenlider zusammen. Darf nicht in die Hände von Kindern gelangen."
+    },
+    {
+      "code": "EUH203",
+      "text": "Enthält Chrom(VI). Kann allergische Reaktionen hervorrufen."
+    },
+    {
+      "code": "EUH204",
+      "text": "Enthält Isocyanate. Kann allergische Reaktionen hervorrufen."
+    },
+    {
+      "code": "EUH205",
+      "text": "Enthält epoxidhaltige Verbindungen. Kann allergische Reaktionen hervorrufen."
+    },
+    {
+      "code": "EUH206",
+      "text": "Achtung! Nicht zusammen mit anderen Produkten verwenden, da gefährliche Gase (Chlor) freigesetzt werden können."
+    },
+    {
+      "code": "EUH207",
+      "text": "Achtung! Enthält Cadmium. Bei der Verwendung entstehen gefährliche Dämpfe. Hinweise des Herstellers beachten. Sicherheitsanweisungen einhalten."
+    },
+    {
+      "code": "EUH208",
+      "text": "Enthält (Name des sensibilisierenden Stoffes). Kann allergische Reaktionen hervorrufen."
+    },
+    {
+      "code": "EUH209",
+      "text": "Kann bei Verwendung leicht entzündbar werden."
+    },
+    {
+      "code": "EUH209A",
+      "text": "Kann bei Verwendung entzündbar werden."
+    },
+    {
+      "code": "EUH210",
+      "text": "Sicherheitsdatenblatt auf Anfrage erhältlich."
+    },
+    {
+      "code": "EUH211",
+      "text": "Achtung! Beim Sprühen können gefährliche lungengängige Tröpfchen entstehen. Aerosol oder Nebel nicht einatmen."
+    },
+    {
+      "code": "EUH212",
+      "text": "Achtung! Bei der Verwendung kann gefährlicher lungengängiger Staub entstehen. Staub nicht einatmen."
+    },
+    {
+      "code": "EUH380",
+      "text": "Kann beim Menschen endokrine Störungen verursachen."
+    },
+    {
+      "code": "EUH381",
+      "text": "Steht in dem Verdacht, beim Menschen endokrine Störungen zu verursachen."
+    },
+    {
+      "code": "EUH401",
+      "text": "Zur Vermeidung von Risiken für Mensch und Umwelt die Gebrauchsanleitung einhalten."
+    },
+    {
+      "code": "EUH430",
+      "text": "Kann endokrine Störungen in der Umwelt verursachen."
+    },
+    {
+      "code": "EUH431",
+      "text": "Steht in dem Verdacht, endokrine Störungen in der Umwelt zu verursachen."
+    },
+    {
+      "code": "EUH440",
+      "text": "Reichert sich in der Umwelt und in lebenden Organismen, einschließlich Menschen, an."
+    },
+    {
+      "code": "EUH441",
+      "text": "Reichert sich stark in der Umwelt und in lebenden Organismen, einschließlich Menschen, an."
+    },
+    {
+      "code": "EUH450",
+      "text": "Kann lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen."
+    },
+    {
+      "code": "EUH451",
+      "text": "Kann sehr lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen."
+    }
+  ]
+}

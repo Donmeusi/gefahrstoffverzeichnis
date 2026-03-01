@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gefahrstoff-App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="{{ url_for('index') }}" class="navbar-brand">
+                <i class="fa-solid fa-flask"></i> Gefahrstoff-App
+            </a>
+            <ul class="nav-links">
+                {% if current_user.is_authenticated %}
+                <li><span class="text-muted" style="color: #9ca3af; margin-right: 1rem;"><i
+                            class="fa-solid fa-user"></i> {{ current_user.username }}</span></li>
+                <li><a href="{{ url_for('index') }}">Übersicht</a></li>
+                <li><a href="{{ url_for('locations') }}">Standorte</a></li>
+                {% if getattr(current_user, 'is_admin', False) %}
+                <li><a href="{{ url_for('users') }}">Benutzerverwaltung</a></li>
+                {% endif %}
+                <li><a href="{{ url_for('add') }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i>
+                        Hinzufügen</a></li>
+                <li><a href="{{ url_for('profile') }}" class="btn btn-outline btn-sm"><i
+                            class="fa-solid fa-user-gear"></i> Profil</a></li>
+                <li><a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm"><i
+                            class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
+                {% else %}
+                <li><a href="{{ url_for('login') }}" class="btn btn-outline btn-sm"><i
+                            class="fa-solid fa-sign-in-alt"></i> Login</a></li>
+                <li><a href="{{ url_for('register') }}" class="btn btn-primary btn-sm"><i
+                            class="fa-solid fa-user-plus"></i> Registrieren</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container text-center">
+            <p>&copy; 2024 Gefahrstoff-Verwaltung</p>
+        </div>
+    </footer>
+
+    <!-- HP Sätze Modal -->
+    <div id="hpModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container card">
+            <div class="modal-header">
+                <h3 id="hpModalTitle">Sätze auswählen</h3>
+                <button type="button" class="btn-icon" onclick="closeHpModal()"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <input type="text" id="hpModalSearch" placeholder="Suchen (z.B. flüssigkeit, H200)..."
+                        oninput="filterHpList()">
+                </div>
+                <div id="hpModalList" class="hp-list">
+                    <!-- Checkboxes will be injected here via JS -->
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 1.5rem; text-align: right; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-outline" onclick="closeHpModal()">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="saveHpSelection()">Auswahl übernehmen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HP JS Logic -->
+    <script src="{{ url_for('static', filename='hp_modal.js') }}"></script>
+</body>
+
+</html>

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Detailansicht - {{ stoff.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="{{ url_for('index') }}" class="btn btn-outline btn-sm" title="Zurück zur Übersicht"><i
+                class="fa-solid fa-arrow-left"></i> Zurück</a>
+        <h1 style="margin: 0;">{{ stoff.name }}</h1>
+    </div>
+
+    <div class="header-actions" style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('edit_stoff', id=stoff.id) }}" class="btn btn-primary"><i class="fa-solid fa-pen"></i>
+            Bearbeiten</a>
+        <form action="{{ url_for('delete_stoff', id=stoff.id) }}" method="POST" style="display: inline;"
+            onsubmit="return confirm('Möchten Sie diesen Gefahrstoff wirklich löschen?');">
+            <button type="submit" class="btn btn-primary" style="background-color: var(--danger-color);"><i
+                    class="fa-solid fa-trash"></i> Löschen</button>
+        </form>
+    </div>
+</div>
+
+<div class="index-grid" style="grid-template-columns: 1fr 1fr;">
+    <!-- Left Column: Stammdaten -->
+    <div class="card">
+        <div class="card-body">
+            <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;"><i
+                    class="fa-solid fa-info-circle"></i> Stammdaten</h3>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
+                <strong>CAS-Nummer:</strong>
+                <span>{{ stoff.cas_nummer or '-' }}</span>
+
+                <strong>EG-Nummer:</strong>
+                <span>{{ stoff.eg_nummer or '-' }}</span>
+
+                <strong>Lagerort:</strong>
+                <span>
+                    {% if stoff.unterbereich %}
+                    {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
+                    {% else %}
+                    {{ stoff.lagerort or '-' }}
+                    {% endif %}
+                </span>
+
+                <strong>Mengebestand:</strong>
+                <span>{{ stoff.menge or '-' }} {{ stoff.mengeneinheit or '' }}</span>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; gap: 0.5rem;">
+                <a href="{{ url_for('move_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm"><i
+                        class="fa-solid fa-dolly"></i> Umbuchung (Verschieben)</a>
+                <a href="{{ url_for('copy_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm"><i
+                        class="fa-solid fa-copy"></i> Duplizieren (Kopieren)</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Gefahren & Dokumente -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        <div class="card">
+            <div class="card-body">
+                <h3
+                    style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                    <i class="fa-solid fa-skull-crossbones"></i> Einstufung & Kennzeichnung</h3>
+                <div style="margin-bottom: 1.5rem;">
+                    <strong style="display: block; margin-bottom: 0.5rem;">Signalwort:</strong>
+                    {% if stoff.signalwort == 'Gefahr' %}
+                    <span class="badge badge-danger" style="font-size: 1rem; padding: 0.5rem 1rem;">Gefahr</span>
+                    {% elif stoff.signalwort == 'Achtung' %}
+                    <span class="badge badge-warning" style="font-size: 1rem; padding: 0.5rem 1rem;">Achtung</span>
+                    {% else %}
+                    -
+                    {% endif %}
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <strong style="display: block; margin-bottom: 0.5rem;">Gefahrenpiktogramme:</strong>
+                    {% if stoff.piktogramme %}
+                    <div class="pictogram-display" style="gap: 1rem;">
+                        {% for code in stoff.piktogramme.split(',') %}
+                        {% if code %}
+                        <img src="{{ url_for('static', filename='pictograms/' ~ code.strip() ~ '.svg') }}"
+                            alt="{{ code.strip() }}" title="{{ code.strip() }}" style="width: 60px; height: 60px;">
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    -
+                    {% endif %}
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <strong>H-Sätze:</strong>
+                    <p class="text-muted" style="margin-top: 0.25rem;">{{ stoff.h_saetze or '-' }}</p>
+                </div>
+
+                <div>
+                    <strong>P-Sätze:</strong>
+                    <p class="text-muted" style="margin-top: 0.25rem;">{{ stoff.p_saetze or '-' }}</p>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <a href="https://gestis.dguv.de/search" target="_blank" class="btn btn-outline btn-sm"
+                        title="Stoff in externer Datenbank suchen">
+                        <i class="fa-solid fa-search"></i> GESTIS-Stoffdatenbank Suche
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h3
+                    style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                    <i class="fa-solid fa-folder-open"></i> Dokumente</h3>
+                <div style="display: flex; gap: 1rem;">
+                    {% if stoff.sicherheitsdatenblatt %}
+                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
+                        class="btn btn-outline" target="_blank">
+                        <i class="fa-solid fa-file-pdf"
+                            style="color: #ef4444; font-size: 1.5rem; margin-right: 0.5rem;"></i> SDB ansehen
+                    </a>
+                    {% else %}
+                    <span class="text-muted" style="padding: 0.5rem;">Kein SDB hinterlegt.</span>
+                    {% endif %}
+
+                    {% if stoff.betriebsanweisung %}
+                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="btn btn-outline"
+                        target="_blank">
+                        <i class="fa-solid fa-file-word"
+                            style="color: var(--primary-color); font-size: 1.5rem; margin-right: 0.5rem;"></i> BA
+                        ansehen
+                    </a>
+                    {% else %}
+                    <span class="text-muted" style="padding: 0.5rem;">Keine BA hinterlegt.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Profil - Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <h1><i class="fa-solid fa-user-gear"></i> Profil bearbeiten</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card p-4">
+            <h3 style="margin-top: 0;"><i class="fa-solid fa-lock"></i> Passwort ändern</h3>
+            <p class="text-muted">Hier kannst du dein persönliches Anmeldepasswort für den Account <strong>{{
+                    current_user.username }}</strong> aktualisieren.</p>
+
+            <form method="POST" action="{{ url_for('profile') }}">
+                <div class="form-group mb-3">
+                    <label for="old_password">Altes (aktuelles) Passwort</label>
+                    <input type="password" id="old_password" name="old_password" class="form-control" required>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="new_password">Neues Passwort</label>
+                    <input type="password" id="new_password" name="new_password" class="form-control" required
+                        minlength="4">
+                    <small class="text-muted">Mindestens 4 Zeichen verwenden.</small>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label for="confirm_password">Neues Passwort bestätigen</label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-save"></i> Passwort
+                    ändern</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card p-4" style="background-color: #f8fafc;">
+            <h3 style="margin-top: 0;"><i class="fa-solid fa-id-card"></i> Account Details</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><strong>Benutzername:</strong> {{ current_user.username }}</li>
+                <li style="margin-bottom: 10px;"><strong>Rolle:</strong>
+                    {% if getattr(current_user, 'is_admin', False) %}
+                    <span class="badge badge-danger"><i class="fa-solid fa-crown"></i> Administrator</span>
+                    {% else %}
+                    <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

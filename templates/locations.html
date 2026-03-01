@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Standorte verwalten - Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <h1><i class="fa-solid fa-sitemap"></i> Standorte verwalten</h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+</div>
+
+<div class="row">
+    <!-- Bereich hinzufügen -->
+    <div class="col-md-6 mb-4">
+        <div class="card p-4">
+            <h3><i class="fa-solid fa-building"></i> Neuen Bereich anlegen</h3>
+            <p class="text-muted">Ein Bereich repräsentiert z.B. ein Gebäude, eine Halle oder eine Abteilung.</p>
+            <form action="{{ url_for('locations') }}" method="POST">
+                <input type="hidden" name="action" value="add_bereich">
+                <div class="form-group mb-3">
+                    <label for="bereich_name">Name des Bereichs</label>
+                    <input type="text" id="bereich_name" name="bereich_name" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-plus"></i> Bereich
+                    speichern</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Unterbereich hinzufügen -->
+    <div class="col-md-6 mb-4">
+        <div class="card p-4">
+            <h3><i class="fa-solid fa-door-open"></i> Neuen Unterbereich anlegen</h3>
+            <p class="text-muted">Ein Unterbereich ist einem Bereich zugeordnet (z.B. Raum 101, Giftschrank).</p>
+            <form action="{{ url_for('locations') }}" method="POST">
+                <input type="hidden" name="action" value="add_unterbereich">
+                <div class="form-group mb-3">
+                    <label for="bereich_id">Übergeordneter Bereich</label>
+                    <select id="bereich_id" name="bereich_id" class="form-control" required>
+                        <option value="" disabled selected>Bitte wählen...</option>
+                        {% for bereich in bereiche %}
+                        <option value="{{ bereich.id }}">{{ bereich.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="unterbereich_name">Name des Unterbereichs</label>
+                    <input type="text" id="unterbereich_name" name="unterbereich_name" class="form-control" required>
+                </div>
+                <!-- Submit Button only active if there are areas -->
+                {% if bereiche %}
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-plus"></i> Unterbereich
+                    speichern</button>
+                {% else %}
+                <button type="submit" class="btn btn-primary w-100" disabled><i class="fa-solid fa-plus"></i> Bitte erst
+                    einen Bereich anlegen</button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card p-4 mt-4">
+    <h3><i class="fa-solid fa-list-ul"></i> Bestehende Standorte</h3>
+    <p class="text-muted">Übersicht aller Bereiche und der zugehörigen Unterbereiche.</p>
+
+    {% if bereiche %}
+    <div class="locations-list" style="margin-top: 20px;">
+        {% for bereich in bereiche %}
+        <div class="bereich-card"
+            style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #f9fafb;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: #1f2937;"><i class="fa-solid fa-building text-primary"></i> {{ bereich.name
+                    }}</h4>
+                <form action="{{ url_for('delete_bereich', id=bereich.id) }}" method="POST"
+                    onsubmit="return confirm('Möchten Sie diesen Bereich wirklich löschen? Alle Unterbereiche werden ebenfalls gelöscht!');">
+                    <button type="submit" class="btn btn-outline btn-sm text-danger"
+                        style="border-color: transparent;"><i class="fa-solid fa-trash"></i></button>
+                </form>
+            </div>
+
+            {% if bereich.unterbereiche %}
+            <ul style="list-style: none; padding-left: 20px; margin: 0;">
+                {% for unter in bereich.unterbereiche %}
+                <li
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed #e5e7eb;">
+                    <span><i class="fa-solid fa-level-up-alt fa-rotate-90 text-muted" style="margin-right: 8px;"></i> {{
+                        unter.name }}
+                        <small class="text-muted" style="margin-left: 10px;">({{ unter.gefahrstoffe|length }}
+                            Stoff(e))</small>
+                    </span>
+                    <form action="{{ url_for('delete_unterbereich', id=unter.id) }}" method="POST" style="margin: 0;"
+                        onsubmit="return confirm('Unterbereich wirklich löschen? Zugeordnete Stoffe verlieren ihren Standort.');">
+                        <button type="submit" class="btn btn-outline btn-sm"
+                            style="padding: 2px 6px; font-size: 12px; border: none;"><i
+                                class="fa-solid fa-times text-danger"></i></button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted" style="margin: 5px 0 0 20px; font-size: 0.9rem;"><em>Noch keine Unterbereiche
+                    angelegt.</em></p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Es sind noch keine Standorte hinterlegt. Beginnen Sie damit, einen neuen Bereich (z.B. Gebäude) anzulegen.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
