@@ -68,6 +68,13 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     ```
     Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
+6.  **Mit Docker ausführen:**
+    ```bash
+    # Das Image bauen und den Container starten (inklusive lokaler Volumes)
+    docker-compose up -d
+    ```
+    Die Anwendung ist anschließend unter `http://localhost:5000` erreichbar. Die Datenbank und Uploads werden dank der definierten Volumes im lokalen Verzeichnis abgelegt und bleiben auch bei einem Neustart des Containers erhalten.
+
 ---
 
 ### Verzeichnisstruktur

@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+.git/
+.gitignore
+*.db
+uploads/
+.env
+screenshots/
+take_screenshots.py
