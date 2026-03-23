@@ -1,58 +1,130 @@
 {% extends 'base.html' %}
 
-{% block title %}Profil - Gefahrstoff-App{% endblock %}
+{% block title %}Profil – Gefahrstoff-App{% endblock %}
 
 {% block content %}
-<div class="header-actions">
-    <h1><i class="fa-solid fa-user-gear"></i> Profil bearbeiten</h1>
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-user-gear" style="color:var(--primary); margin-right:0.4rem;"></i> Mein Profil</h1>
+        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">Account-Einstellungen verwalten</p>
+    </div>
     <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
 </div>
 
-<div class="row">
-    <div class="col-md-6 mb-4">
-        <div class="card p-4">
-            <h3 style="margin-top: 0;"><i class="fa-solid fa-lock"></i> Passwort ändern</h3>
-            <p class="text-muted">Hier kannst du dein persönliches Anmeldepasswort für den Account <strong>{{
-                    current_user.username }}</strong> aktualisieren.</p>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+    <!-- Passwort ändern -->
+    <div class="card">
+        <div class="card-body">
+            <div class="section-header">
+                <i class="fa-solid fa-lock icon-danger"></i>
+                <h3>Passwort ändern</h3>
+            </div>
+            <p class="text-muted mb-4" style="font-size:0.875rem;">
+                Ändere das Anmeldepasswort für den Account <strong>{{ current_user.username }}</strong>.
+            </p>
 
             <form method="POST" action="{{ url_for('profile') }}">
-                <div class="form-group mb-3">
-                    <label for="old_password">Altes (aktuelles) Passwort</label>
-                    <input type="password" id="old_password" name="old_password" class="form-control" required>
+                <div class="form-group">
+                    <label for="old_password">Aktuelles Passwort</label>
+                    <div class="password-field">
+                        <input type="password" id="old_password" name="old_password" required
+                               placeholder="Dein aktuelles Passwort">
+                        <button type="button" class="password-toggle" onclick="togglePw('old_password', this)">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="form-group mb-3">
+                <div class="form-group">
                     <label for="new_password">Neues Passwort</label>
-                    <input type="password" id="new_password" name="new_password" class="form-control" required
-                        minlength="4">
-                    <small class="text-muted">Mindestens 4 Zeichen verwenden.</small>
+                    <div class="password-field">
+                        <input type="password" id="new_password" name="new_password" required minlength="4"
+                               placeholder="Mindestens 4 Zeichen">
+                        <button type="button" class="password-toggle" onclick="togglePw('new_password', this)">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group mb-4">
                     <label for="confirm_password">Neues Passwort bestätigen</label>
-                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                    <div class="password-field">
+                        <input type="password" id="confirm_password" name="confirm_password" required
+                               placeholder="Wiederhole das neue Passwort">
+                        <button type="button" class="password-toggle" onclick="togglePw('confirm_password', this)">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-save"></i> Passwort
-                    ändern</button>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fa-solid fa-save"></i> Passwort aktualisieren
+                </button>
             </form>
         </div>
     </div>
 
-    <div class="col-md-6 mb-4">
-        <div class="card p-4" style="background-color: #f8fafc;">
-            <h3 style="margin-top: 0;"><i class="fa-solid fa-id-card"></i> Account Details</h3>
-            <ul style="list-style: none; padding: 0;">
-                <li style="margin-bottom: 10px;"><strong>Benutzername:</strong> {{ current_user.username }}</li>
-                <li style="margin-bottom: 10px;"><strong>Rolle:</strong>
+    <!-- Account Info -->
+    <div class="card">
+        <div class="profile-hero">
+            <div class="user-avatar-lg {% if getattr(current_user, 'is_admin', False) %}avatar-admin{% else %}avatar-user{% endif %}">
+                {{ current_user.username[0]|upper }}
+            </div>
+            <div class="profile-hero-info">
+                <h2>{{ current_user.username }}</h2>
+                <p>
                     {% if getattr(current_user, 'is_admin', False) %}
-                    <span class="badge badge-danger"><i class="fa-solid fa-crown"></i> Administrator</span>
+                    <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
                     {% else %}
                     <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
                     {% endif %}
-                </li>
-            </ul>
+                </p>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="section-header">
+                <i class="fa-solid fa-id-card icon-primary"></i>
+                <h3>Account Details</h3>
+            </div>
+            <dl class="detail-grid">
+                <dt>Benutzername</dt>
+                <dd><strong>{{ current_user.username }}</strong></dd>
+
+                <dt>Benutzer-ID</dt>
+                <dd><span style="font-family:monospace; color:var(--text-muted);">#{{ current_user.id }}</span></dd>
+
+                <dt>Rolle</dt>
+                <dd>
+                    {% if getattr(current_user, 'is_admin', False) %}
+                    Vollständige Admin-Rechte
+                    {% else %}
+                    Standard-Benutzer
+                    {% endif %}
+                </dd>
+            </dl>
+
+            <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+                <a href="{{ url_for('logout') }}" class="btn btn-outline w-100"
+                   style="border-color:var(--danger-light); color:var(--danger);"
+                   onclick="return confirm('Wirklich ausloggen?');">
+                    <i class="fa-solid fa-right-from-bracket"></i> Abmelden
+                </a>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function togglePw(id, btn) {
+    const inp = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+    } else {
+        inp.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+    }
+}
+</script>
 {% endblock %}

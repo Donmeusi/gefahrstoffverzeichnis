@@ -1,18 +1,26 @@
 {% extends 'base.html' %}
 
-{% block title %}Übersicht - Gefahrstoff-App{% endblock %}
+{% block title %}Übersicht – Gefahrstoff-App{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Gefahrstoff-Übersicht</h1>
-    <div style="display: flex; gap: 0.5rem;">
-        <a href="{{ url_for('export_excel') }}" class="btn btn-secondary"
-            style="background-color: #10B981; color: white; border: none;"><i class="fa-solid fa-file-excel"></i> Excel
-            Export</a>
-        <a href="{{ url_for('export_pdf') }}" class="btn btn-secondary"
-            style="background-color: #EF4444; color: white; border: none;"><i class="fa-solid fa-file-pdf"></i> PDF
-            Export</a>
-        <a href="{{ url_for('add') }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Neuer Gefahrstoff</a>
+    <div>
+        <h1><i class="fa-solid fa-table-list" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff-Übersicht</h1>
+        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+            {% if aktiver_bereich %}Standort: <strong>{{ aktiver_bereich.name }}</strong>{% else %}Alle Standorte{% endif %}
+            · <strong>{{ gefahrstoffe|length }}</strong> Stoff(e)
+        </p>
+    </div>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <a href="{{ url_for('export_excel') }}" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#059669;">
+            <i class="fa-solid fa-file-excel"></i> Excel
+        </a>
+        <a href="{{ url_for('export_pdf') }}" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#dc2626;">
+            <i class="fa-solid fa-file-pdf"></i> PDF
+        </a>
+        <a href="{{ url_for('add') }}" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-plus"></i> Neuer Gefahrstoff
+        </a>
     </div>
 </div>
 
@@ -27,18 +35,24 @@
             <hr class="nav-divider">
             {% for bereich in bereiche %}
             <a href="{{ url_for('index', bereich_id=bereich.id) }}"
-                class="location-link {% if aktiver_bereich and aktiver_bereich.id == bereich.id %}active{% endif %}">
+               class="location-link {% if aktiver_bereich and aktiver_bereich.id == bereich.id %}active{% endif %}">
                 <i class="fa-solid fa-map-marker-alt"></i> {{ bereich.name }}
             </a>
             {% endfor %}
         </nav>
     </aside>
 
-    <!-- Main Table Area -->
+    <!-- Main Content -->
     <div class="main-content">
         {% if gefahrstoffe %}
+        <!-- Live Search -->
+        <div class="search-bar-wrapper">
+            <i class="fa-solid fa-search"></i>
+            <input type="text" class="search-bar" id="tableSearch" placeholder="Gefahrstoff suchen…" oninput="filterTable()">
+        </div>
+
         <div class="table-responsive">
-            <table class="data-table">
+            <table class="data-table" id="gefahrstoffTable">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -55,29 +69,32 @@
                     <tr>
                         <td>
                             <a href="{{ url_for('view_stoff', id=stoff.id) }}"
-                                style="text-decoration: none; color: var(--text-main);">
-                                <strong>{{ stoff.name }} <i class="fa-solid fa-arrow-right"
-                                        style="font-size: 0.8em; margin-left: 0.25rem; color: var(--primary-color);"></i></strong>
+                               style="color:var(--text-main); font-weight:600; display:flex; align-items:center; gap:0.4rem;">
+                                {{ stoff.name }}
+                                <i class="fa-solid fa-chevron-right" style="font-size:0.65em; color:var(--primary); opacity:0.7;"></i>
                             </a>
                         </td>
-                        <td>{{ stoff.cas_nummer or '-' }} <br><small class="text-muted">{{ stoff.eg_nummer or ''
-                                }}</small></td>
-                        <td>
+                        <td style="font-size:0.82rem;">
+                            <span>{{ stoff.cas_nummer or '–' }}</span>
+                            {% if stoff.eg_nummer %}<br><span class="text-muted">{{ stoff.eg_nummer }}</span>{% endif %}
+                        </td>
+                        <td style="font-size:0.85rem;">
                             {% if stoff.unterbereich %}
-                            <span style="font-size: 0.9em;"><i class="fa-solid fa-map-marker-alt text-muted"></i> {{
-                                stoff.unterbereich.bereich.name }}<br>
-                                &rsaquo; {{ stoff.unterbereich.name }}</span>
+                            <span style="display:flex; align-items:center; gap:0.35rem;">
+                                <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.75em;"></i>
+                                {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
+                            </span>
                             {% else %}
-                            <span class="text-muted" style="font-size: 0.9em;">-</span>
+                            <span class="text-muted">–</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if stoff.signalwort == 'Gefahr' %}
-                            <span class="badge badge-danger">Gefahr</span>
+                            <span class="badge badge-danger"><i class="fa-solid fa-skull-crossbones"></i> Gefahr</span>
                             {% elif stoff.signalwort == 'Achtung' %}
-                            <span class="badge badge-warning">Achtung</span>
+                            <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Achtung</span>
                             {% else %}
-                            -
+                            <span class="text-muted">–</span>
                             {% endif %}
                         </td>
                         <td>
@@ -86,47 +103,77 @@
                                 {% for code in stoff.piktogramme.split(',') %}
                                 {% if code %}
                                 <img src="{{ url_for('static', filename='pictograms/' ~ code.strip() ~ '.svg') }}"
-                                    alt="{{ code.strip() }}" title="{{ code.strip() }}">
+                                     alt="{{ code.strip() }}" title="{{ code.strip() }}">
                                 {% endif %}
                                 {% endfor %}
                             </div>
                             {% else %}
-                            -
+                            <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td>{{ stoff.menge or '-' }} {{ stoff.mengeneinheit or '' }}</td>
+                        <td>{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
                         <td>
-                            {% if stoff.sicherheitsdatenblatt %}
-                            <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
-                                class="badge badge-warning" title="Sicherheitsdatenblatt" target="_blank"><i
-                                    class="fa-solid fa-file-pdf"></i> SDB</a>
-                            {% endif %}
-                            {% if stoff.betriebsanweisung %}
-                            <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
-                                class="badge btn-primary" style="background-color: var(--primary-color); color: white;"
-                                title="Betriebsanweisung" target="_blank"><i class="fa-solid fa-file-word"></i> BA</a>
-                            {% endif %}
-                            {% if not stoff.sicherheitsdatenblatt and not stoff.betriebsanweisung %}
-                            -
-                            {% endif %}
+                            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                                {% if stoff.sicherheitsdatenblatt %}
+                                <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
+                                   class="badge badge-danger" title="Sicherheitsdatenblatt" target="_blank"
+                                   style="text-decoration:none;">
+                                    <i class="fa-solid fa-file-pdf"></i> SDB
+                                </a>
+                                {% endif %}
+                                {% if stoff.betriebsanweisung %}
+                                <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
+                                   class="badge badge-info" title="Betriebsanweisung" target="_blank"
+                                   style="text-decoration:none;">
+                                    <i class="fa-solid fa-file-word"></i> BA
+                                </a>
+                                {% endif %}
+                                {% if not stoff.sicherheitsdatenblatt and not stoff.betriebsanweisung %}
+                                <span class="text-muted">–</span>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        <p id="noResultsMsg" style="display:none; text-align:center; padding:2rem; color:var(--text-muted);">
+            <i class="fa-solid fa-search" style="font-size:1.5rem; margin-bottom:0.5rem; display:block;"></i>
+            Keine Ergebnisse für diese Suche.
+        </p>
         {% else %}
         <div class="empty-state">
             <i class="fa-solid fa-flask placeholder-icon"></i>
             <h2>Keine Gefahrstoffe gefunden</h2>
             {% if aktiver_bereich %}
-            <p>In diesem Bereich ("{{ aktiver_bereich.name }}") befinden sich aktuell keine Gefahrstoffe.</p>
+            <p>In „{{ aktiver_bereich.name }}" sind aktuell keine Gefahrstoffe erfasst.</p>
             {% else %}
-            <p>Bisher wurden keine Gefahrstoffe in der Datenbank erfasst.</p>
+            <p>Es wurden noch keine Gefahrstoffe in der Datenbank erfasst.</p>
             {% endif %}
-            <a href="{{ url_for('add') }}" class="btn btn-primary mt-3">Neuen Gefahrstoff hinzufügen</a>
+            <a href="{{ url_for('add') }}" class="btn btn-primary mt-3">
+                <i class="fa-solid fa-plus"></i> Ersten Gefahrstoff hinzufügen
+            </a>
         </div>
         {% endif %}
     </div>
 </div>
+
+<script>
+function filterTable() {
+    const q = document.getElementById('tableSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#gefahrstoffTable tbody tr');
+    let count = 0;
+    rows.forEach(function(row) {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(q)) {
+            row.style.display = '';
+            count++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    document.getElementById('noResultsMsg').style.display = (count === 0 && q) ? 'block' : 'none';
+}
+</script>
 {% endblock %}

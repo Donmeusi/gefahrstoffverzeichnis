@@ -1,6 +1,6 @@
 # Gefahrstoffverzeichnis
 
-Eine webbasierte Applikation (Flask, Python) zur einfachen und effizienten Verwaltung von Gefahrstoffen in Unternehmen, Instituten oder im Labor-Umfeld. 
+Eine webbasierte Applikation (Flask, Python) zur einfachen und effizienten Verwaltung von Gefahrstoffen in Unternehmen, Instituten oder im Labor-Umfeld.
 
 Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen, die Verwaltung hierarchischer Standorte (Bereiche und Unterbereiche) sowie den Export der Daten als Excel (`.xlsx`) oder PDF. Eine integrierte Benutzerrollen-Funktion trennt die Sichtbarkeit von Einträgen normaler Nutzer und gewährt nur Administratoren einen Gesamtüberblick.
 
@@ -14,6 +14,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     *   GHS-Piktogrammen und Signalwort
     *   Durchsuchbare Modal-Auswahlfenster für vollständige H-, EUH- und P-Sätze
     *   Upload-Möglichkeit für Sicherheitsdatenblätter (SDB) und Betriebsanweisungen (BA) als PDF, DOC oder Bilddateien.
+*   **Live-Suche**: Echtzeit-Filterung der Gefahrstofftabelle direkt im Browser.
 *   **Übersicht und Detailansicht**: Tabellarische Übersicht, filterbar nach Standorten.
 *   **Benutzer-Isolation**: Normale Benutzer sehen und verwalten ausschließlich ihre *eigenen* angelegten Datensätze. Administratoren können alle Gefahrstoffe systemweit einsehen, verschieben, kopieren und löschen.
 *   **Export-Funktion**: Exportieren Sie angezeigte Datensätze als Excel-Tabelle oder PDF-Dokument (ebenfalls nutzerbasiert gefiltert).
@@ -53,24 +54,22 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 3.  **Abhängigkeiten installieren:**
     ```bash
-    pip install Flask Flask-SQLAlchemy Flask-Login Werkzeug pandas openpyxl reportlab
+    pip install -r requirements.txt
     ```
 
 4.  **Datenbank & Initialisierung:**
-    Beim ersten Start erstellt die Applikation automatisch eine leere SQLite-Datenbankdatei (`gefahrstoffe.db`) sowie einen Ordner `uploads/` für Dokumente. 
+    Beim ersten Start erstellt die Applikation automatisch eine leere SQLite-Datenbankdatei (`gefahrstoffe.db`) sowie einen Ordner `uploads/` für Dokumente.
     
     *Wichtig:* Der allererste Account, der über `/register` angelegt wird, erhält **dauerhaft** Administrator-Rechte. Starten Sie das System und legen Sie diesen sofort an!
 
 5.  **Anwendung starten:**
     ```bash
-    # Für Entwicklungszwecke lokal ausführen:
     python main.py
     ```
     Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 6.  **Mit Docker ausführen:**
     ```bash
-    # Das Image bauen und den Container starten (inklusive lokaler Volumes)
     docker-compose up -d
     ```
     Die Anwendung ist anschließend unter `http://localhost:5000` erreichbar. Die Datenbank und Uploads werden dank der definierten Volumes im lokalen Verzeichnis abgelegt und bleiben auch bei einem Neustart des Containers erhalten.
@@ -78,10 +77,29 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ---
 
 ### Verzeichnisstruktur
-*   `/main.py` - Zentrale Flask-Routen, Datenbank-Modelle und Logik.
-*   `/static/` - Statische Dateien (`style.css`, H/P-Sätze Logik `hp_modal.js`, `hp_data.json` sowie `pictograms/`).
-*   `/templates/` - Jinja2 HTML Layouts (Base-Template, Login, Register, Index, Forms).
-*   `/uploads/` - Lokaler Speicherort für die durch Nutzer hochgeladenen Dokumente.
+*   `/main.py` – Zentrale Flask-Routen, Datenbank-Modelle und Logik.
+*   `/static/` – Statische Dateien (`style.css`, H/P-Sätze Logik `hp_modal.js`, `hp_data.json` sowie `pictograms/`).
+*   `/templates/` – Jinja2 HTML Layouts (Base-Template, Login, Register, Index, Forms).
+*   `/uploads/` – Lokaler Speicherort für die durch Nutzer hochgeladenen Dokumente.
 
 ## Sicherheitshinweis
 Für den absoluten Produktivbetrieb sollte der `FLASK_SECRET_KEY` als Umgebungsvariable gesetzt und ein WSGI-Server (wie *Gunicorn* oder *Waitress*) anstelle des integrierten Flask-Entwicklungsservers verwendet werden.
+
+---
+
+## Changelog
+
+### v2.0 – Visuelles Redesign (März 2026)
+*   **Komplett überarbeitetes Design-System** (`style.css`):
+    *   Premium-Farbpalette: Dunkles Navy + Electric Indigo + Teal-Akzentfarbe
+    *   Glassmorphism-Navbar mit animiertem Gradient-Brand-Text
+    *   Micro-Animationen: Seiten-Fade-In, Modal-Pop, Button-Lift-Hover
+    *   Alle fehlenden Utility-Klassen ergänzt (`row`, `col-md-6`, `w-100`, `mb-*`, `p-*`, etc.)
+*   **Login & Registrierung**: Full-Screen Auth-Layout mit animiertem Hintergrundgradient, Glassmorphism-Karte und Passwort-Auge-Toggle
+*   **Navbar**: Gradient-Brand-Text, grüner Online-Indikator, Mobile Hamburger-Menü (Pure CSS)
+*   **Übersichtsseite**: Live-Suchfeld (JavaScript-Filter), Stoff-Counter, Icon-Badges für Signalwörter
+*   **Detailansicht**: Farbige Icon-Badges pro Sektion (`section-header`), strukturiertes `dl/dt/dd`-Detailraster
+*   **Formulare** (Hinzufügen & Bearbeiten): Nummerierte, farbkodierte Section-Badges (1–4), gestylte Datei-Inputs
+*   **Standorte**: Echtes CSS-Grid-Layout, neue `bereich-card` mit Unterbereich-Chips und Stoff-Counter
+*   **Benutzerverwaltung**: Benutzer-Avatare mit Initialen (Gold = Admin, Blau = Standard-User)
+*   **Profil**: Großer Avatar-Hero-Bereich, Passwort-Toggle in allen Passwort-Feldern, Logout-Button

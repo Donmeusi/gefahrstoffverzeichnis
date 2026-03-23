@@ -1,143 +1,157 @@
 {% extends 'base.html' %}
 
-{% block title %}Detailansicht - {{ stoff.name }}{% endblock %}
+{% block title %}{{ stoff.name }} – Gefahrstoff-App{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <div style="display: flex; align-items: center; gap: 1rem;">
-        <a href="{{ url_for('index') }}" class="btn btn-outline btn-sm" title="Zurück zur Übersicht"><i
-                class="fa-solid fa-arrow-left"></i> Zurück</a>
-        <h1 style="margin: 0;">{{ stoff.name }}</h1>
+    <div style="display:flex; align-items:center; gap:1rem;">
+        <a href="{{ url_for('index') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+        <h1 style="margin:0;">{{ stoff.name }}</h1>
+        {% if stoff.signalwort == 'Gefahr' %}
+        <span class="badge badge-danger"><i class="fa-solid fa-skull-crossbones"></i> Gefahr</span>
+        {% elif stoff.signalwort == 'Achtung' %}
+        <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Achtung</span>
+        {% endif %}
     </div>
-
-    <div class="header-actions" style="display: flex; gap: 0.5rem;">
-        <a href="{{ url_for('edit_stoff', id=stoff.id) }}" class="btn btn-primary"><i class="fa-solid fa-pen"></i>
-            Bearbeiten</a>
-        <form action="{{ url_for('delete_stoff', id=stoff.id) }}" method="POST" style="display: inline;"
-            onsubmit="return confirm('Möchten Sie diesen Gefahrstoff wirklich löschen?');">
-            <button type="submit" class="btn btn-primary" style="background-color: var(--danger-color);"><i
-                    class="fa-solid fa-trash"></i> Löschen</button>
+    <div style="display:flex; gap:0.5rem;">
+        <a href="{{ url_for('edit_stoff', id=stoff.id) }}" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-pen"></i> Bearbeiten
+        </a>
+        <form action="{{ url_for('delete_stoff', id=stoff.id) }}" method="POST" style="display:inline;"
+              onsubmit="return confirm('Gefahrstoff wirklich löschen?');">
+            <button type="submit" class="btn btn-danger btn-sm">
+                <i class="fa-solid fa-trash"></i> Löschen
+            </button>
         </form>
     </div>
 </div>
 
-<div class="index-grid" style="grid-template-columns: 1fr 1fr;">
-    <!-- Left Column: Stammdaten -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+    <!-- Left: Stammdaten -->
     <div class="card">
         <div class="card-body">
-            <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;"><i
-                    class="fa-solid fa-info-circle"></i> Stammdaten</h3>
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
-                <strong>CAS-Nummer:</strong>
-                <span>{{ stoff.cas_nummer or '-' }}</span>
-
-                <strong>EG-Nummer:</strong>
-                <span>{{ stoff.eg_nummer or '-' }}</span>
-
-                <strong>Lagerort:</strong>
-                <span>
-                    {% if stoff.unterbereich %}
-                    {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
-                    {% else %}
-                    {{ stoff.lagerort or '-' }}
-                    {% endif %}
-                </span>
-
-                <strong>Mengebestand:</strong>
-                <span>{{ stoff.menge or '-' }} {{ stoff.mengeneinheit or '' }}</span>
+            <div class="section-header">
+                <i class="fa-solid fa-circle-info icon-info"></i>
+                <h3>Stammdaten</h3>
             </div>
+            <dl class="detail-grid">
+                <dt>CAS-Nummer</dt>
+                <dd>{{ stoff.cas_nummer or '–' }}</dd>
 
-            <div style="margin-top: 2rem; display: flex; gap: 0.5rem;">
-                <a href="{{ url_for('move_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm"><i
-                        class="fa-solid fa-dolly"></i> Umbuchung (Verschieben)</a>
-                <a href="{{ url_for('copy_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm"><i
-                        class="fa-solid fa-copy"></i> Duplizieren (Kopieren)</a>
+                <dt>EG-Nummer</dt>
+                <dd>{{ stoff.eg_nummer or '–' }}</dd>
+
+                <dt>Standort</dt>
+                <dd>
+                    {% if stoff.unterbereich %}
+                    <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); margin-right:0.3rem;"></i>
+                    {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
+                    {% elif stoff.lagerort %}
+                    {{ stoff.lagerort }}
+                    {% else %}–{% endif %}
+                </dd>
+
+                <dt>Mengenbestand</dt>
+                <dd>
+                    {% if stoff.menge %}
+                    <strong>{{ stoff.menge }}</strong> {{ stoff.mengeneinheit or '' }}
+                    {% else %}–{% endif %}
+                </dd>
+            </dl>
+
+            <div style="margin-top:1.75rem; padding-top:1rem; border-top:1px solid var(--border); display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <a href="{{ url_for('move_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm">
+                    <i class="fa-solid fa-dolly"></i> Umbuchen
+                </a>
+                <a href="{{ url_for('copy_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm">
+                    <i class="fa-solid fa-copy"></i> Duplizieren
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Right Column: Gefahren & Dokumente -->
-    <div style="display: flex; flex-direction: column; gap: 2rem;">
+    <!-- Right: GHS + Dokumente -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
         <div class="card">
             <div class="card-body">
-                <h3
-                    style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-                    <i class="fa-solid fa-skull-crossbones"></i> Einstufung & Kennzeichnung</h3>
-                <div style="margin-bottom: 1.5rem;">
-                    <strong style="display: block; margin-bottom: 0.5rem;">Signalwort:</strong>
-                    {% if stoff.signalwort == 'Gefahr' %}
-                    <span class="badge badge-danger" style="font-size: 1rem; padding: 0.5rem 1rem;">Gefahr</span>
-                    {% elif stoff.signalwort == 'Achtung' %}
-                    <span class="badge badge-warning" style="font-size: 1rem; padding: 0.5rem 1rem;">Achtung</span>
-                    {% else %}
-                    -
-                    {% endif %}
+                <div class="section-header">
+                    <i class="fa-solid fa-skull-crossbones icon-danger"></i>
+                    <h3>Einstufung &amp; Kennzeichnung</h3>
                 </div>
 
-                <div style="margin-bottom: 1.5rem;">
-                    <strong style="display: block; margin-bottom: 0.5rem;">Gefahrenpiktogramme:</strong>
+                <div style="margin-bottom:1.25rem;">
+                    <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.5rem;">Piktogramme</p>
                     {% if stoff.piktogramme %}
-                    <div class="pictogram-display" style="gap: 1rem;">
+                    <div class="pictogram-display" style="gap:0.75rem;">
                         {% for code in stoff.piktogramme.split(',') %}
                         {% if code %}
                         <img src="{{ url_for('static', filename='pictograms/' ~ code.strip() ~ '.svg') }}"
-                            alt="{{ code.strip() }}" title="{{ code.strip() }}" style="width: 60px; height: 60px;">
+                             alt="{{ code.strip() }}" title="{{ code.strip() }}" style="width:58px; height:58px;">
                         {% endif %}
                         {% endfor %}
                     </div>
                     {% else %}
-                    -
+                    <span class="text-muted">Keine Piktogramme hinterlegt</span>
                     {% endif %}
                 </div>
 
-                <div style="margin-bottom: 1rem;">
-                    <strong>H-Sätze:</strong>
-                    <p class="text-muted" style="margin-top: 0.25rem;">{{ stoff.h_saetze or '-' }}</p>
+                <div style="margin-bottom:1rem;">
+                    <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.4rem;">H-Sätze</p>
+                    <p style="font-size:0.9rem; color:var(--text-main); line-height:1.6;">{{ stoff.h_saetze or '–' }}</p>
                 </div>
 
-                <div>
-                    <strong>P-Sätze:</strong>
-                    <p class="text-muted" style="margin-top: 0.25rem;">{{ stoff.p_saetze or '-' }}</p>
+                <div style="margin-bottom:1.25rem;">
+                    <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.4rem;">P-Sätze</p>
+                    <p style="font-size:0.9rem; color:var(--text-main); line-height:1.6;">{{ stoff.p_saetze or '–' }}</p>
                 </div>
 
-                <div style="margin-top: 1.5rem;">
-                    <a href="https://gestis.dguv.de/search" target="_blank" class="btn btn-outline btn-sm"
-                        title="Stoff in externer Datenbank suchen">
-                        <i class="fa-solid fa-search"></i> GESTIS-Stoffdatenbank Suche
-                    </a>
-                </div>
+                <a href="https://gestis.dguv.de/search" target="_blank" class="btn btn-outline btn-sm">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> GESTIS-Datenbank
+                </a>
             </div>
         </div>
 
         <div class="card">
             <div class="card-body">
-                <h3
-                    style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-                    <i class="fa-solid fa-folder-open"></i> Dokumente</h3>
-                <div style="display: flex; gap: 1rem;">
+                <div class="section-header">
+                    <i class="fa-solid fa-folder-open icon-success"></i>
+                    <h3>Dokumente</h3>
+                </div>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
                     {% if stoff.sicherheitsdatenblatt %}
                     <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
-                        class="btn btn-outline" target="_blank">
-                        <i class="fa-solid fa-file-pdf"
-                            style="color: #ef4444; font-size: 1.5rem; margin-right: 0.5rem;"></i> SDB ansehen
+                       class="btn btn-outline" target="_blank"
+                       style="border-color:#fca5a5;">
+                        <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                        SDB ansehen
                     </a>
                     {% else %}
-                    <span class="text-muted" style="padding: 0.5rem;">Kein SDB hinterlegt.</span>
+                    <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
+                        <i class="fa-regular fa-file-pdf"></i> Kein SDB hinterlegt
+                    </span>
                     {% endif %}
 
                     {% if stoff.betriebsanweisung %}
-                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="btn btn-outline"
-                        target="_blank">
-                        <i class="fa-solid fa-file-word"
-                            style="color: var(--primary-color); font-size: 1.5rem; margin-right: 0.5rem;"></i> BA
-                        ansehen
+                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
+                       class="btn btn-outline" target="_blank"
+                       style="border-color:#a5b4fc;">
+                        <i class="fa-solid fa-file-word" style="color:var(--primary); font-size:1.2rem;"></i>
+                        BA ansehen
                     </a>
                     {% else %}
-                    <span class="text-muted" style="padding: 0.5rem;">Keine BA hinterlegt.</span>
+                    <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
+                        <i class="fa-regular fa-file-word"></i> Keine BA hinterlegt
+                    </span>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+@media (max-width: 768px) {
+    .view-grid { grid-template-columns: 1fr !important; }
+}
+</style>
 {% endblock %}
