@@ -3,11 +3,28 @@
 {% block title %}Übersicht – Gefahrstoff-App{% endblock %}
 
 {% block content %}
+{% macro render_sidebar_unterbereiche(unterbereich, aktiver_unterbereich, level) %}
+<a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
+   class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
+   style="padding-left: {{ 1.5 + level * 1 }}rem; font-size: 0.9em;">
+    <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size: 0.8em;"></i> {{ unterbereich.name }}
+</a>
+{% for child in unterbereich.children %}
+    {{ render_sidebar_unterbereiche(child, aktiver_unterbereich, level + 1) }}
+{% endfor %}
+{% endmacro %}
+
 <div class="page-header">
     <div>
         <h1><i class="fa-solid fa-table-list" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff-Übersicht</h1>
         <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
-            {% if aktiver_bereich %}Standort: <strong>{{ aktiver_bereich.name }}</strong>{% else %}Alle Standorte{% endif %}
+            {% if aktiver_unterbereich %}
+                Standort: <strong>{{ aktiver_unterbereich.get_full_path()|striptags }}</strong>
+            {% elif aktiver_bereich %}
+                Standort: <strong>{{ aktiver_bereich.name }}</strong>
+            {% else %}
+                Alle Standorte
+            {% endif %}
             · <strong>{{ gefahrstoffe|length }}</strong> Stoff(e)
         </p>
     </div>
@@ -35,9 +52,14 @@
             <hr class="nav-divider">
             {% for bereich in bereiche %}
             <a href="{{ url_for('index', bereich_id=bereich.id) }}"
-               class="location-link {% if aktiver_bereich and aktiver_bereich.id == bereich.id %}active{% endif %}">
+               class="location-link {% if aktiver_bereich and aktiver_bereich.id == bereich.id and not aktiver_unterbereich %}active{% endif %}">
                 <i class="fa-solid fa-map-marker-alt"></i> {{ bereich.name }}
             </a>
+            {% for unter in bereich.unterbereiche %}
+                {% if not unter.parent_id %}
+                    {{ render_sidebar_unterbereiche(unter, aktiver_unterbereich, 0) }}
+                {% endif %}
+            {% endfor %}
             {% endfor %}
         </nav>
     </aside>
@@ -45,10 +67,22 @@
     <!-- Main Content -->
     <div class="main-content">
         {% if gefahrstoffe %}
-        <!-- Live Search -->
-        <div class="search-bar-wrapper">
-            <i class="fa-solid fa-search"></i>
-            <input type="text" class="search-bar" id="tableSearch" placeholder="Gefahrstoff suchen…" oninput="filterTable()">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem;">
+            <!-- View Controls -->
+            <div class="view-controls">
+                <button class="view-btn active" onclick="setView('table')" id="btnViewTable" title="Listenansicht">
+                    <i class="fa-solid fa-list"></i>
+                </button>
+                <button class="view-btn" onclick="setView('grid')" id="btnViewGrid" title="Kachelansicht">
+                    <i class="fa-solid fa-border-all"></i>
+                </button>
+            </div>
+
+            <!-- Live Search -->
+            <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:200px;">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" class="search-bar" id="tableSearch" placeholder="Gefahrstoff suchen…" oninput="filterItems()">
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -82,7 +116,7 @@
                             {% if stoff.unterbereich %}
                             <span style="display:flex; align-items:center; gap:0.35rem;">
                                 <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.75em;"></i>
-                                {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
+                                {{ stoff.unterbereich.get_full_path()|safe }}
                             </span>
                             {% else %}
                             <span class="text-muted">–</span>
@@ -115,21 +149,34 @@
                         <td>
                             <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
                                 {% if stoff.sicherheitsdatenblatt %}
-                                <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
-                                   class="badge badge-danger" title="Sicherheitsdatenblatt" target="_blank"
-                                   style="text-decoration:none;">
-                                    <i class="fa-solid fa-file-pdf"></i> SDB
-                                </a>
+                                    {% set sdb_warn = false %}
+                                    {% if stoff.sdb_datum %}
+                                        {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
+                                        {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
+                                    {% endif %}
+                                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
+                                       class="doc-btn doc-btn-sdb" title="Sicherheitsdatenblatt" target="_blank">
+                                        <i class="fa-solid fa-file-pdf"></i> SDB
+                                        {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                                    </a>
                                 {% endif %}
+                                
                                 {% if stoff.betriebsanweisung %}
-                                <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
-                                   class="badge badge-info" title="Betriebsanweisung" target="_blank"
-                                   style="text-decoration:none;">
-                                    <i class="fa-solid fa-file-word"></i> BA
-                                </a>
+                                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
+                                       class="doc-btn doc-btn-ba" title="Betriebsanweisung" target="_blank">
+                                        <i class="fa-solid fa-file-word"></i> BA
+                                    </a>
                                 {% endif %}
-                                {% if not stoff.sicherheitsdatenblatt and not stoff.betriebsanweisung %}
-                                <span class="text-muted">–</span>
+
+                                {% if stoff.gefaehrdungsbeurteilung %}
+                                    <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}"
+                                       class="doc-btn doc-btn-gb" title="Gefährdungsbeurteilung" target="_blank">
+                                        <i class="fa-solid fa-file-shield"></i> GB
+                                    </a>
+                                {% endif %}
+                                
+                                {% if not stoff.sicherheitsdatenblatt and not stoff.betriebsanweisung and not stoff.gefaehrdungsbeurteilung %}
+                                    <span class="text-muted">–</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -138,6 +185,68 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Grid View (Konzept A) -->
+        <div class="stoff-grid" id="gefahrstoffGrid" style="display:none;">
+            {% for stoff in gefahrstoffe %}
+            {% set border_class = 'danger' if stoff.signalwort == 'Gefahr' else ('warning' if stoff.signalwort == 'Achtung' else 'normal') %}
+            <div class="stoff-card {{ border_class }} filter-item" data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|striptags|lower }}{% endif %}">
+                
+                <div class="stoff-card-header">
+                    <div>
+                        <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">{{ stoff.name }}</a>
+                        <div class="stoff-card-cas">{{ stoff.cas_nummer or 'Keine CAS' }}</div>
+                    </div>
+                    {% if stoff.piktogramme %}
+                    <div class="stoff-card-piktos">
+                        {% for code in stoff.piktogramme.split(',') %}
+                        {% if code %}
+                        <img src="{{ url_for('static', filename='pictograms/' ~ code.strip() ~ '.svg') }}" title="{{ code.strip() }}" alt="{{ code.strip() }}">
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="stoff-card-body">
+                    <div class="stoff-card-info">
+                        <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); width:16px; text-align:center;"></i>
+                        <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|safe }}{% else %}Kein Standort{% endif %}</span>
+                    </div>
+                    <div class="stoff-card-info">
+                        <i class="fa-solid fa-scale-balanced" style="color:var(--info); width:16px; text-align:center;"></i>
+                        <span>{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
+                    </div>
+                </div>
+
+                <div class="stoff-card-actions">
+                    {% if stoff.sicherheitsdatenblatt %}
+                        {% set sdb_warn = false %}
+                        {% if stoff.sdb_datum %}
+                            {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
+                            {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
+                        {% endif %}
+                        <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
+                            <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                        </a>
+                    {% endif %}
+                    
+                    {% if stoff.betriebsanweisung %}
+                        <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="doc-btn doc-btn-ba" target="_blank">
+                            <i class="fa-solid fa-file-word"></i> BA
+                        </a>
+                    {% endif %}
+
+                    {% if stoff.gefaehrdungsbeurteilung %}
+                        <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" class="doc-btn doc-btn-gb" target="_blank">
+                            <i class="fa-solid fa-file-shield"></i> GB
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
         <p id="noResultsMsg" style="display:none; text-align:center; padding:2rem; color:var(--text-muted);">
             <i class="fa-solid fa-search" style="font-size:1.5rem; margin-bottom:0.5rem; display:block;"></i>
             Keine Ergebnisse für diese Suche.
@@ -160,20 +269,67 @@
 </div>
 
 <script>
-function filterTable() {
+function setView(viewMode) {
+    const tableView = document.getElementById('gefahrstoffTable').parentElement;
+    const gridView = document.getElementById('gefahrstoffGrid');
+    const btnTable = document.getElementById('btnViewTable');
+    const btnGrid = document.getElementById('btnViewGrid');
+    
+    if (!tableView || !gridView) return;
+
+    if (viewMode === 'grid') {
+        tableView.style.display = 'none';
+        gridView.style.display = 'grid';
+        btnTable.classList.remove('active');
+        btnGrid.classList.add('active');
+        localStorage.setItem('gefahrstoffe_view', 'grid');
+    } else {
+        tableView.style.display = 'block';
+        gridView.style.display = 'none';
+        btnTable.classList.add('active');
+        btnGrid.classList.remove('active');
+        localStorage.setItem('gefahrstoffe_view', 'table');
+    }
+}
+
+function filterItems() {
     const q = document.getElementById('tableSearch').value.toLowerCase();
+    
+    // Filter Table
     const rows = document.querySelectorAll('#gefahrstoffTable tbody tr');
-    let count = 0;
+    let countTable = 0;
     rows.forEach(function(row) {
         const text = row.textContent.toLowerCase();
         if (text.includes(q)) {
             row.style.display = '';
-            count++;
+            countTable++;
         } else {
             row.style.display = 'none';
         }
     });
-    document.getElementById('noResultsMsg').style.display = (count === 0 && q) ? 'block' : 'none';
+
+    // Filter Grid
+    const cards = document.querySelectorAll('.filter-item');
+    let countGrid = 0;
+    cards.forEach(function(card) {
+        const text = card.getAttribute('data-search');
+        if (text.includes(q)) {
+            card.style.display = 'flex';
+            countGrid++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    document.getElementById('noResultsMsg').style.display = ((countTable === 0 && countGrid === 0) && q) ? 'block' : 'none';
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Restore preferred view
+    const savedView = localStorage.getItem('gefahrstoffe_view');
+    if (savedView === 'grid') {
+        setView('grid');
+    }
+});
 </script>
 {% endblock %}

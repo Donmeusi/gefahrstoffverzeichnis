@@ -24,6 +24,7 @@
             </p>
 
             <form method="POST" action="{{ url_for('profile') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="form-group">
                     <label for="old_password">Aktuelles Passwort</label>
                     <div class="password-field">

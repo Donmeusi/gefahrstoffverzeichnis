@@ -3,6 +3,13 @@
 {% block title %}Neuen Gefahrstoff erfassen – Gefahrstoff-App{% endblock %}
 
 {% block content %}
+{% macro render_unterbereich_options(unterbereich, level) %}
+<option value="{{ unterbereich.id }}">{{ ('&nbsp;' * (4 * level)) | safe }}&rsaquo; {{ unterbereich.name }}</option>
+{% for child in unterbereich.children %}
+    {{ render_unterbereich_options(child, level + 1) }}
+{% endfor %}
+{% endmacro %}
+
 <div class="page-header">
     <div>
         <h1><i class="fa-solid fa-plus-circle" style="color:var(--primary); margin-right:0.4rem;"></i> Neue Erfassung</h1>
@@ -16,6 +23,24 @@
 <div class="card">
     <div class="card-body">
         <form method="POST" action="{{ url_for('add') }}" class="form-grid" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <!-- SDB Upload Option -->
+            <div class="form-section" style="background-color: var(--primary-light); border: 1px dashed var(--primary); padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h3 style="margin:0; color:var(--primary); font-size:1.1rem;"><i class="fa-solid fa-magic"></i> Daten aus SDB importieren</h3>
+                        <p style="margin:0.2rem 0 0 0; font-size:0.85rem; color:var(--text-muted);">Lade ein PDF-Sicherheitsdatenblatt hoch, um Grunddaten automatisch vorauszufüllen.</p>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <input type="file" id="sdb_upload" accept=".pdf" style="font-size:0.85rem;">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn_parse_sdb">
+                            <i class="fa-solid fa-file-import"></i> Ausfüllen
+                        </button>
+                    </div>
+                </div>
+                <div id="sdb_status" style="margin-top:0.5rem; font-size:0.85rem; display:none; padding:0.4rem; border-radius:4px;"></div>
+            </div>
 
             <!-- Section 1 -->
             <div class="form-section">
@@ -114,7 +139,9 @@
                             {% for bereich in bereiche %}
                             <optgroup label="{{ bereich.name }}">
                                 {% for unter in bereich.unterbereiche %}
-                                <option value="{{ unter.id }}">{{ unter.name }}</option>
+                                    {% if not unter.parent_id %}
+                                        {{ render_unterbereich_options(unter, 0) }}
+                                    {% endif %}
                                 {% endfor %}
                             </optgroup>
                             {% endfor %}
@@ -145,6 +172,51 @@
                         <small class="form-text">Interne Betriebsanweisung hochladen</small>
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gefaehrdungsbeurteilung">Gefährdungsbeurteilung (GB)</label>
+                        <input type="file" id="gefaehrdungsbeurteilung" name="gefaehrdungsbeurteilung" accept=".pdf,.doc,.docx">
+                        <small class="form-text">Aktuelle Gefährdungsbeurteilung hochladen</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5 -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <span class="section-badge" style="background:var(--info-light); color:#1e40af;">5</span>
+                    <h3>Weitere Grundangaben</h3>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sdb_datum">Datum des Sicherheitsdatenblattes</label>
+                        <input type="date" id="sdb_datum" name="sdb_datum" onchange="checkSdbDate(this)">
+                        <small class="form-text">
+                            <span style="display:inline-block; width:12px; height:12px; background-color:#fef08a; border:1px solid #eab308; margin-right:4px; vertical-align:middle;"></span> &gt; 3 Jahre (Aktualisierung prüfen)<br>
+                            <span style="display:inline-block; width:12px; height:12px; background-color:#fecaca; border:1px solid #ef4444; margin-right:4px; vertical-align:middle; margin-top:4px;"></span> &gt; 5 Jahre (Dringend aktualisieren)
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>Substitutionsprüfung</label>
+                        <select id="substitutionspruefung" name="substitutionspruefung" onchange="toggleSubstFields(this)">
+                            <option value="">Bitte wählen...</option>
+                            <option value="ja">Ja (Ersatzstoff vorhanden)</option>
+                            <option value="nein">Nein (Kein Ersatzstoff)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" id="ersatzstoff-group" style="display:none;">
+                        <label for="ersatzstoff">Name des Ersatzstoffes</label>
+                        <input type="text" id="ersatzstoff" name="ersatzstoff" placeholder="z.B. Zitronensäure">
+                    </div>
+                    <div class="form-group" id="begruendung-group" style="display:none;">
+                        <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
+                        <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da..."></textarea>
+                    </div>
+                </div>
             </div>
 
             <div class="form-actions">
@@ -158,4 +230,138 @@
         </form>
     </div>
 </div>
+
+<script>
+function checkSdbDate(input) {
+    if (!input.value) {
+        input.style.backgroundColor = '';
+        return;
+    }
+    const sdbDate = new Date(input.value);
+    const today = new Date();
+    
+    let yearsDiff = today.getFullYear() - sdbDate.getFullYear();
+    const m = today.getMonth() - sdbDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < sdbDate.getDate())) {
+        yearsDiff--;
+    }
+    
+    if (yearsDiff >= 5) {
+        input.style.backgroundColor = '#fecaca'; // Rot
+    } else if (yearsDiff >= 3) {
+        input.style.backgroundColor = '#fef08a'; // Gelb
+    } else {
+        input.style.backgroundColor = '';
+    }
+}
+
+function toggleSubstFields(select) {
+    const ersatzstoffGroup = document.getElementById('ersatzstoff-group');
+    const begruendungGroup = document.getElementById('begruendung-group');
+    if (select.value === 'ja') {
+        ersatzstoffGroup.style.display = 'block';
+        begruendungGroup.style.display = 'none';
+    } else if (select.value === 'nein') {
+        ersatzstoffGroup.style.display = 'none';
+        begruendungGroup.style.display = 'block';
+    } else {
+        ersatzstoffGroup.style.display = 'none';
+        begruendungGroup.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sdbInput = document.getElementById('sdb_datum');
+    if (sdbInput) checkSdbDate(sdbInput);
+    
+    const substSelect = document.getElementById('substitutionspruefung');
+    if (substSelect) toggleSubstFields(substSelect);
+    
+    const btnParse = document.getElementById('btn_parse_sdb');
+    const fileInput = document.getElementById('sdb_upload');
+    const statusDiv = document.getElementById('sdb_status');
+    
+    if(btnParse && fileInput) {
+        btnParse.addEventListener('click', async () => {
+            if(!fileInput.files[0]) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.backgroundColor = '#fee2e2';
+                statusDiv.style.color = '#b91c1c';
+                statusDiv.innerText = 'Bitte wähle zuerst ein PDF aus.';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            statusDiv.style.display = 'block';
+            statusDiv.style.backgroundColor = '#e0f2fe';
+            statusDiv.style.color = '#0369a1';
+            statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dokument wird verarbeitet... Bitte warten.';
+            btnParse.disabled = true;
+            
+            try {
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                const response = await fetch('{{ url_for("parse_sdb") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if(!response.ok) {
+                    throw new Error(data.error || 'Fehler beim Verarbeiten');
+                }
+                
+                // Fill fields
+                if(data.name) document.getElementById('name').value = data.name;
+                if(data.cas) document.getElementById('cas_nummer').value = data.cas;
+                if(data.eg) document.getElementById('eg_nummer').value = data.eg;
+                if(data.signalwort) document.getElementById('signalwort').value = data.signalwort;
+                if(data.h_saetze) document.getElementById('h_saetze').value = data.h_saetze;
+                if(data.p_saetze) document.getElementById('p_saetze').value = data.p_saetze;
+                if(data.sdb_datum) {
+                    const sdbDatumInput = document.getElementById('sdb_datum');
+                    if(sdbDatumInput) {
+                        sdbDatumInput.value = data.sdb_datum;
+                        checkSdbDate(sdbDatumInput);
+                    }
+                }
+                
+                // Set the file into the regular file upload field automatically
+                const sdbDocInput = document.getElementById('sicherheitsdatenblatt');
+                if (sdbDocInput && fileInput.files.length > 0) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(fileInput.files[0]);
+                    sdbDocInput.files = dataTransfer.files;
+                }
+                
+                // Check checkboxes for Piktogramme
+                if(data.piktogramme && data.piktogramme.length > 0) {
+                    const checkboxes = document.querySelectorAll('input[name="piktogramme"]');
+                    checkboxes.forEach(cb => {
+                        if(data.piktogramme.includes(cb.value)) {
+                            cb.checked = true;
+                        }
+                    });
+                }
+                
+                statusDiv.style.backgroundColor = '#dcfce7';
+                statusDiv.style.color = '#15803d';
+                statusDiv.innerHTML = '<i class="fa-solid fa-check"></i> Daten erfolgreich extrahiert. Bitte überprüfe die Werte auf Richtigkeit!';
+                
+            } catch(e) {
+                statusDiv.style.backgroundColor = '#fee2e2';
+                statusDiv.style.color = '#b91c1c';
+                statusDiv.innerText = 'Fehler: ' + e.message;
+            } finally {
+                btnParse.disabled = false;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

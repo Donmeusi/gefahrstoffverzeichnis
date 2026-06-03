@@ -29,19 +29,28 @@
                     <span style="color:#64748b; font-size:0.82rem; padding:0 0.5rem; display:flex; align-items:center; gap:0.3rem;">
                         <i class="fa-solid fa-circle" style="font-size:0.45em; color:#10b981;"></i>
                         {{ current_user.username }}
+                        {% if current_user.role == 'admin' %}
+                        <span style="font-size:0.7rem; background:hsl(38,95%,50%); color:#fff; border-radius:4px; padding:1px 5px; margin-left:3px;">Admin</span>
+                        {% elif current_user.role == 'moderator' %}
+                        <span style="font-size:0.7rem; background:hsl(217,91%,60%); color:#fff; border-radius:4px; padding:1px 5px; margin-left:3px;">Mod</span>
+                        {% endif %}
                     </span>
                 </li>
                 <li><a href="{{ url_for('index') }}"><i class="fa-solid fa-table-list"></i> Übersicht</a></li>
+                <li><a href="{{ url_for('betriebsanweisungen_list') }}"><i class="fa-solid fa-file-pdf"></i> Betriebsanweisungen</a></li>
+                {% if current_user.role != 'benutzer' %}
                 <li><a href="{{ url_for('locations') }}"><i class="fa-solid fa-building"></i> Standorte</a></li>
-                {% if getattr(current_user, 'is_admin', False) %}
+                {% endif %}
+                {% if current_user.role in ('admin', 'moderator') %}
                 <li><a href="{{ url_for('users') }}"><i class="fa-solid fa-users-cog"></i> Benutzer</a></li>
                 {% endif %}
-                <li><a href="{{ url_for('add') }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> Hinzufügen</a></li>
+                {% if current_user.role == 'admin' %}
+                <li><a href="{{ url_for('audit_logs') }}"><i class="fa-solid fa-history"></i> Historie</a></li>
+                {% endif %}
                 <li><a href="{{ url_for('profile') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-user-gear"></i> Profil</a></li>
                 <li><a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
                 {% else %}
                 <li><a href="{{ url_for('login') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>
-                <li><a href="{{ url_for('register') }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-user-plus"></i> Registrieren</a></li>
                 {% endif %}
             </ul>
         </div>
@@ -49,6 +58,7 @@
     {% endblock %}
 
     <main class="container">
+        {% block flash_messages %}
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
@@ -59,6 +69,7 @@
         {% endfor %}
         {% endif %}
         {% endwith %}
+        {% endblock %}
 
         {% block content %}{% endblock %}
     </main>

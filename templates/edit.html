@@ -3,6 +3,15 @@
 {% block title %}{{ stoff.name }} bearbeiten – Gefahrstoff-App{% endblock %}
 
 {% block content %}
+{% macro render_unterbereich_options(unterbereich, level, stoff) %}
+<option value="{{ unterbereich.id }}" {% if stoff.unterbereich_id == unterbereich.id %}selected{% endif %}>
+    {{ ('&nbsp;' * (4 * level)) | safe }}&rsaquo; {{ unterbereich.name }}
+</option>
+{% for child in unterbereich.children %}
+    {{ render_unterbereich_options(child, level + 1, stoff) }}
+{% endfor %}
+{% endmacro %}
+
 <div class="page-header">
     <div>
         <h1><i class="fa-solid fa-pen" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff bearbeiten</h1>
@@ -16,6 +25,7 @@
 <div class="card">
     <div class="card-body">
         <form method="POST" action="{{ url_for('edit_stoff', id=stoff.id) }}" class="form-grid" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
             <!-- Section 1 -->
             <div class="form-section">
@@ -114,9 +124,9 @@
                             {% for bereich in bereiche %}
                             <optgroup label="{{ bereich.name }}">
                                 {% for unter in bereich.unterbereiche %}
-                                <option value="{{ unter.id }}" {% if stoff.unterbereich_id==unter.id %}selected{% endif %}>
-                                    {{ unter.name }}
-                                </option>
+                                    {% if not unter.parent_id %}
+                                        {{ render_unterbereich_options(unter, 0, stoff) }}
+                                    {% endif %}
                                 {% endfor %}
                             </optgroup>
                             {% endfor %}
@@ -136,33 +146,104 @@
                     <h3>Dokumente <span style="font-weight:400; color:var(--text-muted); font-size:0.85rem;">(Optional)</span></h3>
                 </div>
                 <div class="form-row">
+                    <!-- SDB -->
                     <div class="form-group">
-                        <label for="sicherheitsdatenblatt">Sicherheitsdatenblatt (SDB) ersetzen</label>
+                        <label for="sicherheitsdatenblatt">Sicherheitsdatenblatt (SDB)</label>
                         {% if stoff.sicherheitsdatenblatt %}
-                        <div style="margin-bottom:0.5rem; font-size:0.82rem; display:flex; align-items:center; gap:0.4rem;">
-                            <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i>
-                            <span style="color:var(--text-muted);">Aktuell:</span>
-                            <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" target="_blank">
-                                {{ stoff.sicherheitsdatenblatt }}
-                            </a>
+                        <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
+                            <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
+                                <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i>
+                                <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" target="_blank" style="word-break:break-all;">
+                                    {{ stoff.sicherheitsdatenblatt }}
+                                </a>
+                            </div>
+                            <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--danger); font-size:0.85rem;">
+                                <input type="checkbox" name="delete_sdb" value="1" style="width:14px; height:14px; margin:0;"> Dokument löschen
+                            </label>
                         </div>
                         {% endif %}
                         <input type="file" id="sicherheitsdatenblatt" name="sicherheitsdatenblatt" accept=".pdf,.doc,.docx">
-                        <small class="form-text">Lädt ein neues Dokument hoch (überschreibt das alte).</small>
+                        <small class="form-text">Lädt ein neues Dokument hoch{% if stoff.sicherheitsdatenblatt %} (überschreibt das alte){% endif %}.</small>
                     </div>
+
+                    <!-- BA -->
                     <div class="form-group">
-                        <label for="betriebsanweisung">Betriebsanweisung (BA) ersetzen</label>
+                        <label for="betriebsanweisung">Betriebsanweisung (BA)</label>
                         {% if stoff.betriebsanweisung %}
-                        <div style="margin-bottom:0.5rem; font-size:0.82rem; display:flex; align-items:center; gap:0.4rem;">
-                            <i class="fa-solid fa-file-word" style="color:var(--primary);"></i>
-                            <span style="color:var(--text-muted);">Aktuell:</span>
-                            <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" target="_blank">
-                                {{ stoff.betriebsanweisung }}
-                            </a>
+                        <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
+                            <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
+                                <i class="fa-solid fa-file-word" style="color:var(--primary);"></i>
+                                <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" target="_blank" style="word-break:break-all;">
+                                    {{ stoff.betriebsanweisung }}
+                                </a>
+                            </div>
+                            <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--danger); font-size:0.85rem;">
+                                <input type="checkbox" name="delete_ba" value="1" style="width:14px; height:14px; margin:0;"> Dokument löschen
+                            </label>
                         </div>
                         {% endif %}
                         <input type="file" id="betriebsanweisung" name="betriebsanweisung" accept=".pdf,.doc,.docx">
-                        <small class="form-text">Lädt ein neues Dokument hoch (überschreibt das alte).</small>
+                        <small class="form-text">Lädt ein neues Dokument hoch{% if stoff.betriebsanweisung %} (überschreibt das alte){% endif %}.</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <!-- GB -->
+                    <div class="form-group">
+                        <label for="gefaehrdungsbeurteilung">Gefährdungsbeurteilung (GB)</label>
+                        {% if stoff.gefaehrdungsbeurteilung %}
+                        <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
+                            <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
+                                <i class="fa-solid fa-file-shield" style="color:var(--success);"></i>
+                                <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" target="_blank" style="word-break:break-all;">
+                                    {{ stoff.gefaehrdungsbeurteilung }}
+                                </a>
+                            </div>
+                            <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--danger); font-size:0.85rem;">
+                                <input type="checkbox" name="delete_gb" value="1" style="width:14px; height:14px; margin:0;"> Dokument löschen
+                            </label>
+                        </div>
+                        {% endif %}
+                        <input type="file" id="gefaehrdungsbeurteilung" name="gefaehrdungsbeurteilung" accept=".pdf,.doc,.docx">
+                        <small class="form-text">Lädt ein neues Dokument hoch{% if stoff.gefaehrdungsbeurteilung %} (überschreibt das alte){% endif %}.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5 -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <span class="section-badge" style="background:var(--info-light); color:#1e40af;">5</span>
+                    <h3>Weitere Grundangaben</h3>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sdb_datum">Datum des Sicherheitsdatenblattes</label>
+                        <input type="date" id="sdb_datum" name="sdb_datum" value="{{ stoff.sdb_datum|default('', true) }}" onchange="checkSdbDate(this)">
+                        <small class="form-text">
+                            <span style="display:inline-block; width:12px; height:12px; background-color:#fef08a; border:1px solid #eab308; margin-right:4px; vertical-align:middle;"></span> &gt; 3 Jahre (Aktualisierung prüfen)<br>
+                            <span style="display:inline-block; width:12px; height:12px; background-color:#fecaca; border:1px solid #ef4444; margin-right:4px; vertical-align:middle; margin-top:4px;"></span> &gt; 5 Jahre (Dringend aktualisieren)
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>Substitutionsprüfung</label>
+                        <select id="substitutionspruefung" name="substitutionspruefung" onchange="toggleSubstFields(this)">
+                            <option value="" {% if not stoff.substitutionspruefung %}selected{% endif %}>Bitte wählen...</option>
+                            <option value="ja" {% if stoff.substitutionspruefung == 'ja' %}selected{% endif %}>Ja (Ersatzstoff vorhanden)</option>
+                            <option value="nein" {% if stoff.substitutionspruefung == 'nein' %}selected{% endif %}>Nein (Kein Ersatzstoff)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" id="ersatzstoff-group" style="display:none;">
+                        <label for="ersatzstoff">Name des Ersatzstoffes</label>
+                        <input type="text" id="ersatzstoff" name="ersatzstoff" placeholder="z.B. Zitronensäure" value="{{ stoff.ersatzstoff|default('', true) }}">
+                    </div>
+                    <div class="form-group" id="begruendung-group" style="display:none;">
+                        <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
+                        <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da...">{{ stoff.begruendung|default('', true) }}</textarea>
                     </div>
                 </div>
             </div>
@@ -178,4 +259,52 @@
         </form>
     </div>
 </div>
+
+<script>
+function checkSdbDate(input) {
+    if (!input.value) {
+        input.style.backgroundColor = '';
+        return;
+    }
+    const sdbDate = new Date(input.value);
+    const today = new Date();
+    
+    let yearsDiff = today.getFullYear() - sdbDate.getFullYear();
+    const m = today.getMonth() - sdbDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < sdbDate.getDate())) {
+        yearsDiff--;
+    }
+    
+    if (yearsDiff >= 5) {
+        input.style.backgroundColor = '#fecaca'; // Rot
+    } else if (yearsDiff >= 3) {
+        input.style.backgroundColor = '#fef08a'; // Gelb
+    } else {
+        input.style.backgroundColor = '';
+    }
+}
+
+function toggleSubstFields(select) {
+    const ersatzstoffGroup = document.getElementById('ersatzstoff-group');
+    const begruendungGroup = document.getElementById('begruendung-group');
+    if (select.value === 'ja') {
+        ersatzstoffGroup.style.display = 'block';
+        begruendungGroup.style.display = 'none';
+    } else if (select.value === 'nein') {
+        ersatzstoffGroup.style.display = 'none';
+        begruendungGroup.style.display = 'block';
+    } else {
+        ersatzstoffGroup.style.display = 'none';
+        begruendungGroup.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sdbInput = document.getElementById('sdb_datum');
+    if (sdbInput) checkSdbDate(sdbInput);
+    
+    const substSelect = document.getElementById('substitutionspruefung');
+    if (substSelect) toggleSubstFields(substSelect);
+});
+</script>
 {% endblock %}

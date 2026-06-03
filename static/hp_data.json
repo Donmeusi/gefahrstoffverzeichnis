@@ -1,18 +1,6 @@
 {
   "h_saetze": [
     {
-      "code": "H314 \"Verursacht schwere Verätzungen der Haut und schwere Augenschäden\"",
-      "text": "H318 \"Verursacht schwere Augenschäden\""
-    },
-    {
-      "code": "H410 \"Sehr giftig für Wasserorganismen, mit langfristiger Wirkung\"",
-      "text": "H400 \"Sehr giftig für Wasserorganismen\""
-    },
-    {
-      "code": "H451 \"Kann sehr lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen\"",
-      "text": "H450 \"Kann lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen\""
-    },
-    {
       "code": "H200",
       "text": "Instabil, explosiv"
     },
@@ -49,18 +37,6 @@
       "text": "Gefahr durch Feuer; erhöhte Explosionsgefahr, wenn das Desensibilisierungsmittel reduziert wird."
     },
     {
-      "code": "H209",
-      "text": "Explosiv."
-    },
-    {
-      "code": "H210",
-      "text": "Sehr empfindlich."
-    },
-    {
-      "code": "H211",
-      "text": "Kann empfindlich sein."
-    },
-    {
       "code": "H220",
       "text": "Extrem entzündbares Gas."
     },
@@ -87,10 +63,6 @@
     {
       "code": "H226",
       "text": "Flüssigkeit und Dampf entzündbar."
-    },
-    {
-      "code": "H227",
-      "text": "Brennbare Flüssigkeit."
     },
     {
       "code": "H228",
@@ -165,18 +137,6 @@
       "text": "Enthält tiefgekühltes Gas; kann Kälteverbrennungen oder -verletzungen verursachen."
     },
     {
-      "code": "H282",
-      "text": "Extrem entzündbare Chemikalie unter Druck; kann bei Erwärmung explodieren."
-    },
-    {
-      "code": "H283",
-      "text": "Entzündbare Chemikalie unter Druck; kann bei Erwärmung explodieren."
-    },
-    {
-      "code": "H284",
-      "text": "Chemikalie unter Druck; kann bei Erwärmung explodieren."
-    },
-    {
       "code": "H290",
       "text": "Kann gegenüber Metallen korrosiv sein."
     },
@@ -193,16 +153,8 @@
       "text": "Gesundheitsschädlich bei Verschlucken."
     },
     {
-      "code": "H303",
-      "text": "Kann bei Verschlucken gesundheitsschädlich sein."
-    },
-    {
       "code": "H304",
       "text": "Kann bei Verschlucken und Eindringen in die Atemwege tödlich sein."
-    },
-    {
-      "code": "H305",
-      "text": "Kann bei Verschlucken und Eindringen in die Atemwege gesundheitsschädlich sein."
     },
     {
       "code": "H310",
@@ -217,20 +169,12 @@
       "text": "Gesundheitsschädlich bei Hautkontakt."
     },
     {
-      "code": "H313",
-      "text": "Kann bei Hautkontakt gesundheitsschädlich sein."
-    },
-    {
       "code": "H314",
       "text": "Verursacht schwere Verätzungen der Haut und schwere Augenschäden."
     },
     {
       "code": "H315",
       "text": "Verursacht Hautreizungen."
-    },
-    {
-      "code": "H316",
-      "text": "Verursacht leichte Hautreizungen."
     },
     {
       "code": "H317",
@@ -245,10 +189,6 @@
       "text": "Verursacht schwere Augenreizung."
     },
     {
-      "code": "H320",
-      "text": "Verursacht Augenreizung."
-    },
-    {
       "code": "H330",
       "text": "Lebensgefahr bei Einatmen."
     },
@@ -259,10 +199,6 @@
     {
       "code": "H332",
       "text": "Gesundheitsschädlich bei Einatmen."
-    },
-    {
-      "code": "H333",
-      "text": "Kann bei Einatmen gesundheitsschädlich sein."
     },
     {
       "code": "H334",
@@ -409,14 +345,6 @@
       "text": "Sehr giftig für Wasserorganismen."
     },
     {
-      "code": "H401",
-      "text": "Giftig für Wasserorganismen."
-    },
-    {
-      "code": "H402",
-      "text": "Schädlich für Wasserorganismen."
-    },
-    {
       "code": "H410",
       "text": "Sehr giftig für Wasserorganismen mit langfristiger Wirkung."
     },
@@ -468,31 +396,27 @@
     },
     {
       "code": "P212",
-      "text": "Erhitzen unter Einschluss und Reduzierung des Desensibilisierungs­mittels vermeiden."
+      "text": "Erhitzen unter Einschluss und Reduzierung des Desensibilisierungsmittels vermeiden."
     },
     {
       "code": "P220",
-      "text": "Von Kleidung und anderen brennbaren Materialien fernhalten. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Von Kleidung /…/ brennbaren Materialien fernhalten/entfernt aufbewahren.)"
-    },
-    {
-      "code": "P221",
-      "text": "(Mischen mit brennbaren Stoffen / … unbedingt verhindern.) aufgehoben"
+      "text": "Von Kleidung und anderen brennbaren Materialien fernhalten."
     },
     {
       "code": "P222",
-      "text": "Keinen Kontakt mit Luft zulassen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Kontakt mit Luft nicht zulassen; Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Berührung mit Luft vermeiden.)"
+      "text": "Keinen Kontakt mit Luft zulassen."
     },
     {
       "code": "P223",
-      "text": "Keinen Kontakt mit Wasser zulassen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Kontakt mit Wasser wegen heftiger Reaktion und möglichem Aufflammen unbedingt verhindern.)"
+      "text": "Keinen Kontakt mit Wasser zulassen."
     },
     {
       "code": "P230",
-      "text": "Feucht halten mit … . (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Feucht halten mit … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P231",
-      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Unter inertem Gas handhaben.)"
+      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P232",
@@ -504,7 +428,7 @@
     },
     {
       "code": "P234",
-      "text": "Nur in Originalverpackung aufbewahren. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Nur im Originalbehälter aufbewahren.)"
+      "text": "Nur in Originalverpackung aufbewahren."
     },
     {
       "code": "P235",
@@ -516,11 +440,11 @@
     },
     {
       "code": "P241",
-      "text": "Explosionsgeschützte"
+      "text": "Explosionsgeschützte elektrische Betriebsmittel/Lüftungsanlagen/Beleuchtung/… verwenden. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P242",
-      "text": "Funkenarmes Werkzeug verwenden. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Nur funkenfreies Werkzeug verwenden.)"
+      "text": "Funkenarmes Werkzeug verwenden."
     },
     {
       "code": "P243",
@@ -532,7 +456,7 @@
     },
     {
       "code": "P250",
-      "text": "Nicht schleifen / stoßen / reiben / … . (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Nicht schleifen / stoßen / reiben / … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P251",
@@ -552,7 +476,7 @@
     },
     {
       "code": "P263",
-      "text": "Berührung während der Schwangerschaft und Stillzeit vermeiden. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Kontakt während der Schwangerschaft / und der Stillzeit vermeiden.)"
+      "text": "Berührung während der Schwangerschaft und Stillzeit vermeiden."
     },
     {
       "code": "P264",
@@ -579,32 +503,20 @@
       "text": "Schutzhandschuhe / Schutzkleidung / Augenschutz / Gesichtsschutz tragen."
     },
     {
-      "code": "P281",
-      "text": "(Vorgeschriebene persönliche Schutzausrüstung verwenden.) aufgehoben"
-    },
-    {
       "code": "P282",
-      "text": "Schutzhandschuhe mit Kälteisolierung und zusätzlich Gesichtsschild oder Augenschutz tragen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Schutzhandschuhe / Gesichtsschild / Augenschutz mit Kälteisolierung tragen.)"
+      "text": "Schutzhandschuhe mit Kälteisolierung und zusätzlich Gesichtsschild oder Augenschutz tragen."
     },
     {
       "code": "P283",
-      "text": "Schwer entflammbare oder flammhemmende Kleidung tragen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Schwer entflammbare / flammhemmende Kleidung tragen.)"
+      "text": "Schwer entflammbare oder flammhemmende Kleidung tragen."
     },
     {
       "code": "P284",
-      "text": ""
-    },
-    {
-      "code": "P285",
-      "text": "(Bei unzureichender Belüftung Atemschutz tragen.) aufgehoben"
+      "text": "In schlecht belüfteten Bereichen Atemschutz tragen."
     },
     {
       "code": "P231+P232",
-      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. Vor Feuchtigkeit schützen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Unter inertem Gas handhaben. Vor Feuchtigkeit schützen.)"
-    },
-    {
-      "code": "P235+P410",
-      "text": "Kühl halten. Vor Sonnenbestrahlung schützen. aufgehoben"
+      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. Vor Feuchtigkeit schützen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P301",
@@ -631,16 +543,8 @@
       "text": "Bei kontaminierter Kleidung:"
     },
     {
-      "code": "P307",
-      "text": "(Bei Exposition: … ) aufgehoben"
-    },
-    {
       "code": "P308",
       "text": "Bei Exposition oder falls betroffen:"
-    },
-    {
-      "code": "P309",
-      "text": "(Bei Exposition oder Unwohlsein: … ) aufgehoben"
     },
     {
       "code": "P310",
@@ -668,15 +572,11 @@
     },
     {
       "code": "P320",
-      "text": "Besondere Behandlung dringend erforderlich (siehe … auf diesem Kennzeichnungsetikett). (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Besondere Behandlung dringend erforderlich (siehe … auf diesem Kennzeichnungsetikett)."
     },
     {
       "code": "P321",
-      "text": "Besondere Behandlung (siehe … auf diesem Kennzeichnungsetikett). (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
-    },
-    {
-      "code": "P322",
-      "text": "(Gezielte Maßnahmen (siehe … auf diesem Kennzeichnungsetikett).) aufgehoben"
+      "text": "Besondere Behandlung (siehe … auf diesem Kennzeichnungsetikett)."
     },
     {
       "code": "P330",
@@ -696,7 +596,7 @@
     },
     {
       "code": "P334",
-      "text": "In kaltes Wasser tauchen"
+      "text": "In kaltes Wasser tauchen."
     },
     {
       "code": "P335",
@@ -719,16 +619,8 @@
       "text": "Die betroffene Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
     },
     {
-      "code": "P341",
-      "text": "(Bei Atembeschwerden an die frische Luft bringen und in einer Position ruhigstellen, die das Atmen erleichtert.) aufgehoben"
-    },
-    {
       "code": "P342",
       "text": "Bei Symptomen der Atemwege:"
-    },
-    {
-      "code": "P350",
-      "text": "(Behutsam mit viel Wasser und Seife waschen.) aufgehoben"
     },
     {
       "code": "P351",
@@ -736,11 +628,11 @@
     },
     {
       "code": "P352",
-      "text": "Mit viel Wasser / … waschen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Mit viel Wasser und Seife waschen.)"
+      "text": "Mit viel Wasser / … waschen."
     },
     {
       "code": "P353",
-      "text": "Haut mit Wasser abwaschen"
+      "text": "Haut mit Wasser abwaschen."
     },
     {
       "code": "P360",
@@ -752,7 +644,7 @@
     },
     {
       "code": "P362",
-      "text": "Kontaminierte Kleidung ausziehen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Kontaminierte Kleidung ausziehen und vor erneutem Tragen waschen.)"
+      "text": "Kontaminierte Kleidung ausziehen."
     },
     {
       "code": "P363",
@@ -772,15 +664,11 @@
     },
     {
       "code": "P372",
-      "text": "Explosionsgefahr. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Explosionsgefahr bei Brand.)"
+      "text": "Explosionsgefahr."
     },
     {
       "code": "P373",
       "text": "Keine Brandbekämpfung, wenn das Feuer explosive Stoffe / Gemische / Erzeugnisse erreicht."
-    },
-    {
-      "code": "P374",
-      "text": "(Brandbekämpfung mit üblichen Vorsichtsmaßnahmen aus angemessener Entfernung.) aufgehoben"
     },
     {
       "code": "P375",
@@ -804,7 +692,7 @@
     },
     {
       "code": "P381",
-      "text": "Bei Undichtigkeit alle Zündquellen entfernen (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Alle Zündquellen entfernen, wenn gefahrlos möglich.)"
+      "text": "Bei Undichtigkeit alle Zündquellen entfernen."
     },
     {
       "code": "P390",
@@ -819,48 +707,44 @@
       "text": "Bei Verschlucken: Sofort Giftinformationszentrum, Arzt oder … anrufen."
     },
     {
-      "code": "P301+P330+P331+P310",
-      "text": "keine offizielle Kombination"
-    },
-    {
       "code": "P301+P312",
       "text": "Bei Verschlucken: Bei Unwohlsein Giftinformationszentrum / Arzt / … anrufen."
     },
     {
       "code": "P301+P330+P331",
-      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen. (Mit Inkrafttreten der 4. ATP am 1. Dezember 2014 aufgehoben, mit Inkrafttreten der 8. ATP am 1. Februar 2018 wieder aufgenommen)"
+      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen."
+    },
+    {
+      "code": "P301+P330+P331+P310",
+      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen. Sofort Giftinformationszentrum, Arzt oder … anrufen."
     },
     {
       "code": "P302+P334",
-      "text": "Bei Berührung mit der Haut: In kaltes Wasser tauchen"
+      "text": "Bei Berührung mit der Haut: In kaltes Wasser tauchen."
     },
     {
       "code": "P302+P335+P334",
-      "text": "Bei Berührung mit der Haut: Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen"
-    },
-    {
-      "code": "P302+P350",
-      "text": "(Bei Kontakt mit der Haut: Behutsam mit viel Wasser und Seife waschen.) aufgehoben"
+      "text": "Bei Berührung mit der Haut: Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen."
     },
     {
       "code": "P302+P352",
-      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. (Bis zum Inkrafttreten der 4. ATP am 1. Dezember 2014: Bei Kontakt mit der Haut: Mit viel Wasser und Seife waschen.)"
+      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen."
     },
     {
       "code": "P302+P352+P310",
-      "text": "keine offizielle Kombination"
+      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Sofort Giftinformationszentrum, Arzt oder … anrufen."
     },
     {
       "code": "P302+P352+P312",
-      "text": "keine offizielle Kombination"
+      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Bei Unwohlsein Giftinformationszentrum, Arzt oder … anrufen."
     },
     {
       "code": "P303+P361+P353",
-      "text": "Bei Berührung mit der Haut"
+      "text": "Bei Berührung mit der Haut (oder dem Haar): Alle kontaminierten Kleidungsstücke sofort ausziehen. Haut mit Wasser abwaschen."
     },
     {
       "code": "P303+P361+P353+P315",
-      "text": "keine offizielle Kombination"
+      "text": "Bei Berührung mit der Haut (oder dem Haar): Alle kontaminierten Kleidungsstücke sofort ausziehen. Haut mit Wasser abwaschen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P304+P340",
@@ -872,39 +756,23 @@
     },
     {
       "code": "P304+P340+P311",
-      "text": "keine offizielle Kombination"
+      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Giftinformationszentrum, Arzt oder … anrufen."
     },
     {
       "code": "P304+P340+P315",
-      "text": "keine offizielle Kombination"
-    },
-    {
-      "code": "P304+P341",
-      "text": "(Bei Einatmen: Bei Atembeschwerden an die frische Luft bringen und in einer Position ruhigstellen, die das Atmen erleichtert.) aufgehoben"
+      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P305+P351+P338",
-      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen.)"
+      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen."
     },
     {
       "code": "P305+P351+P338+P315",
-      "text": "keine offizielle Kombination"
+      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P306+P360",
       "text": "Bei Kontakt mit der Kleidung: Kontaminierte Kleidung und Haut sofort mit viel Wasser abwaschen und danach Kleidung ausziehen."
-    },
-    {
-      "code": "P307+P310",
-      "text": "keine offizielle Kombination"
-    },
-    {
-      "code": "P307+P311",
-      "text": "(Bei Exposition: Giftinformationszentrum oder Arzt anrufen.) aufgehoben"
-    },
-    {
-      "code": "P308+P310",
-      "text": "keine offizielle Kombination"
     },
     {
       "code": "P308+P311",
@@ -915,14 +783,6 @@
       "text": "Bei Exposition oder falls betroffen: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
     {
-      "code": "P309+P310",
-      "text": "keine offizielle Kombination"
-    },
-    {
-      "code": "P309+P311",
-      "text": "(Bei Exposition oder Unwohlsein: Giftinformationszentrum oder Arzt anrufen.) aufgehoben"
-    },
-    {
       "code": "P332+P313",
       "text": "Bei Hautreizung: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
@@ -931,12 +791,8 @@
       "text": "Bei Hautreizung oder -ausschlag: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
     {
-      "code": "P335+P334",
-      "text": "(Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen / nassen Verband anlegen.) aufgehoben"
-    },
-    {
       "code": "P336+P315",
-      "text": "Vereiste Bereiche mit lauwarmem Wasser auftauen. Betroffenen Bereich nicht reiben. Sofort ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen. (Mit Inkrafttreten der 8. ATP am 1. Februar 2018 neu aufgenommen)"
+      "text": "Vereiste Bereiche mit lauwarmem Wasser auftauen. Betroffenen Bereich nicht reiben. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P337+P313",
@@ -963,10 +819,6 @@
       "text": "Bei Brand: … zum Löschen … verwenden. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen)"
     },
     {
-      "code": "P370+P380",
-      "text": "(Bei Brand: Umgebung räumen.) aufgehoben"
-    },
-    {
       "code": "P370+P380+P375",
       "text": "Bei Brand: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
     },
@@ -976,15 +828,11 @@
     },
     {
       "code": "P370+P372+P380+P373",
-      "text": "Bei Brand: Explosionsgefahr. Umgebung räumen. KEINE Brandbekämpfung, wenn das Feuer explosive Stoffe/Gemische/Erzeugnisse erreicht. (Mit Inkrafttreten der 8. ATP am 1. Februar 2018 neu aufgenommen)"
-    },
-    {
-      "code": "P370+P380+P375+",
-      "text": "Bei Brand: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
+      "text": "Bei Brand: Explosionsgefahr. Umgebung räumen. KEINE Brandbekämpfung, wenn das Feuer explosive Stoffe / Gemische / Erzeugnisse erreicht."
     },
     {
       "code": "P401",
-      "text": "Aufbewahren gemäß … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: … aufbewahren.)"
+      "text": "Aufbewahren gemäß … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P402",
@@ -1004,7 +852,7 @@
     },
     {
       "code": "P406",
-      "text": "In korrosionsbeständigem / … Behälter mit korrosionsbeständiger Innenauskleidung aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: In korrosionsbeständigem / … Behälter mit korrosionsbeständiger Auskleidung aufbewahren.)"
+      "text": "In korrosionsbeständigem / … Behälter mit korrosionsbeständiger Innenauskleidung aufbewahren."
     },
     {
       "code": "P407",
@@ -1016,23 +864,19 @@
     },
     {
       "code": "P411",
-      "text": "Bei Temperaturen nicht über … °C / … °F aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Bei Temperaturen von nicht mehr als … °C / … aufbewahren.)"
+      "text": "Bei Temperaturen nicht über … °C aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P412",
-      "text": "Nicht Temperaturen über 50 °C / 122 °F aussetzen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Nicht Temperaturen von mehr als 50 °C aussetzen.)"
+      "text": "Nicht Temperaturen über 50 °C aussetzen."
     },
     {
       "code": "P413",
-      "text": "Schüttgut in Mengen von mehr als … kg / … lbs bei Temperaturen nicht über … °C / … °F aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen) (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Schüttgut in Mengen von mehr als … kg bei Temperaturen von nicht mehr als … °C aufbewahren.)"
+      "text": "Schüttgut in Mengen von mehr als … kg bei Temperaturen nicht über … °C aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
     },
     {
       "code": "P420",
-      "text": "Getrennt aufbewahren. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Von anderen Materialien entfernt aufbewahren.)"
-    },
-    {
-      "code": "P422",
-      "text": "(Inhalt in / unter … aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)) aufgehoben"
+      "text": "Getrennt aufbewahren."
     },
     {
       "code": "P402+P404",
@@ -1040,23 +884,19 @@
     },
     {
       "code": "P403+P233",
-      "text": "An einem gut belüfteten Ort aufbewahren. Behälter dicht verschlossen halten. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Behälter dicht verschlossen an einem gut belüfteten Ort aufbewahren.)"
+      "text": "An einem gut belüfteten Ort aufbewahren. Behälter dicht verschlossen halten."
     },
     {
       "code": "P403+P235",
-      "text": "An einem gut belüfteten Ort aufbewahren. Kühl halten. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Kühl an einem gut belüfteten Ort aufbewahren.)"
+      "text": "An einem gut belüfteten Ort aufbewahren. Kühl halten."
     },
     {
       "code": "P410+P403",
-      "text": "Vor Sonnenbestrahlung schützen. An einem gut belüfteten Ort aufbewahren. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Vor Sonnenbestrahlung geschützt an einem gut belüfteten Ort aufbewahren.)"
+      "text": "Vor Sonnenbestrahlung schützen. An einem gut belüfteten Ort aufbewahren."
     },
     {
       "code": "P410+P412",
-      "text": "Vor Sonnenbestrahlung schützen. Nicht Temperaturen über 50 °C / 122 °F aussetzen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Vor Sonnenbestrahlung schützen und nicht Temperaturen von mehr als 50 °C aussetzen.)"
-    },
-    {
-      "code": "P411+P235",
-      "text": "(Kühl und bei Temperaturen von nicht mehr als … °C aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)) aufgehoben"
+      "text": "Vor Sonnenbestrahlung schützen. Nicht Temperaturen über 50 °C aussetzen."
     },
     {
       "code": "P501",
@@ -1064,66 +904,14 @@
     },
     {
       "code": "P502",
-      "text": "Informationen zur Wiederverwendung oder Wiederverwertung bei Hersteller oder Lieferant erfragen. (Bis zum Inkrafttreten der 8. ATP am 1. Februar 2018: Informationen zur Wiederverwendung/Wiederverwertung beim Hersteller/Lieferanten erfragen.)"
+      "text": "Informationen zur Wiederverwendung oder Wiederverwertung bei Hersteller oder Lieferant erfragen."
     },
     {
       "code": "P503",
-      "text": "Informationen zur Entsorgung/Wiederverwendung/Wiederverwertung beim Hersteller/Lieferanten/… erfragen."
-    },
-    {
-      "code": "P301+P330+P331+P310",
-      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen. Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P302+P352+P310",
-      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P302+P352+P312",
-      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Bei Unwohlsein Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P303+P361+P353+P315",
-      "text": "Bei Berührung mit der Haut"
-    },
-    {
-      "code": "P304+P340+P311",
-      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P304+P340+P315",
-      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen. (Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P305+P351+P338+P315",
-      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen. (Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P307+P310",
-      "text": "Bei Exposition: Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P308+P310",
-      "text": "Bei Exposition oder falls betroffen: Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
-    },
-    {
-      "code": "P309+P310",
-      "text": "Bei Exposition oder Unwohlsein: Sofort Giftinformationszentrum, Arzt oder … anrufen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen. Keine offizielle P-Satz-Kombination)"
+      "text": "Informationen zur Entsorgung / Wiederverwendung / Wiederverwertung beim Hersteller / Lieferanten / … erfragen."
     }
   ],
   "euh_saetze": [
-    {
-      "code": "EUH441 \"Reichert sich stark in der Umwelt und in lebenden Organismen, einschließlich Menschen, an\"",
-      "text": "EUH440 \"Reichert sich in der Umwelt und in lebenden Organismen, einschließlich Menschen, an\""
-    },
-    {
-      "code": "EUH001",
-      "text": "In trockenem Zustand explosiv. aufgehoben, durch H206 – H208 ersetzt"
-    },
-    {
-      "code": "EUH006",
-      "text": "Mit und ohne Luft explosionsfähig. aufgehoben, durch H230/P420 ersetzt"
-    },
     {
       "code": "EUH014",
       "text": "Reagiert heftig mit Wasser."
@@ -1151,10 +939,6 @@
     {
       "code": "EUH044",
       "text": "Explosionsgefahr bei Erhitzen unter Einschluss."
-    },
-    {
-      "code": "EUH059",
-      "text": "Die Ozonschicht schädigend. aufgehoben, durch H420 ersetzt"
     },
     {
       "code": "EUH066",

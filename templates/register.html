@@ -4,6 +4,7 @@
 {% block body_class %}auth-page{% endblock %}
 {% block navbar %}{% endblock %}
 {% block footer %}{% endblock %}
+{% block flash_messages %}{% endblock %}
 
 {% block content %}
 <div class="auth-card">
@@ -27,6 +28,7 @@
     {% endwith %}
 
     <form method="POST" action="{{ url_for('register') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="username">Gewünschter Benutzername</label>
             <input type="text" id="username" name="username" required autofocus placeholder="z.B. max.mustermann">

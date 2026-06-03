@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Benutzer bearbeiten – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-user-pen" style="color:var(--primary); margin-right:0.4rem;"></i> Benutzer bearbeiten</h1>
+        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+            Ändere hier die Daten von <strong>{{ user.username }}</strong>.
+        </p>
+    </div>
+    <a href="{{ url_for('users') }}" class="btn btn-outline">
+        <i class="fa-solid fa-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="card" style="max-width:640px; margin:0 auto;">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('edit_user', id=user.id) }}" class="form-grid" style="gap:1.25rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <!-- Benutzername -->
+            <div class="form-group">
+                <label for="cu_username" class="required">Benutzername</label>
+                <input type="text" id="cu_username" name="username" required
+                       value="{{ user.username }}" autocomplete="off"
+                       {% if user.username == 'admin' %}readonly style="background-color:var(--bg-subtle);"{% endif %}>
+            </div>
+
+            <!-- Passwort -->
+            <div class="form-group">
+                <label for="cu_password">Neues Passwort</label>
+                <input type="password" id="cu_password" name="password"
+                       placeholder="Leer lassen, um aktuelles Passwort beizubehalten" autocomplete="new-password">
+            </div>
+
+            <!-- Rolle -->
+            {% if user.username != 'admin' %}
+            {% if allowed_roles | length > 1 %}
+            <div class="form-group">
+                <label for="cu_role">Rolle</label>
+                <select id="cu_role" name="role" onchange="toggleBereiche(this.value)">
+                    {% for role in allowed_roles %}
+                    <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>
+                        {% if role == 'admin' %}👑 Administrator{% elif role == 'moderator' %}🛡️ Moderator{% else %}👤 Benutzer{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <input type="hidden" name="role" value="{{ user.role }}">
+            {% endif %}
+            {% else %}
+            <input type="hidden" name="role" value="admin">
+            {% endif %}
+
+            <!-- Bereichs-Zuweisung -->
+            {% if bereiche and user.username != 'admin' %}
+            <div class="form-group" id="bereich_section" style="display:block;">
+                <label>
+                    Bereiche zuweisen
+                    {% if current_user.role == 'moderator' %}
+                    <small style="font-weight:400; color:var(--text-muted);">(automatisch deine Bereiche)</small>
+                    {% endif %}
+                </label>
+
+                {% if current_user.is_admin %}
+                <div style="border:1px solid var(--border); border-radius:8px; padding:0.75rem; background:var(--bg-subtle); display:flex; flex-direction:column; gap:0.4rem; max-height:200px; overflow-y:auto;">
+                    {% for b in bereiche %}
+                    <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; font-size:0.9rem;">
+                        <input type="checkbox" name="bereich_ids" value="{{ b.id }}"
+                               {% if b in user.assigned_bereiche.all() %}checked{% endif %}
+                               style="width:15px; height:15px;">
+                        <span>
+                            <i class="fa-solid fa-building" style="color:var(--primary); font-size:0.8em;"></i>
+                            {{ b.name }}
+                            <small style="color:var(--text-muted);">({{ b.unterbereiche | length }} Unterbereich(e))</small>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <small class="form-text">Weise Moderatoren und Benutzern Bereiche zu, in denen sie Gefahrstoffe verwalten/sehen dürfen.</small>
+                {% else %}
+                <div style="border:1px solid var(--border); border-radius:8px; padding:0.75rem; background:var(--bg-subtle);">
+                    {% for b in bereiche %}
+                    <div style="display:flex; align-items:center; gap:0.5rem; padding:0.2rem 0; font-size:0.875rem;">
+                        <i class="fa-solid fa-check-circle" style="color:var(--success);"></i>
+                        {{ b.name }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <small class="form-text">Der Benutzer hat Zugriff auf deine Bereiche.</small>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Aktionen -->
+            <div class="form-actions" style="margin-top:0.5rem;">
+                <a href="{{ url_for('users') }}" class="btn btn-outline">Abbrechen</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Änderungen speichern
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleBereiche(role) {
+    const section = document.getElementById('bereich_section');
+    if (section) {
+        {% if current_user.is_admin %}
+        section.style.display = (role === 'benutzer' || role === 'moderator') ? 'block' : 'none';
+        {% else %}
+        section.style.display = (role === 'benutzer') ? 'block' : 'none';
+        {% endif %}
+    }
+}
+const roleSelect = document.getElementById('cu_role');
+if (roleSelect) toggleBereiche(roleSelect.value);
+</script>
+{% endblock %}

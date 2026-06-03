@@ -6,36 +6,52 @@
 <div class="page-header">
     <div>
         <h1><i class="fa-solid fa-users-cog" style="color:var(--primary); margin-right:0.4rem;"></i> Benutzerverwaltung</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">Alle registrierten Benutzer verwalten</p>
+        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+            {% if current_user.is_admin %}Alle Benutzer verwalten{% else %}Deine angelegten Benutzer verwalten{% endif %}
+        </p>
     </div>
-    <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+    <div style="display:flex; gap:0.75rem; align-items:center;">
+        <a href="{{ url_for('create_user') }}" class="btn btn-primary">
+            <i class="fa-solid fa-user-plus"></i> Neuen Benutzer anlegen
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-body" style="padding:0;">
-        <div style="padding:1.25rem 1.75rem; border-bottom:1px solid var(--border); background:var(--bg-subtle);">
+        <div style="padding:1rem 1.75rem; border-bottom:1px solid var(--border); background:var(--bg-subtle);">
             <p class="text-muted" style="font-size:0.875rem; margin:0;">
                 <i class="fa-solid fa-circle-info" style="color:var(--info); margin-right:0.35rem;"></i>
-                Vergib oder entziehe Admin-Rechte und manage Accounts. Der Haupt-Account <strong>admin</strong> ist geschützt.
+                {% if current_user.is_admin %}
+                    Der Account <strong>admin</strong> ist geschützt. Moderatoren können nur Benutzer mit der Rolle „Benutzer" anlegen.
+                {% else %}
+                    Du siehst nur die Benutzer, die du angelegt hast. Du kannst ihnen Bereiche zuweisen.
+                {% endif %}
             </p>
         </div>
 
+        {% if users %}
         <div class="table-responsive" style="border:none; border-radius:0; box-shadow:none;">
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>Benutzer</th>
-                        <th>ID</th>
                         <th>Rolle</th>
+                        <th>Zugewiesene Bereiche</th>
                         <th>Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
+                        <!-- Name & Avatar -->
                         <td>
                             <div style="display:flex; align-items:center; gap:0.75rem;">
-                                <span class="user-avatar {% if user.is_admin %}avatar-admin{% else %}avatar-user{% endif %}">
+                                <span class="user-avatar
+                                    {% if user.role == 'admin' %}avatar-admin
+                                    {% elif user.role == 'moderator' %}avatar-mod
+                                    {% else %}avatar-user{% endif %}">
                                     {{ user.username[0]|upper }}
                                 </span>
                                 <div>
@@ -46,41 +62,96 @@
                                 </div>
                             </div>
                         </td>
+
+                        <!-- Rolle -->
                         <td>
-                            <span style="font-size:0.8rem; color:var(--text-muted); font-family:monospace;">#{{ user.id }}</span>
-                        </td>
-                        <td>
-                            {% if user.is_admin %}
-                            <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
+                            {% if user.username == 'admin' %}
+                                <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
+                            {% elif user.role == 'admin' %}
+                                <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
+                            {% elif user.role == 'moderator' %}
+                                <span class="badge badge-mod"><i class="fa-solid fa-shield-halved"></i> Moderator</span>
                             {% else %}
-                            <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
+                                <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
                             {% endif %}
                         </td>
+
+                        <!-- Bereiche -->
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span style="font-size:0.82rem; color:var(--text-muted); font-style:italic;">Alle Bereiche</span>
+                            {% elif user.role == 'moderator' or user.role == 'benutzer' %}
+                                {% if user.role == 'moderator' %}
+                                    {% set owned = bereiche | selectattr('owner_id', 'eq', user.id) | list %}
+                                    {% if owned %}
+                                        <div style="display:flex; flex-wrap:wrap; gap:0.3rem; margin-bottom: 0.5rem;">
+                                            <span style="font-size:0.75rem; color:var(--text-muted); width:100%;">Eigene Bereiche:</span>
+                                            {% for b in owned %}
+                                            <span class="count-chip">{{ b.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% set assigned = user.assigned_bereiche.all() %}
+                                {% if assigned %}
+                                    {% if user.role == 'moderator' %}
+                                        <span style="font-size:0.75rem; color:var(--text-muted); width:100%; display:block; margin-bottom:0.2rem;">Zugewiesene Bereiche:</span>
+                                    {% endif %}
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.3rem;">
+                                        {% for b in assigned %}
+                                        <span class="count-chip" style="background:var(--bg-subtle); border-color:var(--border);">{{ b.name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% elif user.role == 'benutzer' %}
+                                    <span style="font-size:0.82rem; color:var(--text-muted); font-style:italic;">Keine Bereiche zugewiesen</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+
+                        <!-- Aktionen -->
                         <td class="actions">
                             {% if user.username != 'admin' %}
-                            <form action="{{ url_for('make_admin', id=user.id) }}" method="POST" style="margin:0;">
-                                <button type="submit"
-                                        class="btn btn-sm {% if user.is_admin %}btn-outline{% else %}btn-primary{% endif %}"
-                                        title="Admin-Rechte umschalten">
-                                    <i class="fa-solid fa-crown"></i>
-                                    {% if user.is_admin %}Rechte entziehen{% else %}Zum Admin{% endif %}
-                                </button>
-                            </form>
+                                <!-- Rolle setzen (nur Admin für alle Rollen; Mod kann seine Benutzer nicht hochstufen) -->
+                                {% if current_user.is_admin %}
+                                <form action="{{ url_for('set_role', id=user.id) }}" method="POST" style="margin:0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <select name="role" onchange="this.form.submit()"
+                                            style="font-size:0.8rem; border:1px solid var(--border); border-radius:6px; padding:4px 8px; background:var(--bg-card); cursor:pointer;">
+                                        <option value="admin"     {% if user.role == 'admin' %}selected{% endif %}>👑 Admin</option>
+                                        <option value="moderator" {% if user.role == 'moderator' %}selected{% endif %}>🛡️ Moderator</option>
+                                        <option value="benutzer"  {% if user.role == 'benutzer' %}selected{% endif %}>👤 Benutzer</option>
+                                    </select>
+                                </form>
+                                {% endif %}
 
-                            {% if current_user.id != user.id %}
-                            <form action="{{ url_for('delete_user', id=user.id) }}" method="POST" style="margin:0;"
-                                  onsubmit="return confirm('Benutzer {{ user.username }} wirklich löschen?');">
-                                <button type="submit" class="btn btn-sm btn-outline text-danger"
-                                        title="Benutzer löschen"
-                                        style="border-color:var(--danger-light);">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </form>
-                            {% endif %}
+                                <!-- Aktionen: Bearbeiten & Löschen -->
+                                <div style="display:flex; gap:0.4rem; align-items:center; margin-top: 0.4rem;">
+                                    {% if current_user.is_admin or (current_user.role == 'moderator' and user.created_by == current_user.id) %}
+                                    <a href="{{ url_for('edit_user', id=user.id) }}" class="btn btn-sm btn-outline"
+                                       title="Benutzer bearbeiten" style="border-color:var(--border);">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if current_user.id != user.id %}
+                                    {% if current_user.is_admin or (current_user.role == 'moderator' and user.created_by == current_user.id and user.role == 'benutzer') %}
+                                    <form action="{{ url_for('delete_user', id=user.id) }}" method="POST" style="margin:0;"
+                                          onsubmit="return confirm('Benutzer {{ user.username }} wirklich löschen?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-outline text-danger"
+                                                title="Benutzer löschen"
+                                                style="border-color:var(--danger-light);">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
                             {% else %}
-                            <span style="font-size:0.8rem; color:var(--text-muted); font-style:italic; display:flex; align-items:center; gap:0.35rem;">
-                                <i class="fa-solid fa-lock" style="font-size:0.75em;"></i> Geschützt
-                            </span>
+                                <span style="font-size:0.8rem; color:var(--text-muted); font-style:italic; display:flex; align-items:center; gap:0.35rem;">
+                                    <i class="fa-solid fa-lock" style="font-size:0.75em;"></i> Geschützt
+                                </span>
                             {% endif %}
                         </td>
                     </tr>
@@ -88,6 +159,15 @@
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <div class="alert alert-info" style="margin:1.5rem;">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>
+                {% if current_user.is_admin %}Noch keine Benutzer angelegt.{% else %}Du hast noch keine Benutzer angelegt.{% endif %}
+                <a href="{{ url_for('create_user') }}" style="font-weight:600; margin-left:0.5rem;">Jetzt anlegen →</a>
+            </span>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -3,6 +3,36 @@
 {% block title %}Standorte – Gefahrstoff-App{% endblock %}
 
 {% block content %}
+{% macro render_unterbereich_options(unterbereich, level) %}
+<option value="U_{{ unterbereich.id }}">{{ ('&nbsp;' * (4 * level)) | safe }}&rsaquo; {{ unterbereich.name }}</option>
+{% for child in unterbereich.children %}
+    {{ render_unterbereich_options(child, level + 1) }}
+{% endfor %}
+{% endmacro %}
+
+{% macro render_unterbereich_list(unterbereich, level) %}
+<div class="unterbereich-item" style="margin-left: {{ level * 1.5 }}rem; {% if level > 0 %}border-left: 2px solid var(--border); padding-left: 0.5rem;{% endif %} margin-bottom: 0.5rem;">
+    <span>
+        <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size:0.75em;"></i>
+        {{ unterbereich.name }}
+        <span class="count-chip">{{ unterbereich.gefahrstoffe|length }} Stoff(e)</span>
+    </span>
+    <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST" style="margin:0;"
+          onsubmit="return confirm('Unterbereich löschen? Stoffe verlieren ihren Standort.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% if current_user.is_admin or unterbereich.bereich.owner_id == current_user.id %}
+        <button type="submit" class="btn-icon" title="Unterbereich löschen"
+                style="color:var(--danger); font-size:0.8rem;">
+            <i class="fa-solid fa-times"></i>
+        </button>
+        {% endif %}
+    </form>
+</div>
+{% for child in unterbereich.children %}
+    {{ render_unterbereich_list(child, level + 1) }}
+{% endfor %}
+{% endmacro %}
+
 <div class="page-header">
     <div>
         <h1><i class="fa-solid fa-sitemap" style="color:var(--primary); margin-right:0.4rem;"></i> Standorte verwalten</h1>
@@ -24,6 +54,7 @@
                 Ein Bereich repräsentiert z.B. ein Gebäude, eine Halle oder eine Abteilung.
             </p>
             <form action="{{ url_for('locations') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="action" value="add_bereich">
                 <div class="form-group">
                     <label for="bereich_name">Name des Bereichs</label>
@@ -48,13 +79,19 @@
                 Ein Unterbereich ist einem Bereich zugeordnet (z.B. Raum 101, Giftschrank).
             </p>
             <form action="{{ url_for('locations') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="action" value="add_unterbereich">
                 <div class="form-group">
-                    <label for="bereich_id">Übergeordneter Bereich</label>
-                    <select id="bereich_id" name="bereich_id" required>
+                    <label for="parent_selection">Übergeordneter Standort</label>
+                    <select id="parent_selection" name="parent_selection" required>
                         <option value="" disabled selected>Bitte wählen…</option>
                         {% for bereich in bereiche %}
-                        <option value="{{ bereich.id }}">{{ bereich.name }}</option>
+                        <option value="B_{{ bereich.id }}" style="font-weight:bold;">{{ bereich.name }}</option>
+                        {% for unter in bereich.unterbereiche %}
+                            {% if not unter.parent_id %}
+                                {{ render_unterbereich_options(unter, 1) }}
+                            {% endif %}
+                        {% endfor %}
                         {% endfor %}
                     </select>
                 </div>
@@ -97,29 +134,23 @@
                     </h4>
                     <form action="{{ url_for('delete_bereich', id=bereich.id) }}" method="POST" style="margin:0;"
                           onsubmit="return confirm('Bereich und alle Unterbereiche wirklich löschen?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% if current_user.is_admin or bereich.owner_id == current_user.id %}
                         <button type="submit" class="btn-icon text-danger" title="Bereich löschen" style="color:var(--danger);">
                             <i class="fa-solid fa-trash"></i>
                         </button>
+                        {% else %}
+                        <span style="font-size:0.75rem; color:var(--text-light); font-style:italic;"><i class="fa-solid fa-lock"></i></span>
+                        {% endif %}
                     </form>
                 </div>
 
                 {% if bereich.unterbereiche %}
                 <div class="unterbereich-list">
                     {% for unter in bereich.unterbereiche %}
-                    <div class="unterbereich-item">
-                        <span>
-                            <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size:0.75em;"></i>
-                            {{ unter.name }}
-                            <span class="count-chip">{{ unter.gefahrstoffe|length }} Stoff(e)</span>
-                        </span>
-                        <form action="{{ url_for('delete_unterbereich', id=unter.id) }}" method="POST" style="margin:0;"
-                              onsubmit="return confirm('Unterbereich löschen? Stoffe verlieren ihren Standort.');">
-                            <button type="submit" class="btn-icon" title="Unterbereich löschen"
-                                    style="color:var(--danger); font-size:0.8rem;">
-                                <i class="fa-solid fa-times"></i>
-                            </button>
-                        </form>
-                    </div>
+                        {% if not unter.parent_id %}
+                            {{ render_unterbereich_list(unter, 0) }}
+                        {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}

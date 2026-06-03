@@ -1,10 +1,17 @@
 # Gefahrstoffverzeichnis
 
-Eine webbasierte Applikation (Flask, Python) zur einfachen und effizienten Verwaltung von Gefahrstoffen in Unternehmen, Instituten oder im Labor-Umfeld.
+Eine moderne, webbasierte Applikation (Flask, Python) zur einfachen, sicheren und effizienten Verwaltung von Gefahrstoffen in Unternehmen, Instituten oder im Labor-Umfeld.
 
-Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen, die Verwaltung hierarchischer Standorte (Bereiche und Unterbereiche) sowie den Export der Daten als Excel (`.xlsx`) oder PDF. Eine integrierte Benutzerrollen-Funktion trennt die Sichtbarkeit von Einträgen normaler Nutzer und gewährt nur Administratoren einen Gesamtüberblick.
+Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen, die Verwaltung hierarchischer Standorte (Bereiche und Unterbereiche) sowie den Export der Daten als Excel (`.xlsx`) oder PDF. Eine integrierte Benutzerrollen-Funktion trennt die Sichtbarkeit von Einträgen normaler Nutzer und gewährt Administratoren und Moderatoren erweiterte Rechte.
 
-## Funktionen
+## ✨ Neue & Wichtige Funktionen (2026 Edition)
+
+*   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
+*   **Betriebsanweisungen-Zentrale**: Ein neuer globaler Menüpunkt listet alle hochgeladenen Betriebsanweisungen aus allen Bereichen alphabetisch sortiert auf. Inklusive Live-Suche – zugänglich für alle Nutzer.
+*   **Umfassende Sicherheit (CSRF & Audit)**: Die App ist systemweit gegen Cross-Site Request Forgery (CSRF) geschützt. Administratoren können zudem eine detaillierte **System-Historie (Audit Log)** einsehen, die jeden Datensatz (Erstellen, Ändern, Löschen) präzise protokolliert.
+*   **Archivierung (Soft-Delete)**: Gefahrstoffe werden beim "Löschen" nicht mehr unwiderruflich aus der Datenbank entfernt, sondern sicher archiviert (`is_deleted=True`), um versehentlichen Datenverlust zu verhindern.
+
+## ⚙️ Kernfunktionen
 
 *   **Sichere Authentifizierung**: Registrierung und Login. Der zuerst registrierte Nutzer erhält automatisch Administrator-Rechte.
 *   **Standort-Verwaltung**: Legen Sie Hauptbereiche und dazugehörige Unterbereiche zur genauen Verortung von Gefahrstoffen an.
@@ -13,21 +20,19 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     *   Menge und Mengeneinheit
     *   GHS-Piktogrammen und Signalwort
     *   Durchsuchbare Modal-Auswahlfenster für vollständige H-, EUH- und P-Sätze
-    *   Upload-Möglichkeit für Sicherheitsdatenblätter (SDB) und Betriebsanweisungen (BA) als PDF, DOC oder Bilddateien.
-*   **Live-Suche**: Echtzeit-Filterung der Gefahrstofftabelle direkt im Browser.
-*   **Übersicht und Detailansicht**: Tabellarische Übersicht, filterbar nach Standorten.
-*   **Benutzer-Isolation**: Normale Benutzer sehen und verwalten ausschließlich ihre *eigenen* angelegten Datensätze. Administratoren können alle Gefahrstoffe systemweit einsehen, verschieben, kopieren und löschen.
-*   **Export-Funktion**: Exportieren Sie angezeigte Datensätze als Excel-Tabelle oder PDF-Dokument (ebenfalls nutzerbasiert gefiltert).
+*   **Live-Suche**: Echtzeit-Filterung der Gefahrstofftabelle und Betriebsanweisungen direkt im Browser.
+*   **Benutzer-Isolation & Rollen**: Normale Benutzer sehen ausschließlich ihre eigenen Datensätze. Moderatoren verwalten spezifische Standorte. Administratoren können alle Gefahrstoffe systemweit einsehen, verschieben, kopieren und löschen.
+*   **Export-Funktion**: Exportieren Sie angezeigte Datensätze als Excel-Tabelle oder PDF-Dokument.
 *   **Admin-Dashboard**: Zur Verwaltung, Beförderung oder Sperrung anderer Systembenutzer.
 
-## Technologien
+## 🛠️ Technologien
 
-*   **Backend**: Python 3, Flask, Flask-SQLAlchemy, Flask-Login, Werkzeug
+*   **Backend**: Python 3, Flask, Flask-WTF (CSRF), Flask-SQLAlchemy, Flask-Login, pdfplumber
 *   **Datenbank**: SQLite (`gefahrstoffe.db`)
-*   **Frontend**: HTML5, Vanilla CSS3 (Custom Properties, Glassmorphismus, Flexbox/Grid), JavaScript
+*   **Frontend**: HTML5, Vanilla CSS3 ("Clinical Glassmorphism" Design), JavaScript
 *   **Exporte**: Pandas (OpenPyXL) für Excel, ReportLab für PDFs
 
-## Installation & Ausführung
+## 🚀 Installation & Ausführung
 
 ### Voraussetzungen
 1.  Python 3.8+ ist auf Ihrem System installiert.
@@ -41,7 +46,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     cd gefahrstoffverzeichnis
     ```
 
-2.  **Virtuelle Umgebung erstellen und aktivieren (Optional aber empfohlen):**
+2.  **Virtuelle Umgebung erstellen und aktivieren:**
     ```bash
     # Windows
     python -m venv venv
@@ -58,9 +63,8 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     ```
 
 4.  **Datenbank & Initialisierung:**
-    Beim ersten Start erstellt die Applikation automatisch eine leere SQLite-Datenbankdatei (`gefahrstoffe.db`) sowie einen Ordner `uploads/` für Dokumente.
-    
-    *Wichtig:* Der allererste Account, der über `/register` angelegt wird, erhält **dauerhaft** Administrator-Rechte. Starten Sie das System und legen Sie diesen sofort an!
+    Beim ersten Start erstellt die Applikation automatisch eine leere SQLite-Datenbankdatei (`gefahrstoffe.db`) sowie den Ordner `uploads/` für Dokumente.
+    *Wichtig:* Der allererste Account, der über `/register` angelegt wird, erhält **dauerhaft** Administrator-Rechte. 
 
 5.  **Anwendung starten:**
     ```bash
@@ -68,38 +72,21 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     ```
     Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
-6.  **Mit Docker ausführen:**
+6.  **Mit Docker ausführen (Optional):**
     ```bash
     docker-compose up -d
     ```
-    Die Anwendung ist anschließend unter `http://localhost:5000` erreichbar. Die Datenbank und Uploads werden dank der definierten Volumes im lokalen Verzeichnis abgelegt und bleiben auch bei einem Neustart des Containers erhalten.
 
 ---
 
-### Verzeichnisstruktur
-*   `/main.py` – Zentrale Flask-Routen, Datenbank-Modelle und Logik.
-*   `/static/` – Statische Dateien (`style.css`, H/P-Sätze Logik `hp_modal.js`, `hp_data.json` sowie `pictograms/`).
-*   `/templates/` – Jinja2 HTML Layouts (Base-Template, Login, Register, Index, Forms).
-*   `/uploads/` – Lokaler Speicherort für die durch Nutzer hochgeladenen Dokumente.
+## 🔒 Sicherheit & Updates
+*   **Daten sicher aktualisieren:** Die `.gitignore`-Datei schützt Ihre produktiven Daten. Führen Sie auf Ihrem Server bei Updates einfach `git pull` aus. Ihre Datenbank (`gefahrstoffe.db`) und hochgeladenen Dokumente (`/uploads`) werden dabei nicht überschrieben.
+*   **Produktivbetrieb:** Setzen Sie den `FLASK_SECRET_KEY` als Umgebungsvariable und verwenden Sie einen WSGI-Server (wie *Gunicorn* oder *Waitress*).
 
-## Sicherheitshinweis
-Für den absoluten Produktivbetrieb sollte der `FLASK_SECRET_KEY` als Umgebungsvariable gesetzt und ein WSGI-Server (wie *Gunicorn* oder *Waitress*) anstelle des integrierten Flask-Entwicklungsservers verwendet werden.
+## 📅 Changelog
 
----
-
-## Changelog
-
-### v2.0 – Visuelles Redesign (März 2026)
-*   **Komplett überarbeitetes Design-System** (`style.css`):
-    *   Premium-Farbpalette: Dunkles Navy + Electric Indigo + Teal-Akzentfarbe
-    *   Glassmorphism-Navbar mit animiertem Gradient-Brand-Text
-    *   Micro-Animationen: Seiten-Fade-In, Modal-Pop, Button-Lift-Hover
-    *   Alle fehlenden Utility-Klassen ergänzt (`row`, `col-md-6`, `w-100`, `mb-*`, `p-*`, etc.)
-*   **Login & Registrierung**: Full-Screen Auth-Layout mit animiertem Hintergrundgradient, Glassmorphism-Karte und Passwort-Auge-Toggle
-*   **Navbar**: Gradient-Brand-Text, grüner Online-Indikator, Mobile Hamburger-Menü (Pure CSS)
-*   **Übersichtsseite**: Live-Suchfeld (JavaScript-Filter), Stoff-Counter, Icon-Badges für Signalwörter
-*   **Detailansicht**: Farbige Icon-Badges pro Sektion (`section-header`), strukturiertes `dl/dt/dd`-Detailraster
-*   **Formulare** (Hinzufügen & Bearbeiten): Nummerierte, farbkodierte Section-Badges (1–4), gestylte Datei-Inputs
-*   **Standorte**: Echtes CSS-Grid-Layout, neue `bereich-card` mit Unterbereich-Chips und Stoff-Counter
-*   **Benutzerverwaltung**: Benutzer-Avatare mit Initialen (Gold = Admin, Blau = Standard-User)
-*   **Profil**: Großer Avatar-Hero-Bereich, Passwort-Toggle in allen Passwort-Feldern, Logout-Button
+### v3.0 – Security, Auto-Parsing & Glassmorphism UI (Juni 2026)
+*   **Sicherheit & Architektur**: Systemweite CSRF-Protection per Flask-WTF, Audit Logs (System-Historie für Admins), und Soft-Delete-Mechanismus für Gefahrstoffe.
+*   **SDB Auto-Parsing**: PDF-Inhalte (CAS, EG, Signalwort, H/P-Sätze) werden beim Dateiupload vollautomatisch ausgelesen und in das HTML-Formular injiziert. Intelligente Umbenennung beim Speichern.
+*   **Betriebsanweisungen**: Neue globale Übersicht (`/betriebsanweisungen`) für alle hochgeladenen Betriebsanweisungen.
+*   **UI/UX (Clinical Glassmorphism)**: Komplettes Redesign in "Clinical/Medical Glassmorphism" mit sanften Blauschattierungen, durchsichtigen Flächen, abgerundeten Karten und modernsten Micro-Animationen.

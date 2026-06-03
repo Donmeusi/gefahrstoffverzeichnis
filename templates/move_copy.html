@@ -48,6 +48,7 @@
         {% endif %}
 
         <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="unterbereich_id">Neuer Zielort (Unterbereich)</label>
                 <select id="unterbereich_id" name="unterbereich_id" required size="7"

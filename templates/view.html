@@ -19,6 +19,7 @@
         </a>
         <form action="{{ url_for('delete_stoff', id=stoff.id) }}" method="POST" style="display:inline;"
               onsubmit="return confirm('Gefahrstoff wirklich löschen?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-danger btn-sm">
                 <i class="fa-solid fa-trash"></i> Löschen
             </button>
@@ -45,7 +46,7 @@
                 <dd>
                     {% if stoff.unterbereich %}
                     <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); margin-right:0.3rem;"></i>
-                    {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
+                    {{ stoff.unterbereich.get_full_path()|safe }}
                     {% elif stoff.lagerort %}
                     {{ stoff.lagerort }}
                     {% else %}–{% endif %}
@@ -56,6 +57,41 @@
                     {% if stoff.menge %}
                     <strong>{{ stoff.menge }}</strong> {{ stoff.mengeneinheit or '' }}
                     {% else %}–{% endif %}
+                </dd>
+            </dl>
+
+            <div style="margin-top:1.5rem;" class="section-header">
+                <i class="fa-solid fa-file-contract icon-info"></i>
+                <h3>Weitere Grundangaben</h3>
+            </div>
+            <dl class="detail-grid">
+                <dt>SDB Datum</dt>
+                <dd>
+                    {% if stoff.sdb_datum %}
+                        {% set diff_days = (today - stoff.sdb_datum).days %}
+                        {% set diff_years = diff_days / 365 %}
+                        {% if diff_years >= 5 %}
+                            <span class="badge" style="background-color:#fecaca; color:#ef4444; border:1px solid #ef4444;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Dringend aktualisieren)</span>
+                        {% elif diff_years >= 3 %}
+                            <span class="badge" style="background-color:#fef08a; color:#eab308; border:1px solid #eab308;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktualisierung prüfen)</span>
+                        {% else %}
+                            {{ stoff.sdb_datum.strftime('%d.%m.%Y') }}
+                        {% endif %}
+                    {% else %}
+                        –
+                    {% endif %}
+                </dd>
+
+                <dt>Substitutionsprüfung</dt>
+                <dd>
+                    {% if stoff.substitutionspruefung == 'ja' %}
+                        Ja (Ersatzstoff: <strong>{{ stoff.ersatzstoff }}</strong>)
+                    {% elif stoff.substitutionspruefung == 'nein' %}
+                        Nein
+                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.2rem;">Begründung: {{ stoff.begruendung }}</div>
+                    {% else %}
+                        –
+                    {% endif %}
                 </dd>
             </dl>
 
@@ -127,7 +163,7 @@
                     </a>
                     {% else %}
                     <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
-                        <i class="fa-regular fa-file-pdf"></i> Kein SDB hinterlegt
+                        <i class="fa-regular fa-file-pdf"></i> Kein SDB
                     </span>
                     {% endif %}
 
@@ -140,7 +176,20 @@
                     </a>
                     {% else %}
                     <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
-                        <i class="fa-regular fa-file-word"></i> Keine BA hinterlegt
+                        <i class="fa-regular fa-file-word"></i> Keine BA
+                    </span>
+                    {% endif %}
+
+                    {% if stoff.gefaehrdungsbeurteilung %}
+                    <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}"
+                       class="btn btn-outline" target="_blank"
+                       style="border-color:#86efac;">
+                        <i class="fa-solid fa-file-shield" style="color:var(--success); font-size:1.2rem;"></i>
+                        GB ansehen
+                    </a>
+                    {% else %}
+                    <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
+                        <i class="fa-solid fa-file-shield" style="color:#cbd5e1;"></i> Keine GB
                     </span>
                     {% endif %}
                 </div>
