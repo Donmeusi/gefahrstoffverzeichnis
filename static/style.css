@@ -225,6 +225,10 @@ h4 { font-size: 0.95rem; }
     padding: 0.4rem 0.75rem;
     border-radius: var(--radius-sm);
     transition: all var(--transition);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
 .nav-links a:hover {

@@ -78,10 +78,30 @@
                 </button>
             </div>
 
-            <!-- Live Search -->
-            <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:200px;">
-                <i class="fa-solid fa-search"></i>
-                <input type="text" class="search-bar" id="tableSearch" placeholder="Gefahrstoff suchen…" oninput="filterItems()">
+            <!-- Filters & Live Search -->
+            <div style="display:flex; gap:0.5rem; flex:1; min-width:300px; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+                <select id="filterSignalwort" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:150px;">
+                    <option value="">Alle Signalwörter</option>
+                    <option value="gefahr">Gefahr</option>
+                    <option value="achtung">Achtung</option>
+                    <option value="keines">Ohne Signalwort</option>
+                </select>
+                <select id="filterPiktogramm" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:170px;">
+                    <option value="">Alle Piktogramme</option>
+                    <option value="ghs01">GHS01 (Explosiv)</option>
+                    <option value="ghs02">GHS02 (Entzündbar)</option>
+                    <option value="ghs03">GHS03 (Brandfördernd)</option>
+                    <option value="ghs04">GHS04 (Gas u. Druck)</option>
+                    <option value="ghs05">GHS05 (Ätzend)</option>
+                    <option value="ghs06">GHS06 (Hochgiftig)</option>
+                    <option value="ghs07">GHS07 (Gesundheitsschädlich)</option>
+                    <option value="ghs08">GHS08 (Gesundheitsgefahr)</option>
+                    <option value="ghs09">GHS09 (Umwelt)</option>
+                </select>
+                <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:200px; max-width:400px; position:relative;">
+                    <i class="fa-solid fa-search" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--text-light); pointer-events:none; z-index:10;"></i>
+                    <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()" style="padding-left: 2.75rem !important;">
+                </div>
             </div>
         </div>
 
@@ -100,11 +120,16 @@
                 </thead>
                 <tbody>
                     {% for stoff in gefahrstoffe %}
-                    <tr>
+                    <tr data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}" 
+                        data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
+                        data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                         <td>
                             <a href="{{ url_for('view_stoff', id=stoff.id) }}"
                                style="color:var(--text-main); font-weight:600; display:flex; align-items:center; gap:0.4rem;">
                                 {{ stoff.name }}
+                                {% if stoff.trgs_warnings %}
+                                <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                                {% endif %}
                                 <i class="fa-solid fa-chevron-right" style="font-size:0.65em; color:var(--primary); opacity:0.7;"></i>
                             </a>
                         </td>
@@ -145,7 +170,7 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td>{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
+                        <td style="white-space: nowrap;">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
                         <td>
                             <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
                                 {% if stoff.sicherheitsdatenblatt %}
@@ -190,11 +215,19 @@
         <div class="stoff-grid" id="gefahrstoffGrid" style="display:none;">
             {% for stoff in gefahrstoffe %}
             {% set border_class = 'danger' if stoff.signalwort == 'Gefahr' else ('warning' if stoff.signalwort == 'Achtung' else 'normal') %}
-            <div class="stoff-card {{ border_class }} filter-item" data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|striptags|lower }}{% endif %}">
+            <div class="stoff-card {{ border_class }} filter-item" 
+                 data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|striptags|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
+                 data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
+                 data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                 
                 <div class="stoff-card-header">
                     <div>
-                        <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">{{ stoff.name }}</a>
+                        <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">
+                            {{ stoff.name }}
+                            {% if stoff.trgs_warnings %}
+                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger); font-size: 0.8em;" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                            {% endif %}
+                        </a>
                         <div class="stoff-card-cas">{{ stoff.cas_nummer or 'Keine CAS' }}</div>
                     </div>
                     {% if stoff.piktogramme %}
@@ -215,7 +248,7 @@
                     </div>
                     <div class="stoff-card-info">
                         <i class="fa-solid fa-scale-balanced" style="color:var(--info); width:16px; text-align:center;"></i>
-                        <span>{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
+                        <span style="white-space: nowrap;">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
                     </div>
                 </div>
 
@@ -294,15 +327,25 @@ function setView(viewMode) {
 
 function filterItems() {
     const q = document.getElementById('tableSearch').value.toLowerCase();
+    const sig = document.getElementById('filterSignalwort').value.toLowerCase();
+    const pikto = document.getElementById('filterPiktogramm').value.toLowerCase();
     
+    let visibleCount = 0;
+
     // Filter Table
     const rows = document.querySelectorAll('#gefahrstoffTable tbody tr');
-    let countTable = 0;
     rows.forEach(function(row) {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(q)) {
+        const text = (row.getAttribute('data-search') || row.textContent).toLowerCase();
+        const sigData = row.getAttribute('data-signalwort') || '';
+        const piktoData = row.getAttribute('data-piktogramme') || '';
+
+        const matchQ = q === '' || text.includes(q);
+        const matchSig = sig === '' || sigData === sig;
+        const matchPikto = pikto === '' || piktoData.includes(pikto);
+
+        if (matchQ && matchSig && matchPikto) {
             row.style.display = '';
-            countTable++;
+            visibleCount++;
         } else {
             row.style.display = 'none';
         }
@@ -310,18 +353,24 @@ function filterItems() {
 
     // Filter Grid
     const cards = document.querySelectorAll('.filter-item');
-    let countGrid = 0;
     cards.forEach(function(card) {
-        const text = card.getAttribute('data-search');
-        if (text.includes(q)) {
+        const text = (card.getAttribute('data-search') || '').toLowerCase();
+        const sigData = card.getAttribute('data-signalwort') || '';
+        const piktoData = card.getAttribute('data-piktogramme') || '';
+
+        const matchQ = q === '' || text.includes(q);
+        const matchSig = sig === '' || sigData === sig;
+        const matchPikto = pikto === '' || piktoData.includes(pikto);
+
+        if (matchQ && matchSig && matchPikto) {
             card.style.display = 'flex';
-            countGrid++;
+            visibleCount++;
         } else {
             card.style.display = 'none';
         }
     });
 
-    document.getElementById('noResultsMsg').style.display = ((countTable === 0 && countGrid === 0) && q) ? 'block' : 'none';
+    document.getElementById('noResultsMsg').style.display = (visibleCount === 0 && (q || sig || pikto)) ? 'block' : 'none';
 }
 
 document.addEventListener('DOMContentLoaded', () => {

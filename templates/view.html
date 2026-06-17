@@ -27,6 +27,17 @@
     </div>
 </div>
 
+{% if stoff.trgs_warnings %}
+<div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+    <h4 style="margin-top:0; margin-bottom:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Zusammenlagerungsverbot (TRGS 510)</h4>
+    <ul style="margin-bottom:0; padding-left:1.5rem;">
+        {% for warning in stoff.trgs_warnings %}
+        <li>{{ warning }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
     <!-- Left: Stammdaten -->
     <div class="card">
@@ -56,6 +67,13 @@
                 <dd>
                     {% if stoff.menge %}
                     <strong>{{ stoff.menge }}</strong> {{ stoff.mengeneinheit or '' }}
+                    {% else %}–{% endif %}
+                </dd>
+
+                <dt>Lagerklasse (TRGS 510)</dt>
+                <dd>
+                    {% if stoff.lagerklasse %}
+                    <span class="badge badge-info">{{ stoff.lagerklasse }}</span>
                     {% else %}–{% endif %}
                 </dd>
             </dl>

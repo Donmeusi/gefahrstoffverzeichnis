@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Sicherheitsdatenblätter – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="content-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; margin-top:1.5rem;">
+    <h1 style="margin:0; font-size:1.75rem; color:#0f172a; display:flex; align-items:center; gap:0.5rem;">
+        <div style="background:#f0fdf4; color:#16a34a; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
+            <i class="fa-solid fa-file-shield"></i>
+        </div>
+        Sicherheitsdatenblätter
+    </h1>
+    <div style="position:relative; width:300px;">
+        <i class="fa-solid fa-search" style="position:absolute; left:12px; top:10px; color:#94a3b8;"></i>
+        <input type="text" id="searchInput" placeholder="Nach Stoff suchen..." style="width:100%; padding:0.5rem 1rem 0.5rem 2.5rem; border:1px solid #cbd5e1; border-radius:8px; outline:none;" onkeyup="filterTable()">
+    </div>
+</div>
+
+<div class="content-card" style="padding:0; overflow:hidden;">
+    <table class="data-table" id="sdbTable" style="margin:0;">
+        <thead>
+            <tr>
+                <th style="padding:1rem 1.5rem;">Gefahrstoff</th>
+                <th style="padding:1rem 1.5rem;">Standort</th>
+                <th style="padding:1rem 1.5rem;">SDB Datum & Status</th>
+                <th style="width: 150px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stoff in gefahrstoffe %}
+            <tr class="sdb-row">
+                <td style="padding:1rem 1.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <i class="fa-solid fa-file-shield" style="color:#16a34a; font-size:1.2rem;"></i>
+                        <strong class="stoff-name" style="color:#0f172a; font-size:1.05rem;">{{ stoff.name }}</strong>
+                    </div>
+                </td>
+                <td style="padding:1rem 1.5rem;">
+                    {% if stoff.unterbereich %}
+                        <span class="badge" style="background:#f1f5f9; color:#475569; border: 1px solid #e2e8f0; font-weight:500;">
+                            <i class="fa-solid fa-location-dot" style="margin-right:4px; color:#94a3b8;"></i>
+                            {{ stoff.unterbereich.bereich.name }} &raquo; {{ stoff.unterbereich.name }}
+                        </span>
+                    {% else %}
+                        <span class="badge" style="background:#f8fafc; color:#94a3b8; border: 1px solid #e2e8f0;">Kein Standort zugewiesen</span>
+                    {% endif %}
+                </td>
+                <td style="padding:1rem 1.5rem;">
+                    {% if stoff.sdb_datum %}
+                        {% set diff_days = (today - stoff.sdb_datum).days %}
+                        {% set diff_years = diff_days / 365 %}
+                        {% if diff_years >= 5 %}
+                            <span class="badge" style="background-color:#fecaca; color:#ef4444; border:1px solid #ef4444;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Dringend aktualisieren)</span>
+                        {% elif diff_years >= 3 %}
+                            <span class="badge" style="background-color:#fef08a; color:#eab308; border:1px solid #eab308;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktualisierung prüfen)</span>
+                        {% else %}
+                            <span class="badge" style="background-color:#dcfce7; color:#16a34a; border:1px solid #16a34a;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktuell)</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge" style="background:#f8fafc; color:#94a3b8; border: 1px solid #e2e8f0;">Kein Datum erfasst</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right; padding:1rem 1.5rem;">
+                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="btn btn-outline btn-sm" target="_blank" title="Sicherheitsdatenblatt öffnen" style="color:#0ea5e9; border-color:#e0f2fe; background:#f0f9ff;">
+                        <i class="fa-solid fa-external-link-alt"></i> Öffnen
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align:center; padding: 4rem 2rem; color:#64748b;">
+                    <div style="background:#f8fafc; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
+                        <i class="fa-solid fa-folder-open" style="font-size:2.5rem; color:#cbd5e1;"></i>
+                    </div>
+                    <h3 style="color:#334155; margin-bottom:0.5rem;">Keine Sicherheitsdatenblätter</h3>
+                    <p style="margin:0;">In deinen Bereichen wurden bisher keine Sicherheitsdatenblätter hinterlegt.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function filterTable() {
+    let input = document.getElementById('searchInput');
+    let filter = input.value.toLowerCase();
+    let rows = document.getElementsByClassName('sdb-row');
+    
+    for (let i = 0; i < rows.length; i++) {
+        let nameElement = rows[i].querySelector('.stoff-name');
+        if (nameElement) {
+            let txtValue = nameElement.textContent || nameElement.innerText;
+            if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                rows[i].style.display = "";
+            } else {
+                rows[i].style.display = "none";
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

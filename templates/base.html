@@ -15,7 +15,7 @@
     {% block navbar %}
     <nav class="navbar">
         <div class="container nav-container">
-            <a href="{{ url_for('index') }}" class="navbar-brand">
+            <a href="{{ url_for('index') }}" class="navbar-brand" style="white-space: nowrap;">
                 <i class="fa-solid fa-flask"></i> Gefahrstoff-App
             </a>
 
@@ -38,6 +38,7 @@
                 </li>
                 <li><a href="{{ url_for('index') }}"><i class="fa-solid fa-table-list"></i> Übersicht</a></li>
                 <li><a href="{{ url_for('betriebsanweisungen_list') }}"><i class="fa-solid fa-file-pdf"></i> Betriebsanweisungen</a></li>
+                <li><a href="{{ url_for('sicherheitsdatenblaetter_list') }}"><i class="fa-solid fa-file-shield"></i> Sicherheitsdatenblätter</a></li>
                 {% if current_user.role != 'benutzer' %}
                 <li><a href="{{ url_for('locations') }}"><i class="fa-solid fa-building"></i> Standorte</a></li>
                 {% endif %}

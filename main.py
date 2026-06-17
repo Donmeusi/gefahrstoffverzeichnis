@@ -177,6 +177,7 @@ class Gefahrstoff(db.Model):
     h_saetze            = db.Column(db.String(200), nullable=True)
     p_saetze            = db.Column(db.String(300), nullable=True)
     lagerort            = db.Column(db.String(100), nullable=True)
+    lagerklasse         = db.Column(db.String(10), nullable=True)
     menge               = db.Column(db.Float, nullable=True)
     mengeneinheit       = db.Column(db.String(10), nullable=True)
     datum_erfassung     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -194,6 +195,24 @@ class Gefahrstoff(db.Model):
 
     def __repr__(self):
         return f'<Gefahrstoff {self.name}>'
+
+    @property
+    def trgs_warnings(self):
+        try:
+            from trgs510 import check_zusammenlagerung
+        except ImportError:
+            return []
+            
+        warnings = []
+        if not self.unterbereich_id or not self.lagerklasse:
+            return warnings
+            
+        for other in self.unterbereich.gefahrstoffe:
+            if other.id != self.id and other.lagerklasse and not getattr(other, 'is_deleted', False):
+                allowed, msg = check_zusammenlagerung(self.lagerklasse, other.lagerklasse)
+                if not allowed:
+                    warnings.append(f"Konflikt mit {other.name} (LGK {other.lagerklasse}): {msg}")
+        return warnings
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
@@ -365,6 +384,14 @@ def betriebsanweisungen_list():
     stoffe = query.filter(Gefahrstoff.betriebsanweisung.isnot(None)).order_by(Gefahrstoff.name).all()
     return render_template('betriebsanweisungen.html', gefahrstoffe=stoffe)
 
+@app.route('/sicherheitsdatenblaetter')
+@login_required
+def sicherheitsdatenblaetter_list():
+    query = get_gefahrstoff_query()
+    # Nur Stoffe mit Sicherheitsdatenblatt, alphabetisch sortiert
+    stoffe = query.filter(Gefahrstoff.sicherheitsdatenblatt.isnot(None)).order_by(Gefahrstoff.name).all()
+    return render_template('sicherheitsdatenblaetter.html', gefahrstoffe=stoffe, today=datetime.utcnow().date())
+
 # ─── Standorte ───────────────────────────────────────────────────────────────
 
 @app.route('/locations', methods=['GET', 'POST'])
@@ -490,6 +517,7 @@ def add():
         h_saetze    = request.form.get('h_saetze')
         p_saetze    = request.form.get('p_saetze')
         lagerort    = request.form.get('lagerort')
+        lagerklasse = request.form.get('lagerklasse')
         menge_str   = request.form.get('menge')
         mengeneinheit = request.form.get('mengeneinheit')
         
@@ -543,7 +571,7 @@ def add():
             name=name, cas_nummer=cas_nummer, eg_nummer=eg_nummer,
             signalwort=signalwort if signalwort else None,
             piktogramme=piktogramme, h_saetze=h_saetze, p_saetze=p_saetze,
-            lagerort=lagerort, menge=menge, mengeneinheit=mengeneinheit,
+            lagerort=lagerort, lagerklasse=lagerklasse, menge=menge, mengeneinheit=mengeneinheit,
             sdb_datum=sdb_datum,
             substitutionspruefung=substitutionspruefung,
             ersatzstoff=ersatzstoff,
@@ -598,6 +626,7 @@ def edit_stoff(id):
         stoff.h_saetze    = request.form.get('h_saetze')
         stoff.p_saetze    = request.form.get('p_saetze')
         stoff.lagerort    = request.form.get('lagerort')
+        stoff.lagerklasse = request.form.get('lagerklasse')
         stoff.mengeneinheit = request.form.get('mengeneinheit')
         
         # Neue Felder Section 5
@@ -1160,14 +1189,22 @@ def parse_sdb():
         signal_match = re.search(r'\b(Gefahr|Achtung)\b', text_content, re.IGNORECASE)
         signalwort = signal_match.group(1).capitalize() if signal_match else ""
         
-        # Extract H-Sätze
-        h_saetze_raw = re.findall(r'\b(H\s?[234]\d{2}[a-zA-Z]?)\b', text_content)
-        euh_saetze_raw = re.findall(r'\b(EUH\s?\d{3})\b', text_content)
-        h_saetze = sorted(list(set([h.replace(' ', '') for h in h_saetze_raw + euh_saetze_raw])))
+        # Abschnitt 2.2 isolieren für präzise H- und P-Sätze (verhindert Auslesen von H-Sätzen aus Abschnitt 2.1 Einstufungstabelle)
+        sec22_match = re.search(r'(?:2\.2\s*)?Kennzeichnungselemente(.*?)(?:2\.3\s*Sonstige Gefahren|3\.\s*Zusammensetzung|ABSCHNITT\s*3)', text_content, re.IGNORECASE | re.DOTALL)
+        if sec22_match:
+            search_text = sec22_match.group(1)
+        else:
+            sec2_match = re.search(r'ABSCHNITT\s*2\b.*?(?:Mögliche\s*Gefahren)?(.*?)ABSCHNITT\s*3\b', text_content, re.IGNORECASE | re.DOTALL)
+            search_text = sec2_match.group(1) if sec2_match else text_content
+        
+        # Extract H-Sätze (jetzt auch mit mehreren Buchstaben wie H360FD und optionalen Leerzeichen)
+        h_saetze_raw = re.findall(r'\b(H\s?[234]\d{2}\s?[a-zA-Z]{0,3})\b', search_text, re.IGNORECASE)
+        euh_saetze_raw = re.findall(r'\b(EUH\s?\d{3}\s?[a-zA-Z]{0,3})\b', search_text, re.IGNORECASE)
+        h_saetze = sorted(list(set([re.sub(r'[\s\n]+', '', h).upper() for h in h_saetze_raw + euh_saetze_raw])))
         
         # Extract P-Sätze
-        p_saetze_raw = re.findall(r'\b(P\s?\d{3}(?:\s?\+\s?P\s?\d{3})*)\b', text_content)
-        p_saetze = sorted(list(set([p.replace(' ', '') for p in p_saetze_raw])))
+        p_saetze_raw = re.findall(r'\b(P\s?\d{3}(?:\s?\+\s?P\s?\d{3})*)\b', search_text, re.IGNORECASE)
+        p_saetze = sorted(list(set([re.sub(r'[\s\n]+', '', p).upper() for p in p_saetze_raw])))
         
         # Extract Datum (Priorität: "Überarbeitet am" auf der ersten Seite)
         date_str = ""
@@ -1243,8 +1280,8 @@ def parse_sdb():
 
         if len(name) > 100: name = name[:100]
                 
-        # Piktogramme explizit suchen und aus H-Sätzen ableiten
-        piktogramme = set(re.findall(r'\b(GHS0[1-9])\b', text_content, re.IGNORECASE))
+        # Piktogramme explizit suchen und aus H-Sätzen ableiten (nur in Abschnitt 2)
+        piktogramme = set(re.findall(r'\b(GHS0[1-9])\b', search_text, re.IGNORECASE))
         piktogramme = {p.upper() for p in piktogramme}
         for h in h_saetze:
             if h in ['H200', 'H201', 'H202', 'H203', 'H204', 'H240', 'H241']: piktogramme.add('GHS01')
@@ -1257,6 +1294,17 @@ def parse_sdb():
             elif h in ['H304', 'H334', 'H340', 'H341', 'H350', 'H351', 'H360', 'H361', 'H362', 'H370', 'H371', 'H372', 'H373', 'H373**']: piktogramme.add('GHS08')
             elif h in ['H400', 'H410', 'H411']: piktogramme.add('GHS09')
             
+        # Extract Lagerklasse (robuste Suche mit Validierung)
+        valid_lgk = {'1', '2A', '2B', '3', '4.1A', '4.1B', '4.2', '4.3', '5.1A', '5.1B', '5.1C', '5.2', '6.1A', '6.1B', '6.1C', '6.1D', '6.2', '7', '8A', '8B', '10', '11', '12', '13'}
+        lagerklasse = ""
+        # Suche nach "Lagerklasse" oder "LGK", gefolgt von max 40 Zeichen (ohne Zeilenumbruch) und dann einer Nummer (mit optionalem Leerzeichen)
+        lgk_matches = re.findall(r'(?:Lagerklasse|LGK)[^\n]{0,40}?\b(\d{1,2}(?:\.\d)?\s?[A-Za-z]?)\b', text_content, re.IGNORECASE)
+        for match in lgk_matches:
+            match_upper = match.replace(' ', '').upper()
+            if match_upper in valid_lgk:
+                lagerklasse = match_upper
+                break
+                
         return {
             'success': True,
             'name': name,
@@ -1266,7 +1314,8 @@ def parse_sdb():
             'h_saetze': ", ".join(h_saetze),
             'p_saetze': ", ".join(p_saetze),
             'piktogramme': list(piktogramme),
-            'sdb_datum': date_str
+            'sdb_datum': date_str,
+            'lagerklasse': lagerklasse
         }
     except Exception as e:
         return {'error': str(e)}, 500

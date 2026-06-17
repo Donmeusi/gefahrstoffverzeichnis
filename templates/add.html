@@ -133,6 +133,38 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label for="lagerklasse">Lagerklasse (TRGS 510) <small style="color:#64748b;">(Auto-Fill aus SDB)</small></label>
+                        <input type="text" id="lagerklasse" name="lagerklasse" placeholder="z. B. 3, 4.1A, 8B" list="lgk-list">
+                        <datalist id="lgk-list">
+                            <option value="1">1 - Explosivstoffe</option>
+                            <option value="2A">2A - Gase (verdichtet, verflüssigt)</option>
+                            <option value="2B">2B - Druckgaspackungen</option>
+                            <option value="3">3 - Entzündbare Flüssigkeiten</option>
+                            <option value="4.1A">4.1A - Entzündbare feste Stoffe</option>
+                            <option value="4.1B">4.1B - Entzündbare feste Stoffe</option>
+                            <option value="4.2">4.2 - Selbstentzündliche Stoffe</option>
+                            <option value="4.3">4.3 - Stoffe, die mit Wasser entzündbare Gase bilden</option>
+                            <option value="5.1A">5.1A - Stark brandfördernde Stoffe</option>
+                            <option value="5.1B">5.1B - Brandfördernde Stoffe</option>
+                            <option value="5.1C">5.1C - Ammoniumnitrat</option>
+                            <option value="5.2">5.2 - Organische Peroxide</option>
+                            <option value="6.1A">6.1A - Brennbare akut toxische Stoffe</option>
+                            <option value="6.1B">6.1B - Nicht brennbare akut toxische Stoffe</option>
+                            <option value="6.1C">6.1C - Brennbare giftige Stoffe</option>
+                            <option value="6.1D">6.1D - Nicht brennbare giftige Stoffe</option>
+                            <option value="6.2">6.2 - Ansteckungsgefährliche Stoffe</option>
+                            <option value="7">7 - Radioaktive Stoffe</option>
+                            <option value="8A">8A - Brennbare ätzende Stoffe</option>
+                            <option value="8B">8B - Nicht brennbare ätzende Stoffe</option>
+                            <option value="10">10 - Brennbare Flüssigkeiten</option>
+                            <option value="11">11 - Brennbare Feststoffe</option>
+                            <option value="12">12 - Nicht brennbare Flüssigkeiten</option>
+                            <option value="13">13 - Nicht brennbare Feststoffe</option>
+                        </datalist>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
                         <label for="unterbereich_id">Standort (Bereich &rsaquo; Unterbereich)</label>
                         <select id="unterbereich_id" name="unterbereich_id">
                             <option value="">– Kein Standort zugewiesen –</option>
@@ -204,17 +236,15 @@
                             <option value="ja">Ja (Ersatzstoff vorhanden)</option>
                             <option value="nein">Nein (Kein Ersatzstoff)</option>
                         </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" id="ersatzstoff-group" style="display:none;">
-                        <label for="ersatzstoff">Name des Ersatzstoffes</label>
-                        <input type="text" id="ersatzstoff" name="ersatzstoff" placeholder="z.B. Zitronensäure">
-                    </div>
-                    <div class="form-group" id="begruendung-group" style="display:none;">
-                        <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
-                        <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da..."></textarea>
+                        
+                        <div id="ersatzstoff-group" style="display:none; margin-top: 10px;">
+                            <label for="ersatzstoff">Name des Ersatzstoffes</label>
+                            <input type="text" id="ersatzstoff" name="ersatzstoff" placeholder="z.B. Zitronensäure">
+                        </div>
+                        <div id="begruendung-group" style="display:none; margin-top: 10px;">
+                            <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
+                            <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da..."></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -328,6 +358,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if(sdbDatumInput) {
                         sdbDatumInput.value = data.sdb_datum;
                         checkSdbDate(sdbDatumInput);
+                    }
+                }
+                if(data.lagerklasse) {
+                    const lagerklasseInput = document.getElementById('lagerklasse');
+                    if(lagerklasseInput) {
+                        lagerklasseInput.value = data.lagerklasse;
                     }
                 }
                 

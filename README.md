@@ -20,7 +20,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     *   Menge und Mengeneinheit
     *   GHS-Piktogrammen und Signalwort
     *   Durchsuchbare Modal-Auswahlfenster für vollständige H-, EUH- und P-Sätze
-*   **Live-Suche**: Echtzeit-Filterung der Gefahrstofftabelle und Betriebsanweisungen direkt im Browser.
+*   **Live-Suche & Filter**: Echtzeit-Suche (nach Name, CAS, H-Sätzen) und Filter (nach Piktogrammen und Signalwort) der Gefahrstofftabelle direkt im Browser.
 *   **Benutzer-Isolation & Rollen**: Normale Benutzer sehen ausschließlich ihre eigenen Datensätze. Moderatoren verwalten spezifische Standorte. Administratoren können alle Gefahrstoffe systemweit einsehen, verschieben, kopieren und löschen.
 *   **Export-Funktion**: Exportieren Sie angezeigte Datensätze als Excel-Tabelle oder PDF-Dokument.
 *   **Admin-Dashboard**: Zur Verwaltung, Beförderung oder Sperrung anderer Systembenutzer.
@@ -84,6 +84,11 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 *   **Produktivbetrieb:** Setzen Sie den `FLASK_SECRET_KEY` als Umgebungsvariable und verwenden Sie einen WSGI-Server (wie *Gunicorn* oder *Waitress*).
 
 ## 📅 Changelog
+
+### v3.1 – Erweiterte Such- & Filterfunktionen (Juni 2026)
+*   **Live-Filter**: Neue Dropdowns zum gezielten Filtern nach GHS-Piktogrammen und Signalwörtern in der Gefahrstoff-Übersicht.
+*   **Erweiterte Suchleiste**: Die Freitext-Suche bezieht nun auch H-Sätze in die Suche mit ein, parallel zu Name und CAS-Nummer.
+*   **UI-Fixes**: Optimiertes Padding für die Suchleiste.
 
 ### v3.0 – Security, Auto-Parsing & Glassmorphism UI (Juni 2026)
 *   **Sicherheit & Architektur**: Systemweite CSRF-Protection per Flask-WTF, Audit Logs (System-Historie für Admins), und Soft-Delete-Mechanismus für Gefahrstoffe.
