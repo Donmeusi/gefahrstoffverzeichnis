@@ -1,11 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 import os
 import json
+import subprocess
+import platform
+import threading
+import time
 from datetime import datetime
 from flask_wtf.csrf import CSRFProtect
 import pandas as pd
@@ -21,12 +26,18 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'gefahrstoffe.db')
+
+if os.environ.get('RUNNING_IN_DOCKER') == 'true':
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/gefahrstoffe.db'
+    UPLOAD_FOLDER = '/app/uploads'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'gefahrstoffe.db')
+    UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 csrf = CSRFProtect(app)
 
-UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -69,6 +80,7 @@ def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
 app.jinja_env.globals.update(getattr=getattr)
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -189,6 +201,7 @@ class Gefahrstoff(db.Model):
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
     gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
+    is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
     unterbereich_id     = db.Column(db.Integer, db.ForeignKey('unterbereich.id'), nullable=True)
     user_id             = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -245,9 +258,15 @@ def get_accessible_bereiche():
         return current_user.assigned_bereiche.order_by(Bereich.name).all()
 
 
+def is_cmr_stoff(h_saetze):
+    if not h_saetze:
+        return False
+    cmr_codes = ['H350', 'H350i', 'H351', 'H340', 'H341', 'H360', 'H360F', 'H360D', 'H360FD', 'H360Fd', 'H360Df', 'H361', 'H361f', 'H361d', 'H361fd', 'H362']
+    return any(code in h_saetze for code in cmr_codes)
+
 def get_gefahrstoff_query():
     """Gibt eine gefilterte Query für Gefahrstoffe zurück."""
-    base_query = Gefahrstoff.query.filter(Gefahrstoff.is_deleted == False)
+    base_query = Gefahrstoff.query.filter(Gefahrstoff.is_deleted == False, Gefahrstoff.is_approved == True)
     
     if current_user.is_admin:
         return base_query
@@ -579,7 +598,8 @@ def add():
             sicherheitsdatenblatt=sdb_filename, betriebsanweisung=ba_filename,
             gefaehrdungsbeurteilung=gb_filename,
             unterbereich_id=unterbereich_id if unterbereich_id else None,
-            user_id=current_user.id
+            user_id=current_user.id,
+            is_approved=not is_cmr_stoff(h_saetze)
         )
         try:
             db.session.add(neuer_stoff)
@@ -587,7 +607,10 @@ def add():
             
             log_audit_event('CREATE', 'Gefahrstoff', neuer_stoff.id, {'name': neuer_stoff.name})
             
-            flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt!', 'success')
+            if not neuer_stoff.is_approved:
+                flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt! Hinweis: Da es sich um einen CMR-Stoff handelt, muss er vor der Sichtbarkeit von einem Moderator/Admin freigegeben werden.', 'warning')
+            else:
+                flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
@@ -697,10 +720,19 @@ def edit_stoff(id):
                 flash('Ungültiger Dateityp.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
 
+        if is_cmr_stoff(stoff.h_saetze):
+            stoff.is_approved = False
+        else:
+            stoff.is_approved = True
+
         try:
             db.session.commit()
             log_audit_event('UPDATE', 'Gefahrstoff', stoff.id, {'name': stoff.name})
-            flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert!', 'success')
+            
+            if not stoff.is_approved:
+                flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert! Hinweis: Er muss nun als CMR-Stoff neu freigegeben werden.', 'warning')
+            else:
+                flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert!', 'success')
             return redirect(url_for('view_stoff', id=stoff.id))
         except Exception as e:
             db.session.rollback()
@@ -813,26 +845,113 @@ def export_excel():
 @app.route('/export/pdf')
 @login_required
 def export_pdf():
+    from svglib.svglib import svg2rlg
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    import json
+    import os
+
     stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
     output = BytesIO()
-    doc = SimpleDocTemplate(output, pagesize=landscape(A4))
+    doc = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm, topMargin=1*cm, bottomMargin=1*cm)
     elements = []
     styles = getSampleStyleSheet()
+    
+    # Custom styles
+    cell_style = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=8, leading=10)
+
     elements.append(Paragraph("Gefahrstoff-Übersicht", styles['Title']))
-    elements.append(Spacer(1, 20))
-    data = [['Name', 'CAS-Nr.', 'Standort', 'Signalwort', 'Menge']]
+    elements.append(Spacer(1, 10))
+    
+    # 6 Columns: 1:Name&CAS, 2:Einstufung, 3:Menge&LGK, 4:Standort, 5:Datum SDB, 6:Substitution
+    data = [[
+        Paragraph('<b>Name & Identifikation</b>', styles['Normal']), 
+        Paragraph('<b>Einstufung & Gefahren</b>', styles['Normal']), 
+        Paragraph('<b>Menge & LGK</b>', styles['Normal']), 
+        Paragraph('<b>Arbeitsbereich</b>', styles['Normal']), 
+        Paragraph('<b>Datum SDB</b>', styles['Normal']), 
+        Paragraph('<b>Substitutionsprüfung</b>', styles['Normal'])
+    ]]
+    
     for s in stoffe:
+        # Col 1: Name & CAS
+        name_cas = f"<b>{s.name}</b><br/>"
+        if s.cas_nummer:
+            name_cas += f"CAS: {s.cas_nummer}<br/>"
+        if s.eg_nummer:
+            name_cas += f"EG: {s.eg_nummer}"
+        p_name_cas = Paragraph(name_cas, cell_style)
+        
+        # Col 2: Einstufung (Piktogramme & H-Sätze)
+        einstufung_elements = []
+        if s.piktogramme:
+            try:
+                piktos = json.loads(s.piktogramme)
+                img_elements = []
+                for p in piktos:
+                    svg_path = os.path.join(app.static_folder, 'pictograms', f"{p}.svg")
+                    if os.path.exists(svg_path):
+                        drawing = svg2rlg(svg_path)
+                        if drawing:
+                            scaling_factor = 20.0 / max(drawing.width, drawing.height)
+                            drawing.width = drawing.width * scaling_factor
+                            drawing.height = drawing.height * scaling_factor
+                            drawing.scale(scaling_factor, scaling_factor)
+                            img_elements.append(drawing)
+                if img_elements:
+                    pikto_table = Table([img_elements], colWidths=[22]*len(img_elements))
+                    pikto_table.setStyle(TableStyle([
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), 
+                        ('LEFTPADDING', (0,0), (-1,-1), 0), 
+                        ('RIGHTPADDING', (0,0), (-1,-1), 2),
+                        ('TOPPADDING', (0,0), (-1,-1), 0),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 2)
+                    ]))
+                    einstufung_elements.append(pikto_table)
+            except Exception as e:
+                pass
+        
+        if s.signalwort:
+            einstufung_elements.append(Paragraph(f"<i>{s.signalwort}</i>", cell_style))
+        if s.h_saetze:
+            einstufung_elements.append(Paragraph(s.h_saetze, cell_style))
+            
+        # Col 3: Menge & LGK
+        menge_str = f"{s.menge} {s.mengeneinheit}" if s.menge else "-"
+        if s.lagerklasse:
+            menge_str += f"<br/>LGK: {s.lagerklasse}"
+        p_menge = Paragraph(menge_str, cell_style)
+        
+        # Col 4: Arbeitsbereich
         standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
-        data.append([s.name, s.cas_nummer or '-', standort, s.signalwort or '-',
-                     f"{s.menge} {s.mengeneinheit}" if s.menge else "-"])
-    table = Table(data)
+        p_standort = Paragraph(standort, cell_style)
+        
+        # Col 5: Datum SDB
+        sdb_datum = s.sdb_datum.strftime('%d.%m.%Y') if s.sdb_datum else "-"
+        p_sdb = Paragraph(sdb_datum, cell_style)
+        
+        # Col 6: Substitution
+        subst_str = f"<b>{s.substitutionspruefung or '-'}</b>"
+        if s.ersatzstoff:
+            subst_str += f"<br/>Ersatzstoff: {s.ersatzstoff}"
+        if s.begruendung:
+            subst_str += f"<br/>Begründung: {s.begruendung}"
+        p_subst = Paragraph(subst_str, cell_style)
+        
+        data.append([p_name_cas, einstufung_elements, p_menge, p_standort, p_sdb, p_subst])
+        
+    table = Table(data, colWidths=[130, 200, 70, 150, 70, 165])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(table)
     doc.build(elements)
@@ -845,7 +964,25 @@ def export_pdf():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# ─── Profil ──────────────────────────────────────────────────────────────────
+# ─── Profil & Freigaben ────────────────────────────────────────────────────────
+
+@app.context_processor
+def inject_pending_approvals():
+    if current_user.is_authenticated and current_user.role in ['admin', 'moderator']:
+        if current_user.is_admin:
+            count = Gefahrstoff.query.filter_by(is_approved=False, is_deleted=False).count()
+        else:
+            owned_ids   = [b.id for b in Bereich.query.filter_by(owner_id=current_user.id).all()]
+            assigned_ids = [b.id for b in current_user.assigned_bereiche.all()]
+            all_ids     = list(set(owned_ids + assigned_ids))
+            sub_ids     = [u.id for u in Unterbereich.query.filter(Unterbereich.bereich_id.in_(all_ids)).all()]
+            count = Gefahrstoff.query.filter(
+                Gefahrstoff.is_approved == False,
+                Gefahrstoff.is_deleted == False,
+                Gefahrstoff.unterbereich_id.in_(sub_ids)
+            ).count()
+        return dict(pending_approvals_count=count)
+    return dict(pending_approvals_count=0)
 
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -865,7 +1002,71 @@ def profile():
             db.session.commit()
             flash('Dein Passwort wurde erfolgreich geändert.', 'success')
             return redirect(url_for('profile'))
-    return render_template('profile.html')
+            
+    pending_gefahrstoffe = []
+    if current_user.role in ['admin', 'moderator']:
+        if current_user.is_admin:
+            pending_gefahrstoffe = Gefahrstoff.query.filter_by(is_approved=False, is_deleted=False).all()
+        else:
+            owned_ids   = [b.id for b in Bereich.query.filter_by(owner_id=current_user.id).all()]
+            assigned_ids = [b.id for b in current_user.assigned_bereiche.all()]
+            all_ids     = list(set(owned_ids + assigned_ids))
+            sub_ids     = [u.id for u in Unterbereich.query.filter(Unterbereich.bereich_id.in_(all_ids)).all()]
+            pending_gefahrstoffe = Gefahrstoff.query.filter(
+                Gefahrstoff.is_approved == False,
+                Gefahrstoff.is_deleted == False,
+                Gefahrstoff.unterbereich_id.in_(sub_ids)
+            ).all()
+
+    return render_template('profile.html', pending_gefahrstoffe=pending_gefahrstoffe)
+
+@app.route('/approve/<int:id>', methods=['POST'])
+@login_required
+def approve_stoff(id):
+    if current_user.role not in ['admin', 'moderator']:
+        flash('Keine Berechtigung.', 'error')
+        return redirect(url_for('index'))
+    
+    stoff = Gefahrstoff.query.get_or_404(id)
+    if current_user.role == 'moderator':
+        if not stoff.unterbereich:
+            flash('Keine Berechtigung für diesen Stoff.', 'error')
+            return redirect(url_for('profile'))
+        owned_ids   = [b.id for b in Bereich.query.filter_by(owner_id=current_user.id).all()]
+        assigned_ids = [b.id for b in current_user.assigned_bereiche.all()]
+        if stoff.unterbereich.bereich_id not in owned_ids + assigned_ids:
+            flash('Keine Berechtigung für diesen Stoff.', 'error')
+            return redirect(url_for('profile'))
+
+    stoff.is_approved = True
+    db.session.commit()
+    log_audit_event('APPROVE', 'Gefahrstoff', stoff.id, {'name': stoff.name})
+    flash(f'Gefahrstoff "{stoff.name}" wurde freigegeben.', 'success')
+    return redirect(url_for('profile'))
+
+@app.route('/reject/<int:id>', methods=['POST'])
+@login_required
+def reject_stoff(id):
+    if current_user.role not in ['admin', 'moderator']:
+        flash('Keine Berechtigung.', 'error')
+        return redirect(url_for('index'))
+    
+    stoff = Gefahrstoff.query.get_or_404(id)
+    if current_user.role == 'moderator':
+        if not stoff.unterbereich:
+            flash('Keine Berechtigung für diesen Stoff.', 'error')
+            return redirect(url_for('profile'))
+        owned_ids   = [b.id for b in Bereich.query.filter_by(owner_id=current_user.id).all()]
+        assigned_ids = [b.id for b in current_user.assigned_bereiche.all()]
+        if stoff.unterbereich.bereich_id not in owned_ids + assigned_ids:
+            flash('Keine Berechtigung für diesen Stoff.', 'error')
+            return redirect(url_for('profile'))
+
+    db.session.delete(stoff)
+    db.session.commit()
+    log_audit_event('REJECT', 'Gefahrstoff', id, {'name': stoff.name})
+    flash(f'Gefahrstoff "{stoff.name}" wurde abgelehnt und entfernt.', 'success')
+    return redirect(url_for('profile'))
 
 # ─── Benutzerverwaltung ──────────────────────────────────────────────────────
 
@@ -1328,6 +1529,92 @@ def audit_logs():
     
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(100).all()
     return render_template('audit_logs.html', logs=logs)
+
+@app.route('/admin/system')
+@login_required
+def admin_system():
+    if not current_user.is_admin:
+        flash('Keine Berechtigung für diese Seite.', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        remote_url = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'], stderr=subprocess.STDOUT).decode('utf-8').strip()
+    except Exception:
+        remote_url = "https://github.com/Donmeusi/gefahrstoffverzeichnis"
+        
+    updates_available = False
+    local_commit = "Unbekannt"
+    remote_commit = "Unbekannt"
+    try:
+        subprocess.check_call(['git', 'fetch'], stderr=subprocess.STDOUT)
+        local_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
+        remote_commit = subprocess.check_output(['git', 'rev-parse', 'origin/main'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
+        if local_commit != remote_commit:
+            updates_available = True
+    except Exception as e:
+        pass
+
+    return render_template('admin_system.html', remote_url=remote_url, local_commit=local_commit, remote_commit=remote_commit, updates_available=updates_available)
+
+@app.route('/admin/system/update_repo', methods=['POST'])
+@login_required
+def update_repo():
+    if not current_user.is_admin:
+        flash('Keine Berechtigung.', 'error')
+        return redirect(url_for('index'))
+    new_url = request.form.get('repo_url', '').strip()
+    if not new_url:
+        new_url = "https://github.com/Donmeusi/gefahrstoffverzeichnis"
+    try:
+        subprocess.check_call(['git', 'remote', 'set-url', 'origin', new_url], stderr=subprocess.STDOUT)
+        flash('Repository-URL erfolgreich aktualisiert.', 'success')
+    except subprocess.CalledProcessError:
+        try:
+            subprocess.check_call(['git', 'remote', 'add', 'origin', new_url], stderr=subprocess.STDOUT)
+            flash('Repository-URL erfolgreich hinzugefügt.', 'success')
+        except Exception as e:
+            flash(f'Fehler beim Setzen der URL: {e}', 'error')
+    except Exception as e:
+        flash(f'Ein unerwarteter Fehler ist aufgetreten: {e}', 'error')
+    
+    return redirect(url_for('admin_system'))
+
+@app.route('/admin/system/do_update', methods=['POST'])
+@login_required
+def do_update():
+    if not current_user.is_admin:
+        flash('Keine Berechtigung.', 'error')
+        return redirect(url_for('index'))
+        
+    def trigger_update_script():
+        import time, os, subprocess
+        time.sleep(2)
+        
+        if os.environ.get('RUNNING_IN_DOCKER') == 'true':
+            # In Docker: Backup DB, git pull, then exit. 
+            # Docker (restart: always) and entrypoint will handle pip and migrate.
+            if os.path.exists("gefahrstoffe.db"):
+                os.makedirs("backups", exist_ok=True)
+                import shutil
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                shutil.copy("gefahrstoffe.db", f"backups/gefahrstoffe_{timestamp}.db")
+            
+            subprocess.run(["git", "pull"])
+        else:
+            import platform
+            if platform.system() == "Windows":
+                subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update.ps1"])
+            else:
+                subprocess.Popen(["bash", "update.sh"])
+        
+        os._exit(0)
+        
+    import threading
+    threading.Thread(target=trigger_update_script).start()
+    
+    flash('Update wird im Hintergrund ausgeführt. Der Server startet in wenigen Sekunden neu.', 'success')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True)
