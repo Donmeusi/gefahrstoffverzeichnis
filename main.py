@@ -824,15 +824,34 @@ def copy_stoff(id):
 @app.route('/export/excel')
 @login_required
 def export_excel():
+    import json
     stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
     data = []
     for s in stoffe:
         standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
+        
+        piktos_str = ""
+        if s.piktogramme:
+            try:
+                piktos_str = ", ".join(json.loads(s.piktogramme))
+            except:
+                piktos_str = str(s.piktogramme)
+                
         data.append({
-            'Name': s.name, 'CAS-Nummer': s.cas_nummer, 'EG-Nummer': s.eg_nummer,
-            'Standort/Lagerort': standort, 'Signalwort': s.signalwort,
-            'H-Sätze': s.h_saetze, 'P-Sätze': s.p_saetze,
-            'Menge': f"{s.menge} {s.mengeneinheit}" if s.menge else "-"
+            'Name': s.name, 
+            'CAS-Nummer': s.cas_nummer, 
+            'EG-Nummer': s.eg_nummer,
+            'Piktogramme': piktos_str,
+            'Signalwort': s.signalwort,
+            'H-Sätze': s.h_saetze, 
+            'P-Sätze': s.p_saetze,
+            'Menge': f"{s.menge} {s.mengeneinheit}" if s.menge else "-",
+            'Lagerklasse': s.lagerklasse,
+            'Arbeitsbereich': standort,
+            'Datum SDB': s.sdb_datum.strftime('%d.%m.%Y') if s.sdb_datum else "-",
+            'Substitutionsprüfung': s.substitutionspruefung,
+            'Ersatzstoff': s.ersatzstoff,
+            'Begründung': s.begruendung
         })
     df = pd.DataFrame(data)
     output = BytesIO()
