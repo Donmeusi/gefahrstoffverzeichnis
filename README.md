@@ -75,12 +75,33 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     ```
     Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
-6.  **Mit Docker / Unraid ausführen (Empfohlen für Server):**
-    Die App ist voll Docker-kompatibel. Die Pfade für Datenbank und Uploads stellen sich automatisch um, wenn der Container läuft (`RUNNING_IN_DOCKER=true`).
-    ```bash
-    docker-compose up -d
-    ```
+### 🐳 Vollständige Docker-Installation (Empfohlen für Server & Unraid)
 
+Die App ist durch das integrierte `Dockerfile` und die `docker-compose.yml` voll Docker-kompatibel. Updates (inklusive neuer Dependencies und Datenbank-Migrationen) können bequem über das In-App Update-Feature ohne Neuinstallation geladen werden. Die Pfade für Datenbank und Uploads passen sich im Container automatisch an.
+
+**Voraussetzungen:**
+Auf Ihrem Server muss Docker und Docker Compose (bzw. das Compose-Plugin) installiert sein.
+
+**1. Verzeichnis erstellen & Repository klonen:**
+Legen Sie einen Ordner für die App an (z.B. in Ihrem Appdata-Verzeichnis) und klonen Sie das Repo dorthin.
+```bash
+git clone https://github.com/Donmeusi/gefahrstoffverzeichnis.git /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
+cd /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
+```
+
+**2. Container bauen und starten:**
+Da im Repository bereits eine fertig konfigurierte `docker-compose.yml` beiliegt, müssen Sie den Container nur noch im Hintergrund starten. Der Parameter `--build` sorgt dafür, dass das Image beim ersten Start frisch erstellt wird:
+```bash
+docker-compose up -d --build
+```
+Das System mountet Ihren Code-Ordner als Volume in den Container (`- ./:/app`). Dadurch bleiben alle Ihre zukünftigen Updates (via `git pull`) dauerhaft auf Ihrem Server gespeichert.
+
+**3. Auf die App zugreifen:**
+Sobald der Container läuft, erreichen Sie das Gefahrstoffverzeichnis über den Browser unter:
+`http://<IP-Ihres-Servers>:5000`
+
+**Hinweis für Unraid-Nutzer:**
+Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach `/mnt/user/appdata/gefahrstoffverzeichnis`. Sie können die bestehende `docker-compose.yml` dann auch direkt in das "Compose Manager" Plugin von Unraid einbinden und den Stack (Container) über das Webinterface verwalten.
 ---
 
 ## 🔒 Sicherheit & Updates
