@@ -6,12 +6,14 @@ services:
     container_name: gefahrstoffe_app
     ports:
       - "5000:5000"
+    environment:
+      - APP_DATA_DIR=/app/data
     volumes:
       # Mount the entire source code to persist git pull updates
       - ./:/app
       # Native Docker Volume to bypass LXC SQLite locking bug
-      - gefahrstoff_db:/db
+      - gefahrstoff_data:/app/data
     restart: always
 
 volumes:
-  gefahrstoff_db:
+  gefahrstoff_data:

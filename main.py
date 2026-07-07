@@ -27,12 +27,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 
-if os.environ.get('RUNNING_IN_DOCKER') == 'true':
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////db/gefahrstoffe.db'
-    UPLOAD_FOLDER = '/db/uploads'
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'gefahrstoffe.db')
-    UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
+app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
+os.makedirs(app_data_dir, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app_data_dir, 'gefahrstoffe.db')
+UPLOAD_FOLDER = os.path.join(app_data_dir, 'uploads')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
