@@ -84,9 +84,9 @@
     <footer>
         <div class="container footer-inner">
             <i class="fa-solid fa-flask"></i>
-            <span>&copy; 2025 Gefahrstoff-Verwaltung</span>
+            <span>&copy; {{ CURRENT_YEAR }} Gefahrstoff-Verwaltung</span>
             <span style="color:#cbd5e1;">·</span>
-            <span style="color:#94a3b8;">v2.0</span>
+            <span style="color:#94a3b8;">v{{ APP_VERSION }}</span>
         </div>
     </footer>
     {% endblock %}

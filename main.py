@@ -37,6 +37,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 csrf = CSRFProtect(app)
 
+APP_VERSION = "2.0.1"
+
+@app.context_processor
+def inject_globals():
+    return {
+        'APP_VERSION': APP_VERSION,
+        'CURRENT_YEAR': datetime.utcnow().year
+    }
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
