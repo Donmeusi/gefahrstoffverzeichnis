@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}System & Updates – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-server" style="color:var(--primary); margin-right:0.4rem;"></i> System & Updates</h1>
+        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+            Verwalte Updates und Systemeinstellungen
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+    </div>
+</div>
+
+<div class="glass-card fade-in" style="margin-top:1.5rem; max-width:800px;">
+    <h3 style="margin-bottom:1rem; color:var(--dark); display:flex; align-items:center; gap:0.5rem;">
+        <i class="fa-brands fa-git-alt" style="color:#F1502F;"></i> Repository-Konfiguration
+    </h3>
+    <form method="POST" action="{{ url_for('update_repo') }}" style="display:flex; flex-direction:column; gap:1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label class="form-label" for="repo_url">Git Repository URL</label>
+            <input type="url" name="repo_url" id="repo_url" class="form-control" value="{{ remote_url }}" required>
+            <div class="text-muted" style="margin-top:0.25rem; font-size:0.8rem;">Die Quell-URL für automatische Updates. Standard: <code>https://github.com/Donmeusi/gefahrstoffverzeichnis</code></div>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> URL speichern</button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('repo_url').value='https://github.com/Donmeusi/gefahrstoffverzeichnis';"><i class="fa-solid fa-rotate-left"></i> Standard wiederherstellen</button>
+        </div>
+    </form>
+</div>
+
+<div class="glass-card fade-in" style="margin-top:1.5rem; max-width:800px; animation-delay:0.1s;">
+    <h3 style="margin-bottom:1rem; color:var(--dark); display:flex; align-items:center; gap:0.5rem;">
+        <i class="fa-solid fa-cloud-download-alt" style="color:var(--primary);"></i> Versionsprüfung
+    </h3>
+    
+    <div style="background:rgba(0,0,0,0.02); padding:1rem; border-radius:8px; border:1px solid var(--glass-border); margin-bottom:1rem;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div>
+                <strong style="color:var(--dark);">Installierte Version (Lokal):</strong><br>
+                <code style="background:white; padding:0.2rem 0.4rem; border-radius:4px; font-size:1rem; margin-top:0.25rem; display:inline-block; border:1px solid #ddd;">{{ local_commit }}</code>
+            </div>
+            <div>
+                <strong style="color:var(--dark);">Neueste Version (Remote):</strong><br>
+                <code style="background:white; padding:0.2rem 0.4rem; border-radius:4px; font-size:1rem; margin-top:0.25rem; display:inline-block; border:1px solid #ddd;">{{ remote_commit }}</code>
+            </div>
+        </div>
+    </div>
+    
+    {% if updates_available %}
+        <div style="padding:1rem; background:rgba(40,167,69,0.1); border:1px solid rgba(40,167,69,0.2); border-radius:8px; color:#28a745; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fa-solid fa-circle-check"></i> <strong>Neues Update verfügbar!</strong>
+        </div>
+        
+        <form method="POST" action="{{ url_for('do_update') }}" onsubmit="return confirmUpdate();">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary" id="updateBtn">
+                <i class="fa-solid fa-rocket"></i> Update jetzt installieren (Neustart erforderlich)
+            </button>
+        </form>
+    {% else %}
+        <div style="padding:1rem; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); border-radius:8px; color:var(--dark); display:flex; align-items:center; gap:0.5rem;">
+            <i class="fa-solid fa-check" style="color:var(--primary);"></i> Dein System ist auf dem neuesten Stand.
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function confirmUpdate() {
+    if(confirm("Möchtest du das Update jetzt wirklich installieren?\nDas System wird kurzzeitig nicht erreichbar sein.")) {
+        let btn = document.getElementById('updateBtn');
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Update wird vorbereitet...';
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.7';
+        return true;
+    }
+    return false;
+}
+</script>
+{% endblock %}

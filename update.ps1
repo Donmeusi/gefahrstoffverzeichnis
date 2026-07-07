@@ -1,0 +1,19 @@
+Start-Sleep -Seconds 2
+
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$backupDir = "backups"
+if (-not (Test-Path -Path $backupDir)) {
+    New-Item -ItemType Directory -Path $backupDir | Out-Null
+}
+
+if (Test-Path -Path "gefahrstoffe.db") {
+    Copy-Item -Path "gefahrstoffe.db" -Destination "$backupDir\gefahrstoffe_$timestamp.db"
+}
+
+git pull
+
+& .\venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:FLASK_APP="main.py"
+& .\venv\Scripts\flask.exe db upgrade
+
+Start-Process -FilePath ".\venv\Scripts\python.exe" -ArgumentList "main.py"

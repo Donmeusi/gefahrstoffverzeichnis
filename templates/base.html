@@ -48,7 +48,12 @@
                 {% if current_user.role == 'admin' %}
                 <li><a href="{{ url_for('audit_logs') }}"><i class="fa-solid fa-history"></i> Historie</a></li>
                 {% endif %}
-                <li><a href="{{ url_for('profile') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-user-gear"></i> Profil</a></li>
+                <li><a href="{{ url_for('profile') }}" class="btn btn-outline btn-sm" style="position: relative;">
+                    <i class="fa-solid fa-user-gear"></i> Profil
+                    {% if pending_approvals_count and pending_approvals_count > 0 %}
+                    <span style="position:absolute; top:-5px; right:-5px; background:hsl(0,84%,60%); color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow: 0 0 0 2px var(--bg-color);">{{ pending_approvals_count }}</span>
+                    {% endif %}
+                </a></li>
                 <li><a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
                 {% else %}
                 <li><a href="{{ url_for('login') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>

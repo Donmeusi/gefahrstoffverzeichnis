@@ -1,9 +1,6 @@
 venv/
 __pycache__/
+*.pyc
 .git/
-.gitignore
-*.db
-uploads/
-.env
-screenshots/
-take_screenshots.py
+backups/
+gefahrstoffe.db

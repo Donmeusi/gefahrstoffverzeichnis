@@ -115,6 +115,87 @@
     </div>
 </div>
 
+{% if current_user.role in ['admin', 'moderator'] %}
+<div class="card" style="margin-top:1.5rem;">
+    <div class="card-body">
+        <div class="section-header">
+            <i class="fa-solid fa-bell icon-warning"></i>
+            <h3>Nachrichten & Freigaben</h3>
+            {% if pending_approvals_count > 0 %}
+            <span class="badge badge-danger" style="margin-left:0.5rem;">{{ pending_approvals_count }}</span>
+            {% endif %}
+        </div>
+        
+        {% if pending_gefahrstoffe %}
+        <div class="table-responsive" style="margin-top: 1rem;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Stoffname</th>
+                        <th>CAS / EG</th>
+                        <th>Standort</th>
+                        <th style="text-align: right;">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stoff in pending_gefahrstoffe %}
+                    <tr>
+                        <td>
+                            <strong>{{ stoff.name }}</strong>
+                            <div style="font-size:0.8rem; color:var(--danger); margin-top:0.2rem;">
+                                <i class="fa-solid fa-triangle-exclamation"></i> CMR-Stoff (Prüfung erforderlich)
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size:0.85rem;">CAS: {{ stoff.cas_nummer or '-' }}</div>
+                            <div style="font-size:0.85rem; color:var(--text-muted);">EG: {{ stoff.eg_nummer or '-' }}</div>
+                        </td>
+                        <td>{{ stoff.unterbereich.get_full_path() if stoff.unterbereich else 'Kein Standort' }}</td>
+                        <td>
+                            <div style="display:flex; gap:0.5rem; justify-content: flex-end;">
+                                <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm" target="_blank" title="Stoffdetails öffnen"><i class="fa-solid fa-eye"></i> Prüfen</a>
+                                <form action="{{ url_for('approve_stoff', id=stoff.id) }}" method="POST" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-check"></i> Freigeben</button>
+                                </form>
+                                <form action="{{ url_for('reject_stoff', id=stoff.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Stoff wirklich ablehnen und löschen?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger-light); color:var(--danger);"><i class="fa-solid fa-xmark"></i> Ablehnen</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align:center; padding: 2.5rem 1rem; color:var(--text-muted); background:var(--bg-color); border-radius:8px; margin-top:1rem; border:1px dashed var(--border);">
+            <i class="fa-solid fa-inbox" style="font-size:2.5rem; opacity:0.3; margin-bottom:1rem; display:block;"></i>
+            <p style="margin:0;">Keine ausstehenden Freigaben oder neuen Nachrichten.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if getattr(current_user, 'is_admin', False) %}
+<div class="card" style="margin-top:1.5rem;">
+    <div class="card-body">
+        <div class="section-header">
+            <i class="fa-solid fa-server icon-primary"></i>
+            <h3>System & Updates</h3>
+        </div>
+        <p class="text-muted mb-4" style="font-size:0.875rem;">
+            Verwalte Updates, das Quell-Repository und Systemeinstellungen.
+        </p>
+        <a href="{{ url_for('admin_system') }}" class="btn btn-primary">
+            <i class="fa-solid fa-cloud-download-alt"></i> Update-Management öffnen
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <script>
 function togglePw(id, btn) {
     const inp = document.getElementById(id);
