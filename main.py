@@ -318,11 +318,32 @@ def can_manage_bereich(bereich):
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Registrierung ist deaktiviert – Benutzer werden durch Admin/Moderator angelegt."""
+    """Erster Benutzer wird als Admin registriert, danach ist die Registrierung deaktiviert."""
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    flash('Die Registrierung ist deaktiviert. Bitte wende dich an den Administrator.', 'info')
-    return redirect(url_for('login'))
+        
+    if User.query.count() > 0:
+        flash('Die Registrierung ist deaktiviert. Bitte wende dich an den Administrator.', 'info')
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if not username or not password:
+            flash('Bitte Benutzername und Passwort eingeben.', 'error')
+            return redirect(url_for('register'))
+            
+        user = User(username=username, role='admin')
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        log_audit_event(user.id, "USER_CREATE", "Erster Admin-Benutzer bei Systemstart angelegt.")
+        flash('Erster Admin-Benutzer erfolgreich erstellt! Bitte einloggen.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('register.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
