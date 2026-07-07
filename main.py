@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -1710,6 +1710,99 @@ def do_update():
     
     flash('Update wird im Hintergrund ausgeführt. Der Server startet in wenigen Sekunden neu.', 'success')
     return redirect(url_for('index'))
+
+@app.route('/api/autofill/<cas_nummer>')
+@login_required
+def api_autofill(cas_nummer):
+    import urllib.request
+    import urllib.parse
+    import json
+    import re
+    
+    cas = cas_nummer.strip()
+    if not cas:
+        return jsonify({'error': 'Keine CAS-Nummer angegeben'}), 400
+        
+    try:
+        url1 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{urllib.parse.quote(cas)}/cids/JSON'
+        try:
+            req1 = urllib.request.urlopen(url1, timeout=5)
+            res1 = json.loads(req1.read())
+            cid = res1['IdentifierList']['CID'][0]
+        except Exception:
+            return jsonify({'error': 'CAS-Nummer in PubChem nicht gefunden.'}), 404
+            
+        name_url = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/Title/JSON'
+        try:
+            name_req = urllib.request.urlopen(name_url, timeout=5)
+            name_res = json.loads(name_req.read())
+            name = name_res['PropertyTable']['Properties'][0]['Title']
+        except Exception:
+            name = ""
+            
+        url2 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards'
+        try:
+            req2 = urllib.request.urlopen(url2, timeout=5)
+            res2 = json.loads(req2.read())
+        except Exception:
+            return jsonify({'error': 'Keine GHS-Gefahrstoffdaten bei PubChem hinterlegt.'}), 404
+            
+        ghs_data = {
+            'name': name,
+            'signalwort': '',
+            'h_saetze': [],
+            'p_saetze': [],
+            'piktogramme': []
+        }
+        
+        sections = res2.get('Record', {}).get('Section', [])
+        for sec in sections:
+            if sec.get('TOCHeading') == 'Safety and Hazards':
+                for subsec in sec.get('Section', []):
+                    if subsec.get('TOCHeading') == 'Hazards Identification':
+                        for subsubsec in subsec.get('Section', []):
+                            if subsubsec.get('TOCHeading') == 'GHS Classification':
+                                for info in subsubsec.get('Information', []):
+                                    name_val = info.get('Name')
+                                    markup = info.get('Value', {}).get('StringWithMarkup', [])
+                                    
+                                    if name_val == 'Pictogram(s)':
+                                        for m in markup:
+                                            for mk in m.get('Markup', []):
+                                                url = mk.get('URL', '')
+                                                match = re.search(r'(GHS0\d)', url, re.IGNORECASE)
+                                                if match:
+                                                    ghs_data['piktogramme'].append(match.group(1).upper())
+                                    
+                                    elif name_val == 'Signal':
+                                        if markup:
+                                            signal_en = markup[0].get('String', '').lower()
+                                            if 'danger' in signal_en:
+                                                ghs_data['signalwort'] = 'Gefahr'
+                                            elif 'warning' in signal_en:
+                                                ghs_data['signalwort'] = 'Achtung'
+                                                
+                                    elif name_val == 'GHS Hazard Statements':
+                                        for m in markup:
+                                            s = m.get('String', '')
+                                            match = re.search(r'(H\d{3}[a-zA-Z]*)', s)
+                                            if match:
+                                                ghs_data['h_saetze'].append(match.group(1))
+                                                
+                                    elif name_val == 'Precautionary Statement Codes':
+                                        for m in markup:
+                                            s = m.get('String', '')
+                                            matches = re.findall(r'(P\d{3}[a-zA-Z]*)', s)
+                                            ghs_data['p_saetze'].extend(matches)
+                                            
+        ghs_data['piktogramme'] = list(set(ghs_data['piktogramme']))
+        ghs_data['h_saetze'] = ", ".join(sorted(list(set(ghs_data['h_saetze']))))
+        ghs_data['p_saetze'] = ", ".join(sorted(list(set(ghs_data['p_saetze']))))
+        
+        return jsonify(ghs_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
