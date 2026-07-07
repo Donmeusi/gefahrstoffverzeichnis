@@ -17,6 +17,8 @@ import pandas as pd
 from io import BytesIO
 import pdfplumber
 import re
+import qrcode
+import base64
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -512,6 +514,39 @@ def locations():
 
     bereiche = get_accessible_bereiche()
     return render_template('locations.html', bereiche=bereiche)
+
+@app.route('/location/<int:id>/qr')
+@login_required
+def location_qr(id):
+    unterbereich = Unterbereich.query.get_or_404(id)
+    
+    # Check permissions
+    if not can_manage_bereich(unterbereich.bereich) \
+            and unterbereich.bereich not in current_user.assigned_bereiche.all() \
+            and not current_user.is_admin:
+        flash('Kein Zugriff auf diesen Standort.', 'error')
+        return redirect(url_for('locations'))
+
+    # Generate URL filtering by this unterbereich
+    url = url_for('index', unterbereich_id=unterbereich.id, _external=True)
+    
+    # Create QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    
+    # Create image in memory
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    
+    return render_template('print_qr.html', unterbereich=unterbereich, qr_code_b64=img_b64)
 
 
 @app.route('/location/delete_bereich/<int:id>', methods=['POST'])

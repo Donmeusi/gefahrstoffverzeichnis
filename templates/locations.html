@@ -17,16 +17,21 @@
         {{ unterbereich.name }}
         <span class="count-chip">{{ unterbereich.gefahrstoffe|length }} Stoff(e)</span>
     </span>
-    <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST" style="margin:0;"
-          onsubmit="return confirm('Unterbereich löschen? Stoffe verlieren ihren Standort.');">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        {% if current_user.is_admin or unterbereich.bereich.owner_id == current_user.id %}
-        <button type="submit" class="btn-icon" title="Unterbereich löschen"
-                style="color:var(--danger); font-size:0.8rem;">
-            <i class="fa-solid fa-times"></i>
-        </button>
-        {% endif %}
-    </form>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="QR-Code generieren und drucken" style="color:var(--text-light); font-size:0.9rem;">
+            <i class="fa-solid fa-qrcode"></i>
+        </a>
+        <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST" style="margin:0;"
+              onsubmit="return confirm('Unterbereich löschen? Stoffe verlieren ihren Standort.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% if current_user.is_admin or unterbereich.bereich.owner_id == current_user.id %}
+            <button type="submit" class="btn-icon" title="Unterbereich löschen"
+                    style="color:var(--danger); font-size:0.8rem;">
+                <i class="fa-solid fa-times"></i>
+            </button>
+            {% endif %}
+        </form>
+    </div>
 </div>
 {% for child in unterbereich.children %}
     {{ render_unterbereich_list(child, level + 1) }}
