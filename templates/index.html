@@ -67,6 +67,38 @@
     <!-- Main Content -->
     <div class="main-content">
         {% if gefahrstoffe %}
+        <!-- KPI Dashboard -->
+        <div class="kpi-dashboard">
+            <div class="kpi-card">
+                <div class="kpi-icon primary">
+                    <i class="fa-solid fa-flask"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ stats_total }}</span>
+                    <span class="kpi-label">Gefahrstoffe</span>
+                </div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-icon info">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ stats_locations }}</span>
+                    <span class="kpi-label">Standorte</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon {% if stats_expired_sdb > 0 %}danger{% else %}primary{% endif %}">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ stats_expired_sdb }}</span>
+                    <span class="kpi-label">Veraltete SDBs</span>
+                </div>
+            </div>
+        </div>
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem;">
             <!-- View Controls -->
             <div class="view-controls">
@@ -134,8 +166,8 @@
                             </a>
                         </td>
                         <td style="font-size:0.82rem;">
-                            <span>{{ stoff.cas_nummer or '–' }}</span>
-                            {% if stoff.eg_nummer %}<br><span class="text-muted">{{ stoff.eg_nummer }}</span>{% endif %}
+                            <span class="font-mono">{{ stoff.cas_nummer or '–' }}</span>
+                            {% if stoff.eg_nummer %}<br><span class="text-muted font-mono">{{ stoff.eg_nummer }}</span>{% endif %}
                         </td>
                         <td style="font-size:0.85rem;">
                             {% if stoff.unterbereich %}

@@ -410,10 +410,31 @@ def index():
             query = query.filter(Gefahrstoff.unterbereich_id.in_(child_ids))
 
     gefahrstoffe = query.order_by(Gefahrstoff.name).all()
-    return render_template('index.html', gefahrstoffe=gefahrstoffe,
-                           bereiche=bereiche, aktiver_bereich=aktiver_bereich,
+    
+    # KPIs berechnen
+    stats_total = len(gefahrstoffe)
+    
+    # Abgelaufene SDBs (älter als 3 Jahre)
+    today = datetime.utcnow().date()
+    stats_expired_sdb = 0
+    for stoff in gefahrstoffe:
+        if stoff.sicherheitsdatenblatt and stoff.sdb_datum:
+            diff_years = (today - stoff.sdb_datum).days / 365
+            if diff_years >= 3:
+                stats_expired_sdb += 1
+                
+    # Anzahl der Standorte (distinct unterbereich_id)
+    stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
+
+    return render_template('index.html', 
+                           gefahrstoffe=gefahrstoffe,
+                           bereiche=bereiche, 
+                           aktiver_bereich=aktiver_bereich,
                            aktiver_unterbereich=aktiver_unterbereich,
-                           today=datetime.utcnow().date())
+                           today=today,
+                           stats_total=stats_total,
+                           stats_expired_sdb=stats_expired_sdb,
+                           stats_locations=stats_locations)
 
 @app.route('/betriebsanweisungen')
 @login_required
