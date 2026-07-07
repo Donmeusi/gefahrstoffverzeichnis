@@ -26,11 +26,17 @@ Das Dashboard ist Ihre Zentrale für alle Gefahrstoffe, auf die Sie Zugriff habe
 - **Verschieben:** Verschieben Sie einen Gefahrstoff schnell von einem Raum/Bereich in einen anderen.
 - **Archivierung (Soft-Delete):** Löschen Sie Datensätze sicher. Sie werden nicht hart aus der Datenbank gelöscht, sondern archiviert, um die Datenintegrität und Historie zu wahren.
 
-### 1.4 ✨ SDB Auto-Parsing (Automatischer Import)
-Beim Anlegen eines neuen Gefahrstoffs können Sie einfach das PDF-Sicherheitsdatenblatt hochladen. Die App **liest das PDF vollautomatisch aus** und füllt das Formular für Sie aus:
+### 1.4 ✨ Automatisierte Datenerfassung (SDB & PubChem)
+Die App bietet zwei mächtige Funktionen, um Ihnen die manuelle Tipparbeit beim Anlegen von Gefahrstoffen abzunehmen:
+
+**1. SDB Auto-Parsing (PDF-Import):**
+Laden Sie beim Anlegen einfach das PDF-Sicherheitsdatenblatt hoch. Die App liest das PDF vollautomatisch aus und befüllt das Formular:
 - Extraktion von CAS-Nummer & EG-Nummer
 - Erkennung von Signalwort & GHS-Piktogrammen
 - Auslesen der H- und P-Sätze
+
+**2. CAS-Nummer Autofill (PubChem):**
+Wenn Sie nur die CAS-Nummer zur Hand haben (z.B. `67-64-1`), tippen Sie diese in das Feld ein und klicken auf "🪄 Autofill". Die App holt sich in Sekundenschnelle alle relevanten GHS-Daten aus der offiziellen PubChem-Datenbank und füllt Piktogramme, Signalwort sowie H/P-Sätze automatisch aus.
 
 ### 1.5 Dokumenten-Zentralen
 Anstatt Gefahrstoffe einzeln anklicken zu müssen, bietet die App globale Sammelstellen für Dokumente:
@@ -41,10 +47,13 @@ Anstatt Gefahrstoffe einzeln anklicken zu müssen, bietet die App globale Sammel
 Je nach Systemkonfiguration müssen neu angelegte Gefahrstoffe von regulären Benutzern erst geprüft werden.
 - **Freigabe / Ablehnung:** Moderatoren und Administratoren sehen in ihrem Profil eine Liste der "ausstehenden" Gefahrstoffe und können diese genehmigen (`Approve`) oder ablehnen (`Reject`).
 
-### 1.7 Standort-Verwaltung (`/locations`)
+### 1.7 Standort-Verwaltung & QR-Codes (`/locations`)
 Die Lagerorte sind hierarchisch aufgebaut:
 - **Bereiche:** Hauptstandorte (z.B. Gebäude, Fakultät, Abteilung). Diesen Bereichen kann ein "Besitzer" (Moderator) zugewiesen werden.
 - **Unterbereiche:** Spezifische Lagerorte innerhalb eines Bereichs (z.B. Raum 101, Chemikalienschrank A).
+
+**🖨️ QR-Code Generierung:** 
+Für jeden Unterbereich lässt sich mit einem Klick auf das QR-Code-Symbol eine druckbare Ansicht erzeugen. Wenn Sie diesen Code ausdrucken und am Schrank anbringen, müssen Mitarbeiter ihn nur noch mit der Smartphone-Kamera abscannen und landen direkt in einer exakt auf diesen Schrank gefilterten Inventarliste. Die QR-Code-Erzeugung geschieht 100% lokal und datenschutzkonform.
 
 ### 1.8 Administrator-Werkzeuge
 - **Audit Log (System-Historie):** Eine manipulationssichere Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, gelöscht oder freigegeben hat.

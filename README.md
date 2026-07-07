@@ -9,6 +9,8 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ## ✨ Neue & Wichtige Funktionen (2026 Edition)
 
 *   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
+*   **PubChem CAS-Autofill**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze) automatisch aus der offiziellen NIH/PubChem Datenbank herunter.
+*   **QR-Code Generator**: Erzeugen Sie mit einem Klick lokale, datenschutzkonforme QR-Codes für Ihre Lagerorte und Schränke, um per Smartphone-Scan direkt auf den gefilterten Schrank-Inhalt zuzugreifen.
 *   **Dokumenten-Zentralen**: Globale Menüpunkte listen alle hochgeladenen Betriebsanweisungen und Sicherheitsdatenblätter aus allen Bereichen alphabetisch sortiert auf. Inklusive Live-Suche – zugänglich für alle Nutzer.
 *   **Umfassende Sicherheit (CSRF & Audit)**: Die App ist systemweit gegen Cross-Site Request Forgery (CSRF) geschützt. Administratoren können zudem eine detaillierte **System-Historie (Audit Log)** einsehen, die jeden Datensatz (Erstellen, Ändern, Löschen, Freigeben) manipulationssicher protokolliert.
 *   **Archivierung (Soft-Delete)**: Gefahrstoffe werden beim "Löschen" nicht mehr unwiderruflich aus der Datenbank entfernt, sondern sicher archiviert (`is_deleted=True`), um versehentlichen Datenverlust zu verhindern.
@@ -110,18 +112,4 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
 
 ## 📅 Changelog
 
-### v3.2 – Docker Fixes, Excel Update & Dokumentation (Juli 2026)
-*   **Docker & Unraid Kompatibilität**: Automatischer Switch auf absolute Pfade (`/app/gefahrstoffe.db` und `/app/uploads`) via `RUNNING_IN_DOCKER` Variable. Verhindert Rechteprobleme in Containern, ohne die lokale Ausführung zu beeinträchtigen.
-*   **Erweiterter Excel-Export**: Der Excel-Export (`.xlsx`) wurde an den PDF-Export angeglichen und beinhaltet nun Piktogramme (als Textliste), Lagerklassen (LGK), Datum der SDBs sowie Details der Substitutionsprüfungen.
-*   **Handbuch**: Ein vollständiges `HANDBUCH.md` mit detaillierter Beschreibung aller Funktionen, Dokumentenzentralen, Freigabe-Workflows (Approve/Reject) und Rollensystem (Admin, Moderator, Benutzer) hinzugefügt.
-
-### v3.1 – Erweiterte Such- & Filterfunktionen (Juni 2026)
-*   **Live-Filter**: Neue Dropdowns zum gezielten Filtern nach GHS-Piktogrammen und Signalwörtern in der Gefahrstoff-Übersicht.
-*   **Erweiterte Suchleiste**: Die Freitext-Suche bezieht nun auch H-Sätze in die Suche mit ein, parallel zu Name und CAS-Nummer.
-*   **UI-Fixes**: Optimiertes Padding für die Suchleiste.
-
-### v3.0 – Security, Auto-Parsing & Glassmorphism UI (Juni 2026)
-*   **Sicherheit & Architektur**: Systemweite CSRF-Protection per Flask-WTF, Audit Logs (System-Historie für Admins), und Soft-Delete-Mechanismus für Gefahrstoffe.
-*   **SDB Auto-Parsing**: PDF-Inhalte (CAS, EG, Signalwort, H/P-Sätze) werden beim Dateiupload vollautomatisch ausgelesen und in das HTML-Formular injiziert. Intelligente Umbenennung beim Speichern.
-*   **Betriebsanweisungen**: Neue globale Übersicht (`/betriebsanweisungen`) für alle hochgeladenen Betriebsanweisungen.
-*   **UI/UX (Clinical Glassmorphism)**: Komplettes Redesign in "Clinical/Medical Glassmorphism" mit sanften Blauschattierungen, durchsichtigen Flächen, abgerundeten Karten und modernsten Micro-Animationen.
+Eine vollständige Liste aller Versionen und Änderungen finden Sie in der [CHANGELOG.md](CHANGELOG.md) Datei.
