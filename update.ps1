@@ -1,12 +1,14 @@
 Start-Sleep -Seconds 2
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$backupDir = "backups"
+$backupDir = "data\backups"
 if (-not (Test-Path -Path $backupDir)) {
     New-Item -ItemType Directory -Path $backupDir | Out-Null
 }
 
-if (Test-Path -Path "gefahrstoffe.db") {
+if (Test-Path -Path "data\gefahrstoffe.db") {
+    Copy-Item -Path "data\gefahrstoffe.db" -Destination "$backupDir\gefahrstoffe_$timestamp.db"
+} elseif (Test-Path -Path "gefahrstoffe.db") {
     Copy-Item -Path "gefahrstoffe.db" -Destination "$backupDir\gefahrstoffe_$timestamp.db"
 }
 

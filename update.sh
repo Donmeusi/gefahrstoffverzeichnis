@@ -1,10 +1,12 @@
 #!/bin/bash
 sleep 2
 
-mkdir -p backups
+mkdir -p data/backups
 timestamp=$(date +"%Y%m%d_%H%M%S")
-if [ -f "gefahrstoffe.db" ]; then
-    cp gefahrstoffe.db "backups/gefahrstoffe_${timestamp}.db"
+if [ -f "data/gefahrstoffe.db" ]; then
+    cp data/gefahrstoffe.db "data/backups/gefahrstoffe_${timestamp}.db"
+elif [ -f "gefahrstoffe.db" ]; then
+    cp gefahrstoffe.db "data/backups/gefahrstoffe_${timestamp}.db"
 fi
 
 git pull

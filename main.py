@@ -1611,12 +1611,14 @@ def do_update():
         if os.environ.get('RUNNING_IN_DOCKER') == 'true':
             # In Docker: Backup DB, git pull, then exit. 
             # Docker (restart: always) and entrypoint will handle pip and migrate.
-            if os.path.exists("gefahrstoffe.db"):
-                os.makedirs("backups", exist_ok=True)
+            db_path = os.path.join(app_data_dir, "gefahrstoffe.db")
+            if os.path.exists(db_path):
+                backup_dir = os.path.join(app_data_dir, "backups")
+                os.makedirs(backup_dir, exist_ok=True)
                 import shutil
                 from datetime import datetime
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                shutil.copy("gefahrstoffe.db", f"backups/gefahrstoffe_{timestamp}.db")
+                shutil.copy(db_path, os.path.join(backup_dir, f"gefahrstoffe_{timestamp}.db"))
             
             subprocess.run(["git", "pull"])
         else:
