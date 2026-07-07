@@ -898,6 +898,30 @@ def export_excel():
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Gefahrstoffe')
+        
+        # Styling anpassen
+        worksheet = writer.sheets['Gefahrstoffe']
+        from openpyxl.styles import Font
+        
+        # Überschriften fett
+        for cell in worksheet[1]:
+            cell.font = Font(bold=True)
+            
+        # Spaltenbreiten anpassen (mit Maximalbreite)
+        for col in worksheet.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                if cell.value:
+                    length = len(str(cell.value))
+                    if length > max_length:
+                        max_length = length
+                        
+            # Spaltenbreite berechnen (minimale Breite, maximale Breite = 45 Zeichen für lange H-Sätze)
+            adjusted_width = min(max_length + 2, 45)
+            # Mindestbreite für kurze Spalten
+            worksheet.column_dimensions[column].width = max(adjusted_width, 10)
+            
     output.seek(0)
     return send_file(output, download_name='gefahrstoffe_export.xlsx', as_attachment=True)
 
