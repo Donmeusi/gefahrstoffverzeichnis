@@ -32,10 +32,21 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 
+# --- Security & Session Configuration ---
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Falls Sie HTTPS verwenden, setzen Sie SESSION_COOKIE_SECURE = True in der Produktion
+if os.environ.get('FLASK_ENV') == 'production':
+    app.config['SESSION_COOKIE_SECURE'] = True
+
 app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
 os.makedirs(app_data_dir, exist_ok=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app_data_dir, 'gefahrstoffe.db')
+
+
+
+
 UPLOAD_FOLDER = os.path.join(app_data_dir, 'uploads')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -1842,5 +1853,34 @@ def api_autofill(cas_nummer):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ─── Security Headers & Error Handlers ─────────────────────────────────────────
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('errors/500.html'), 500
+
+# ─── Application Start ───────────────────────────────────────────────────────
+
 if __name__ == '__main__':
+    with app.app_context():
+        # Falls DB nicht existiert, erstellen
+        if not os.path.exists(os.path.join(app_data_dir, 'gefahrstoffe.db')):
+            db.create_all()
+            print("Datenbank gefahrstoffe.db erstellt.")
+    
+    # Im Entwicklungsmodus laufen lassen
+    # Für Produktion nutzen Sie stattdessen run_prod.py
     app.run(debug=True)
