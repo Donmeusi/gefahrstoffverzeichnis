@@ -4,6 +4,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from sqlalchemy import text
 import os
 import json
@@ -27,6 +28,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
+# Reverse Proxy Unterstützung (z.B. für Nginx/Apache Subdomains wie gefstoff.hs-anhalt.de)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 
 app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
