@@ -377,6 +377,7 @@ h4 { font-size: 0.95rem; }
     box-shadow: var(--shadow);
     overflow: hidden;
     transition: box-shadow var(--transition), transform var(--transition);
+    min-width: 0;
 }
 
 .card:hover {
@@ -494,6 +495,8 @@ h4 { font-size: 0.95rem; }
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
+    min-width: 0;
+    width: 100%;
 }
 
 .data-table {
