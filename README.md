@@ -23,7 +23,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     *   Name, CAS-Nummer und EG-Nummer
     *   Menge und Mengeneinheit, sowie Lagerklasse (LGK)
     *   GHS-Piktogrammen und Signalwort
-    *   Durchsuchbare Modal-Auswahlfenster für vollständige H-, EUH- und P-Sätze
+    *   Durchsuchbare Modal-Auswahlfenster für Gefahrenkategorien (CLP), sowie vollständige H-, EUH- und P-Sätze
     *   Sektion für Substitutionsprüfungen
 *   **Live-Suche & Filter**: Echtzeit-Suche (nach Name, CAS, H-Sätzen) und Filter (nach Piktogrammen und Signalwort) der Gefahrstofftabelle direkt im Browser.
 *   **Benutzer-Isolation & Freigabe-Workflow**: Normale Benutzer sehen ausschließlich ihre eigenen Datensätze. Administratoren und Moderatoren haben zudem die Möglichkeit, neu erstellte Stoffe anderer User via "Approve/Reject" zu prüfen.

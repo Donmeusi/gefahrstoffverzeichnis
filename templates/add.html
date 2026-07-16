@@ -76,6 +76,11 @@
                     <h3>Gefahrenhinweise (GHS)</h3>
                 </div>
                 <div class="form-group">
+                    <label for="gefahrenkategorien">Gefahrenkategorien (CLP) <small style="color:#64748b;">(Auto-Fill aus SDB)</small></label>
+                    <input type="text" id="gefahrenkategorien" name="gefahrenkategorien" placeholder="Auswahl über SDB oder Klick..."
+                           readonly style="cursor:pointer;" onclick="openHpModal('gefahrenkategorien')">
+                </div>
+                <div class="form-group">
                     <label for="signalwort">Signalwort</label>
                     <select id="signalwort" name="signalwort">
                         <option value="">Keines</option>
@@ -356,6 +361,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if(data.cas) document.getElementById('cas_nummer').value = data.cas;
                 if(data.eg) document.getElementById('eg_nummer').value = data.eg;
                 if(data.signalwort) document.getElementById('signalwort').value = data.signalwort;
+                if(data.gefahrenkategorien) {
+                    let values = [];
+                    if (Array.isArray(data.gefahrenkategorien)) {
+                        values = data.gefahrenkategorien;
+                    } else {
+                        values = data.gefahrenkategorien.split(';').map(s => s.trim()).filter(s => s);
+                    }
+                    document.getElementById('gefahrenkategorien').value = values.join('; ');
+                }
                 if(data.h_saetze) document.getElementById('h_saetze').value = data.h_saetze;
                 if(data.p_saetze) document.getElementById('p_saetze').value = data.p_saetze;
                 if(data.sdb_datum) {
@@ -406,4 +420,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
+</script>
 {% endblock %}

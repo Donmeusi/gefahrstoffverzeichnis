@@ -61,6 +61,11 @@
                     <h3>Gefahrenhinweise (GHS)</h3>
                 </div>
                 <div class="form-group">
+                    <label for="gefahrenkategorien">Gefahrenkategorien (CLP) <small style="color:#64748b;">(Auto-Fill aus SDB)</small></label>
+                    <input type="text" id="gefahrenkategorien" name="gefahrenkategorien" value="{{ stoff.gefahrenkategorien or '' }}" placeholder="Auswahl über SDB oder Klick..."
+                           readonly style="cursor:pointer;" onclick="openHpModal('gefahrenkategorien')">
+                </div>
+                <div class="form-group">
                     <label for="signalwort">Signalwort</label>
                     <select id="signalwort" name="signalwort">
                         <option value="" {% if not stoff.signalwort %}selected{% endif %}>Keines</option>
@@ -343,4 +348,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
+</script>
 {% endblock %}

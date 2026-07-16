@@ -210,6 +210,7 @@ class Gefahrstoff(db.Model):
     eg_nummer           = db.Column(db.String(20), nullable=True)
     signalwort          = db.Column(db.String(10), nullable=True)
     piktogramme         = db.Column(db.String(100), nullable=True)
+    gefahrenkategorien  = db.Column(db.String(500), nullable=True)
     h_saetze            = db.Column(db.String(200), nullable=True)
     p_saetze            = db.Column(db.String(300), nullable=True)
     lagerort            = db.Column(db.String(100), nullable=True)
@@ -632,6 +633,7 @@ def add():
 
         piktogramme_list = request.form.getlist('piktogramme')
         piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
+        gefahrenkategorien = request.form.get('gefahrenkategorien')
         h_saetze    = request.form.get('h_saetze')
         p_saetze    = request.form.get('p_saetze')
         lagerort    = request.form.get('lagerort')
@@ -688,7 +690,7 @@ def add():
         neuer_stoff = Gefahrstoff(
             name=name, cas_nummer=cas_nummer, eg_nummer=eg_nummer,
             signalwort=signalwort if signalwort else None,
-            piktogramme=piktogramme, h_saetze=h_saetze, p_saetze=p_saetze,
+            piktogramme=piktogramme, gefahrenkategorien=gefahrenkategorien, h_saetze=h_saetze, p_saetze=p_saetze,
             lagerort=lagerort, lagerklasse=lagerklasse, menge=menge, mengeneinheit=mengeneinheit,
             sdb_datum=sdb_datum,
             substitutionspruefung=substitutionspruefung,
@@ -745,6 +747,7 @@ def edit_stoff(id):
 
         piktogramme_list = request.form.getlist('piktogramme')
         stoff.piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
+        stoff.gefahrenkategorien = request.form.get('gefahrenkategorien')
         stoff.h_saetze    = request.form.get('h_saetze')
         stoff.p_saetze    = request.form.get('p_saetze')
         stoff.lagerort    = request.form.get('lagerort')
@@ -940,6 +943,7 @@ def export_excel():
             'Name': s.name, 
             'CAS-Nummer': s.cas_nummer, 
             'EG-Nummer': s.eg_nummer,
+            'Einstufung & Gefahren': s.gefahrenkategorien,
             'Piktogramme': piktos_str,
             'Signalwort': s.signalwort,
             'H-Sätze': s.h_saetze, 
@@ -1056,6 +1060,8 @@ def export_pdf():
             except Exception as e:
                 pass
         
+        if s.gefahrenkategorien:
+            einstufung_elements.append(Paragraph(s.gefahrenkategorien, cell_style))
         if s.signalwort:
             einstufung_elements.append(Paragraph(f"<i>{s.signalwort}</i>", cell_style))
         if s.h_saetze:
@@ -1532,6 +1538,26 @@ def parse_sdb():
         signal_match = re.search(r'\b(Gefahr|Achtung)\b', text_content, re.IGNORECASE)
         signalwort = signal_match.group(1).capitalize() if signal_match else ""
         
+        # Extract Gefahrenkategorien aus Abschnitt 2.1
+        gefahrenkategorien = []
+        sec21_match = re.search(r'2\.1\b.*?(?:Einstufung).*?(?=2\.2|Kennzeichnungselemente)', text_content, re.IGNORECASE | re.DOTALL)
+        if sec21_match:
+            sec21_text = sec21_match.group(0)
+            raw_cats = re.findall(r'\b(?:Met|Skin|Eye|Acute|Flam|Ox|Aquatic|Asp|STOT|Muta|Carc|Repr|Resp)[\.\s]*(?:Corr|Dam|Irrit|Tox|Liq|Sol|Gas|Sens|SE|RE|Chronic|Acute)?[\.\s]*[1-4]?[A-C]?\b', sec21_text, re.IGNORECASE)
+            seen = set()
+            for c in raw_cats:
+                c = re.sub(r'\s+', ' ', c).replace(' .', '.').replace('.', '. ').replace('  ', ' ').strip()
+                words = []
+                for w in c.split():
+                    if w.upper() in ['1A', '1B', '1C', '2A', '2B', '3', '4', 'SE', 'RE', 'STOT']:
+                        words.append(w.upper())
+                    else:
+                        words.append(w.capitalize())
+                c = " ".join(words)
+                if c and c.upper() not in [s.upper() for s in seen]:
+                    seen.add(c)
+                    gefahrenkategorien.append(c)
+
         # Abschnitt 2.2 isolieren für präzise H- und P-Sätze (verhindert Auslesen von H-Sätzen aus Abschnitt 2.1 Einstufungstabelle)
         sec22_match = re.search(r'(?:2\.2\s*)?Kennzeichnungselemente(.*?)(?:2\.3\s*Sonstige Gefahren|3\.\s*Zusammensetzung|ABSCHNITT\s*3)', text_content, re.IGNORECASE | re.DOTALL)
         if sec22_match:
@@ -1653,6 +1679,7 @@ def parse_sdb():
             'name': name,
             'cas': cas,
             'eg': eg,
+            'gefahrenkategorien': gefahrenkategorien,
             'signalwort': signalwort,
             'h_saetze': ", ".join(h_saetze),
             'p_saetze': ", ".join(p_saetze),
@@ -1804,6 +1831,26 @@ def api_autofill(cas_nummer):
             'piktogramme': []
         }
         
+        references = {ref.get('ReferenceNumber'): ref.get('SourceName', '') for ref in res2.get('Record', {}).get('Reference', [])}
+        
+        def get_best_reference(info_list):
+            eu_refs = []
+            all_refs = []
+            for info in info_list:
+                ref_num = info.get('ReferenceNumber')
+                if not ref_num: continue
+                source_name = references.get(ref_num, "")
+                if ref_num not in all_refs:
+                    all_refs.append(ref_num)
+                if "EU" in source_name or "European" in source_name or "ECHA" in source_name or "1272/2008" in source_name:
+                    if ref_num not in eu_refs:
+                        eu_refs.append(ref_num)
+            if eu_refs:
+                return eu_refs[0]
+            if all_refs:
+                return all_refs[0]
+            return None
+
         sections = res2.get('Record', {}).get('Section', [])
         for sec in sections:
             if sec.get('TOCHeading') == 'Safety and Hazards':
@@ -1811,7 +1858,13 @@ def api_autofill(cas_nummer):
                     if subsec.get('TOCHeading') == 'Hazards Identification':
                         for subsubsec in subsec.get('Section', []):
                             if subsubsec.get('TOCHeading') == 'GHS Classification':
-                                for info in subsubsec.get('Information', []):
+                                info_list = subsubsec.get('Information', [])
+                                best_ref = get_best_reference(info_list)
+                                
+                                for info in info_list:
+                                    if best_ref and info.get('ReferenceNumber') != best_ref:
+                                        continue
+                                        
                                     name_val = info.get('Name')
                                     markup = info.get('Value', {}).get('StringWithMarkup', [])
                                     

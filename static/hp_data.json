@@ -412,11 +412,11 @@
     },
     {
       "code": "P230",
-      "text": "Feucht halten mit … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Feucht halten mit ..."
     },
     {
       "code": "P231",
-      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren."
     },
     {
       "code": "P232",
@@ -440,7 +440,7 @@
     },
     {
       "code": "P241",
-      "text": "Explosionsgeschützte elektrische Betriebsmittel/Lüftungsanlagen/Beleuchtung/… verwenden. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Explosionsgeschützte elektrische Geräte/Lüftungsanlagen/Beleuchtungsanlagen/... verwenden."
     },
     {
       "code": "P242",
@@ -452,15 +452,15 @@
     },
     {
       "code": "P244",
-      "text": "Druckminderer frei von Fett und Öl halten."
+      "text": "Ventile und Ausrüstungsteile öl- und fettfrei halten."
     },
     {
       "code": "P250",
-      "text": "Nicht schleifen / stoßen / reiben / … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Nicht schleifen/stoßen/reiben/…"
     },
     {
       "code": "P251",
-      "text": "Nicht durchstechen oder verbrennen, auch nicht nach der Verwendung."
+      "text": "Nicht durchstechen oder verbrennen, auch nicht nach Gebrauch."
     },
     {
       "code": "P260",
@@ -476,11 +476,11 @@
     },
     {
       "code": "P263",
-      "text": "Berührung während der Schwangerschaft und Stillzeit vermeiden."
+      "text": "Berührung während Schwangerschaft und Stillzeit vermeiden."
     },
     {
       "code": "P264",
-      "text": "Nach Gebrauch … gründlich waschen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Nach Gebrauch ... gründlich waschen."
     },
     {
       "code": "P270",
@@ -500,7 +500,7 @@
     },
     {
       "code": "P280",
-      "text": "Schutzhandschuhe / Schutzkleidung / Augenschutz / Gesichtsschutz tragen."
+      "text": "Schutzhandschuhe/ Schutzkleidung/Augenschutz/ Gesichtsschutz tragen."
     },
     {
       "code": "P282",
@@ -512,51 +512,51 @@
     },
     {
       "code": "P284",
-      "text": "In schlecht belüfteten Bereichen Atemschutz tragen."
+      "text": "[Bei unzureichender Belüftung] Atemschutz tragen."
     },
     {
-      "code": "P231+P232",
-      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. Vor Feuchtigkeit schützen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "code": "P231 + P232",
+      "text": "Inhalt unter inertem Gas/… handhaben und aufbewahren. Vor Feuchtigkeit schützen."
     },
     {
       "code": "P301",
-      "text": "Bei Verschlucken:"
+      "text": "BEI VERSCHLUCKEN:"
     },
     {
       "code": "P302",
-      "text": "Bei Berührung mit der Haut:"
+      "text": "BEI BERÜHRUNG MIT DER HAUT:"
     },
     {
       "code": "P303",
-      "text": "Bei Berührung mit der Haut (oder dem Haar):"
+      "text": "BEI BERÜHRUNG MIT DER HAUT (oder dem Haar):"
     },
     {
       "code": "P304",
-      "text": "Bei Einatmen:"
+      "text": "BEI EINATMEN:"
     },
     {
       "code": "P305",
-      "text": "Bei Kontakt mit den Augen:"
+      "text": "BEI BERÜHRUNG MIT DEN AUGEN:"
     },
     {
       "code": "P306",
-      "text": "Bei kontaminierter Kleidung:"
+      "text": "BEI KONTAKT MIT DER KLEIDUNG:"
     },
     {
       "code": "P308",
-      "text": "Bei Exposition oder falls betroffen:"
+      "text": "BEI Exposition oder falls betroffen:"
     },
     {
       "code": "P310",
-      "text": "Sofort Giftinformationszentrum, Arzt oder … anrufen."
+      "text": "Sofort GIFTINFORMATIONSZENTRUM/Arzt/… anrufen."
     },
     {
       "code": "P311",
-      "text": "Giftinformationszentrum, Arzt oder … anrufen."
+      "text": "GIFTINFORMATIONSZENTRUM/Arzt/… anrufen."
     },
     {
       "code": "P312",
-      "text": "Bei Unwohlsein Giftinformationszentrum / Arzt / … anrufen."
+      "text": "Bei Unwohlsein GIFTINFORMATIONSZENTRUM/Arzt/… anrufen."
     },
     {
       "code": "P313",
@@ -584,7 +584,7 @@
     },
     {
       "code": "P331",
-      "text": "Kein Erbrechen herbeiführen."
+      "text": "KEIN Erbrechen herbeiführen."
     },
     {
       "code": "P332",
@@ -596,7 +596,7 @@
     },
     {
       "code": "P334",
-      "text": "In kaltes Wasser tauchen."
+      "text": "In kaltes Wasser tauchen [oder nassen Verband anlegen]."
     },
     {
       "code": "P335",
@@ -612,11 +612,11 @@
     },
     {
       "code": "P338",
-      "text": "Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter ausspülen."
+      "text": "Evtl. vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter ausspülen."
     },
     {
       "code": "P340",
-      "text": "Die betroffene Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
+      "text": "Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
     },
     {
       "code": "P342",
@@ -624,15 +624,15 @@
     },
     {
       "code": "P351",
-      "text": "Einige Minuten lang behutsam mit Wasser ausspülen."
+      "text": "Einige Minuten lang vorsichtig mit Wasser ausspülen."
     },
     {
       "code": "P352",
-      "text": "Mit viel Wasser / … waschen."
+      "text": "Mit viel Wasser/… waschen."
     },
     {
       "code": "P353",
-      "text": "Haut mit Wasser abwaschen."
+      "text": "Haut mit Wasser abwaschen [oder duschen]."
     },
     {
       "code": "P360",
@@ -668,7 +668,7 @@
     },
     {
       "code": "P373",
-      "text": "Keine Brandbekämpfung, wenn das Feuer explosive Stoffe / Gemische / Erzeugnisse erreicht."
+      "text": "KEINE Brandbekämpfung, wenn das Feuer explosive Stoffe / Gemische / Erzeugnisse erreicht."
     },
     {
       "code": "P375",
@@ -680,11 +680,11 @@
     },
     {
       "code": "P377",
-      "text": "Brand von ausströmendem Gas: Nicht löschen, bis Undichtigkeit gefahrlos beseitigt werden kann."
+      "text": "Brand von ausströmendem Gas:Nicht löschen, bis Undichtigkeit gefahrlos beseitigt werden kann."
     },
     {
       "code": "P378",
-      "text": "… zum Löschen … verwenden. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen)"
+      "text": "... zum Löschen verwenden."
     },
     {
       "code": "P380",
@@ -704,103 +704,71 @@
     },
     {
       "code": "P301+P310",
-      "text": "Bei Verschlucken: Sofort Giftinformationszentrum, Arzt oder … anrufen."
+      "text": "BEI VERSCHLUCKEN: Sofort GIFTINFORMATIONSZENTRUM/Arzt/… anrufen."
     },
     {
       "code": "P301+P312",
-      "text": "Bei Verschlucken: Bei Unwohlsein Giftinformationszentrum / Arzt / … anrufen."
+      "text": "BEI VERSCHLUCKEN: Bei Unwohlsein GIFTINFORMATIONSZENTRUM/Arzt/… anrufen."
     },
     {
       "code": "P301+P330+P331",
-      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen."
-    },
-    {
-      "code": "P301+P330+P331+P310",
-      "text": "Bei Verschlucken: Mund ausspülen. Kein Erbrechen herbeiführen. Sofort Giftinformationszentrum, Arzt oder … anrufen."
+      "text": "BEI VERSCHLUCKEN: Mund ausspülen. KEIN Erbrechen herbeiführen."
     },
     {
       "code": "P302+P334",
-      "text": "Bei Berührung mit der Haut: In kaltes Wasser tauchen."
-    },
-    {
-      "code": "P302+P335+P334",
-      "text": "Bei Berührung mit der Haut: Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen."
+      "text": "BEI BERÜHRUNG MIT DER HAUT: In kaltes Wasser tauchen oder nassen Verband anlegen."
     },
     {
       "code": "P302+P352",
-      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen."
+      "text": "BEI BERÜHRUNG MIT DER HAUT: Mit viel Wasser/… waschen."
     },
     {
-      "code": "P302+P352+P310",
-      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Sofort Giftinformationszentrum, Arzt oder … anrufen."
-    },
-    {
-      "code": "P302+P352+P312",
-      "text": "Bei Berührung mit der Haut: Mit viel Wasser / … waschen. Bei Unwohlsein Giftinformationszentrum, Arzt oder … anrufen."
+      "code": "P302+P335+P334&nbsp;&nbsp;&nbsp;",
+      "text": "BEI BERÜHRUNG MIT DER HAUT: Lose Partikel von der Haut abbürsten. In kaltes Wasser tauchen [oder nassen Verband anlegen]."
     },
     {
       "code": "P303+P361+P353",
-      "text": "Bei Berührung mit der Haut (oder dem Haar): Alle kontaminierten Kleidungsstücke sofort ausziehen. Haut mit Wasser abwaschen."
-    },
-    {
-      "code": "P303+P361+P353+P315",
-      "text": "Bei Berührung mit der Haut (oder dem Haar): Alle kontaminierten Kleidungsstücke sofort ausziehen. Haut mit Wasser abwaschen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "BEI BERÜHRUNG MIT DER HAUT (oder dem Haar): Alle kontaminierten Kleidungsstücke sofort ausziehen. Haut mit Wasser abwaschen/duschen."
     },
     {
       "code": "P304+P340",
-      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
-    },
-    {
-      "code": "P304+P340+P310",
-      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Sofort Giftinformationszentrum oder Arzt anrufen."
-    },
-    {
-      "code": "P304+P340+P311",
-      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Giftinformationszentrum, Arzt oder … anrufen."
-    },
-    {
-      "code": "P304+P340+P315",
-      "text": "Bei Einatmen: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "BEI EINATMEN: Die Person an die frische Luft bringen und für ungehinderte Atmung sorgen."
     },
     {
       "code": "P305+P351+P338",
-      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen."
-    },
-    {
-      "code": "P305+P351+P338+P315",
-      "text": "Bei Kontakt mit den Augen: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "BEI KONTAKT MIT DEN AUGEN: Einige Minuten lang behutsam mit Wasser spülen. Eventuell vorhandene Kontaktlinsen nach Möglichkeit entfernen. Weiter spülen."
     },
     {
       "code": "P306+P360",
-      "text": "Bei Kontakt mit der Kleidung: Kontaminierte Kleidung und Haut sofort mit viel Wasser abwaschen und danach Kleidung ausziehen."
+      "text": "BEI KONTAKT MIT DER KLEIDUNG: Kontaminierte Kleidung und Haut sofort mit viel Wasser abwaschen und danach Kleidung ausziehen. "
     },
     {
       "code": "P308+P311",
-      "text": "Bei Exposition oder falls betroffen: Giftinformationszentrum, Arzt oder … anrufen."
+      "text": "BEI Exposition oder falls betroffen: GIFTINFORMATIONSZENTRUM/Arzt/… anrufen."
     },
     {
       "code": "P308+P313",
-      "text": "Bei Exposition oder falls betroffen: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "BEI Exposition oder falls betroffen: Ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P332+P313",
-      "text": "Bei Hautreizung: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "Bei Hautreizung: Ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P333+P313",
-      "text": "Bei Hautreizung oder -ausschlag: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "Bei Hautreizung oder -ausschlag: Ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P336+P315",
-      "text": "Vereiste Bereiche mit lauwarmem Wasser auftauen. Betroffenen Bereich nicht reiben. Sofort ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "Vereiste Bereiche mit lauwarmem Wasser auftauen. Betroffenen Bereich nicht reiben. Sofort ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P337+P313",
-      "text": "Bei anhaltender Augenreizung: Ärztlichen Rat einholen / ärztliche Hilfe hinzuziehen."
+      "text": "Bei anhaltender Augenreizung: Ärztlichen Rat einholen/ärztliche Hilfe hinzuziehen."
     },
     {
       "code": "P342+P311",
-      "text": "Bei Symptomen der Atemwege: Giftinformationszentrum, Arzt oder … anrufen."
+      "text": "Bei Symptomen der Atemwege: GIFTINFORMATIONSZENTRUM/Arzt/… anrufen"
     },
     {
       "code": "P361+P364",
@@ -816,23 +784,27 @@
     },
     {
       "code": "P370+P378",
-      "text": "Bei Brand: … zum Löschen … verwenden. (Die vom Gesetzgeber offen gelassenen Einfügungen sind vom Inverkehrbringer zu ergänzen)"
+      "text": "Bei Brand: … zum Löschen verwenden."
     },
     {
       "code": "P370+P380+P375",
       "text": "Bei Brand: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
     },
     {
+      "code": "P370+P372+P380+P373",
+      "text": "Bei Brand: Explosionsgefahr. Umgebung räumen. KEINE Brandbekämpfung, wenn das Feuer explosive Stoffe/Gemische/Erzeugnisse erreicht."
+    },
+    {
+      "code": "P370+P380+P375[+P378]&nbsp;&nbsp;&nbsp;",
+      "text": "Bei Brand: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen. [… zum Löschen verwenden.]"
+    },
+    {
       "code": "P371+P380+P375",
       "text": "Bei Großbrand und großen Mengen: Umgebung räumen. Wegen Explosionsgefahr Brand aus der Entfernung bekämpfen."
     },
     {
-      "code": "P370+P372+P380+P373",
-      "text": "Bei Brand: Explosionsgefahr. Umgebung räumen. KEINE Brandbekämpfung, wenn das Feuer explosive Stoffe / Gemische / Erzeugnisse erreicht."
-    },
-    {
       "code": "P401",
-      "text": "Aufbewahren gemäß … (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Aufbewahren gemäß …"
     },
     {
       "code": "P402",
@@ -852,11 +824,11 @@
     },
     {
       "code": "P406",
-      "text": "In korrosionsbeständigem / … Behälter mit korrosionsbeständiger Innenauskleidung aufbewahren."
+      "text": "In korrosionsbeständigem/… Behälter mit korrosionsbeständiger Innenauskleidung aufbewahren."
     },
     {
       "code": "P407",
-      "text": "Luftspalt zwischen Stapeln / Paletten lassen."
+      "text": "Luftspalt zwischen Stapeln oder Paletten lassen."
     },
     {
       "code": "P410",
@@ -864,15 +836,15 @@
     },
     {
       "code": "P411",
-      "text": "Bei Temperaturen nicht über … °C aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Bei Temperaturen von nicht über ...°C / ... °F aufbewahren."
     },
     {
       "code": "P412",
-      "text": "Nicht Temperaturen über 50 °C aussetzen."
+      "text": "Nicht Temperaturen von mehr als 50 °C/122 °F aussetzen."
     },
     {
       "code": "P413",
-      "text": "Schüttgut in Mengen von mehr als … kg bei Temperaturen nicht über … °C aufbewahren. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Schüttgut in Mengen von mehr als ... kg/ ... lbs bei Temperaturen von nicht über ... °C/... °F aufbewahren."
     },
     {
       "code": "P420",
@@ -880,7 +852,7 @@
     },
     {
       "code": "P402+P404",
-      "text": "In einem geschlossenen Behälter an einem trockenen Ort aufbewahren."
+      "text": "An einem trockenen Ort aufbewahren. In einem geschlossenen Behälter aufbewahren."
     },
     {
       "code": "P403+P233",
@@ -896,19 +868,23 @@
     },
     {
       "code": "P410+P412",
-      "text": "Vor Sonnenbestrahlung schützen. Nicht Temperaturen über 50 °C aussetzen."
+      "text": "Vor Sonnenbestrahlung schützen und nicht Temperaturen von mehr als 50 °C/122 °F aussetzen."
+    },
+    {
+      "code": "P411+P235",
+      "text": "Bei Temperaturen von nicht über ... °C/... °F aufbewahren. Kühl halten."
     },
     {
       "code": "P501",
-      "text": "Inhalt / Behälter … zuführen. (Die vom Gesetzgeber offen gelassene Einfügung ist vom Inverkehrbringer zu ergänzen)"
+      "text": "Inhalt/Behälter ... zuführen."
     },
     {
       "code": "P502",
-      "text": "Informationen zur Wiederverwendung oder Wiederverwertung bei Hersteller oder Lieferant erfragen."
+      "text": "Informationen zur Wiederverwendung oder Wiederverwertung beim Hersteller oder Lieferanten erfragen."
     },
     {
       "code": "P503",
-      "text": "Informationen zur Entsorgung / Wiederverwendung / Wiederverwertung beim Hersteller / Lieferanten / … erfragen."
+      "text": "Informationen zur Entsorgung/Wiederverwendung/Wiederverwertung beim Hersteller/Lieferanten/... erfragen."
     }
   ],
   "euh_saetze": [
@@ -1043,6 +1019,364 @@
     {
       "code": "EUH451",
       "text": "Kann sehr lang anhaltende und diffuse Verschmutzung von Wasserressourcen verursachen."
+    }
+  ],
+  "gefahrenkategorien": [
+    {
+      "code": "Expl. 1.1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Expl. 1.2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Expl. 1.3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Expl. 1.4",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Expl. 1.5",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Expl. 1.6",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Gas 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Gas 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Gas 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aerosol 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aerosol 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aerosol 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Gas 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Press. Gas",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Liq. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Liq. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Liq. 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Sol. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Flam. Sol. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. C",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. D",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. E",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. F",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-react. G",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Pyr. Liq. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Pyr. Sol. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-heat. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Self-heat. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Water-react. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Water-react. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Water-react. 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Liq. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Liq. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Liq. 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Sol. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Sol. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ox. Sol. 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. C",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. D",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. E",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. F",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Org. Perox. G",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Met. Corr. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Desens. Expl. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Desens. Expl. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Desens. Expl. 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Desens. Expl. 4",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Acute Tox. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Acute Tox. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Acute Tox. 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Acute Tox. 4",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Corr. 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Corr. 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Corr. 1C",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Irrit. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Eye Dam. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Eye Irrit. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Resp. Sens. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Resp. Sens. 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Resp. Sens. 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Sens. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Sens. 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Skin Sens. 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Muta. 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Muta. 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Muta. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Carc. 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Carc. 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Carc. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Repr. 1A",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Repr. 1B",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Repr. 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Lact.",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "STOT SE 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "STOT SE 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "STOT SE 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "STOT RE 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "STOT RE 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Asp. Tox. 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aquatic Acute 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aquatic Chronic 1",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aquatic Chronic 2",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aquatic Chronic 3",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Aquatic Chronic 4",
+      "text": "CLP-Gefahrenkategorie"
+    },
+    {
+      "code": "Ozone 1",
+      "text": "CLP-Gefahrenkategorie"
     }
   ]
 }

@@ -20,14 +20,20 @@ function openHpModal(inputId) {
     
     currentTargetInputId = inputId;
     const isH = inputId === 'h_saetze';
+    const isGef = inputId === 'gefahrenkategorien';
     
-    document.getElementById('hpModalTitle').innerText = isH ? "H- und EUH-Sätze auswählen" : "P-Sätze auswählen";
+    let title = "P-Sätze auswählen";
+    if (isH) title = "H- und EUH-Sätze auswählen";
+    else if (isGef) title = "Gefahrenkategorien auswählen";
+    
+    document.getElementById('hpModalTitle').innerText = title;
     document.getElementById('hpModalSearch').value = "";
     
     const targetInput = document.getElementById(inputId);
-    const existingValues = targetInput.value.split(',').map(s => s.trim()).filter(s => s);
+    const splitChar = isGef ? ';' : ',';
+    const existingValues = targetInput.value.split(splitChar).map(s => s.trim()).filter(s => s);
     
-    renderHpList(isH, existingValues, "");
+    renderHpList(inputId, existingValues, "");
     
     document.getElementById('hpModal').style.display = 'flex';
 }
@@ -37,14 +43,16 @@ function closeHpModal() {
     currentTargetInputId = null;
 }
 
-function renderHpList(isH, selectedValues, filterText) {
+function renderHpList(inputId, selectedValues, filterText) {
     const listContainer = document.getElementById('hpModalList');
     listContainer.innerHTML = "";
     
     let itemsToRender = [];
-    if (isH) {
+    if (inputId === 'h_saetze') {
         itemsToRender = itemsToRender.concat(hpData.h_saetze || []);
         itemsToRender = itemsToRender.concat(hpData.euh_saetze || []);
+    } else if (inputId === 'gefahrenkategorien') {
+        itemsToRender = itemsToRender.concat(hpData.gefahrenkategorien || []);
     } else {
         itemsToRender = itemsToRender.concat(hpData.p_saetze || []);
     }
@@ -116,7 +124,8 @@ function saveHpSelection() {
     const selectedCodes = Array.from(checkboxes).map(cb => cb.value);
     
     const targetInput = document.getElementById(currentTargetInputId);
-    targetInput.value = selectedCodes.join(', ');
+    const joinChar = currentTargetInputId === 'gefahrenkategorien' ? '; ' : ', ';
+    targetInput.value = selectedCodes.join(joinChar);
     
     closeHpModal();
 }

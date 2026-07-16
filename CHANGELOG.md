@@ -2,6 +2,11 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.4 – Gefahrenkategorien & PubChem Optimierung (Juli 2026)
+*   **Gefahrenkategorien (CLP)**: Neues Feld für CLP-Gefahrenkategorien (wie z.B. "Met. Corr. 1" oder "Skin Corr. 1A"). Diese können beim Auslesen eines Sicherheitsdatenblatts (SDB) komplett automatisch erkannt und über ein übersichtliches Modal bearbeitet werden.
+*   **PubChem Autofill Update**: Die Automatik zum Abrufen von Daten anhand der CAS-Nummer aus der PubChem-Datenbank wurde signifikant verbessert. Es werden nun gezielt europäische Quellen (ECHA / Verordnung (EC) No 1272/2008) bevorzugt, um nur noch die tatsächlich in Europa relevanten GHS-Hinweise abzurufen (verhindert Widersprüche durch weltweite Aggregation).
+*   **Aktualisierte P-Sätze**: Die Datenbank für die auswählbaren P-Sätze (Sicherheitshinweise) wurde direkt über *gefahrstoffdaten.de* auf den neusten Stand gebracht.
+
 ### v3.3 – QR-Codes, PubChem Autofill & Proxy-Support (Juli 2026)
 *   **CAS-Nummer Autofill**: Neue Funktion, mit der sich Gefahrstoffe via PubChem-API anhand der CAS-Nummer automatisch ausfüllen lassen (inkl. Piktogramme, Signalwort, H- & P-Sätze).
 *   **QR-Code Generierung**: Für jeden Standort (Unterbereich) kann nun lokal ein QR-Code für den Etikettendruck generiert werden. Beim Scannen öffnet sich die App direkt mit der vorgefilterten Inventarliste.

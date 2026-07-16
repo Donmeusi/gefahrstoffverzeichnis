@@ -133,6 +133,13 @@
                     <h3>Einstufung &amp; Kennzeichnung</h3>
                 </div>
 
+                {% if stoff.gefahrenkategorien %}
+                <div style="margin-bottom:1.25rem;">
+                    <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.25rem;">Gefahrenkategorien</p>
+                    <p style="margin:0;">{{ stoff.gefahrenkategorien }}</p>
+                </div>
+                {% endif %}
+
                 <div style="margin-bottom:1.25rem;">
                     <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.5rem;">Piktogramme</p>
                     {% if stoff.piktogramme %}
