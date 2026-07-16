@@ -109,6 +109,9 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
 
 ## 🔒 Sicherheit & Updates
 *   **Daten sicher aktualisieren:** Die `.gitignore`-Datei schützt Ihre produktiven Daten. Führen Sie auf Ihrem Server bei Updates einfach `git pull` aus (oder nutzen Sie den Button im Admin-Menü). Ihre Datenbank (`gefahrstoffe.db`) und hochgeladenen Dokumente (`/uploads`) werden dabei nicht überschrieben.
+*   **WICHTIG - Datenbank Migration nach Updates:** Nach größeren Versionsupdates kann es vorkommen, dass neue Tabellenspalten (wie z.B. für Gefahrenkategorien) zur App hinzugefügt wurden. Um "Internal Server Errors" nach dem Aktualisieren zu vermeiden, führen Sie das Migrationsskript aus:
+    *   **Standard-Installation:** Führen Sie `python migrate_gefahrenkategorien.py` in Ihrem App-Verzeichnis aus.
+    *   **Docker-Installation:** Führen Sie den Befehl innerhalb des laufenden Containers aus: `docker exec -it gefahrstoffe_app python /app/migrate_gefahrenkategorien.py`
 *   **Produktivbetrieb:** Setzen Sie den `FLASK_SECRET_KEY` als Umgebungsvariable und verwenden Sie einen WSGI-Server (wie *Gunicorn* oder *Waitress*).
 
 ## 📅 Changelog
