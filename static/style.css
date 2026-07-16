@@ -1105,6 +1105,12 @@ body.auth-page::before {
 /* ============================================================
    VIEW DETAIL
    ============================================================ */
+.view-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
 .detail-grid {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -1170,6 +1176,7 @@ footer i { color: var(--primary); }
    ============================================================ */
 @media (max-width: 768px) {
     .form-row { grid-template-columns: 1fr; }
+    .view-grid { grid-template-columns: 1fr; }
     .page-header,
     .header-actions { flex-direction: column; align-items: flex-start; }
     .card-body { padding: 1.25rem; }
@@ -1181,6 +1188,10 @@ footer i { color: var(--primary); }
     .index-grid { grid-template-columns: 1fr; }
     .d-none-mobile { display: none !important; }
     .hp-list { max-height: 50vh; }
+    
+    .detail-grid { grid-template-columns: 1fr; gap: 0.25rem 0; margin-bottom: 1rem; }
+    .detail-grid dt { white-space: normal; margin-top: 0.5rem; }
+    .kpi-dashboard { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     
     /* Stack form rows dynamically if needed */
     .mobile-stack {
