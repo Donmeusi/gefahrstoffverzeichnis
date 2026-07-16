@@ -111,7 +111,7 @@
             </div>
 
             <!-- Filters & Live Search -->
-            <div style="display:flex; gap:0.5rem; flex:1; min-width:300px; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+            <div style="display:flex; gap:0.5rem; flex:1; min-width:300px; flex-wrap:wrap; align-items:center; justify-content:flex-end;" class="mobile-stack">
                 <select id="filterSignalwort" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:150px;">
                     <option value="">Alle Signalwörter</option>
                     <option value="gefahr">Gefahr</option>
@@ -143,11 +143,11 @@
                     <tr>
                         <th>Name</th>
                         <th>CAS / EG-Nr.</th>
-                        <th>Standort</th>
+                        <th class="d-none-mobile">Standort</th>
                         <th>Signalwort</th>
                         <th>Piktogramme</th>
-                        <th>Menge</th>
-                        <th>Dokumente</th>
+                        <th class="d-none-mobile">Menge</th>
+                        <th class="d-none-mobile">Dokumente</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -169,7 +169,7 @@
                             <span class="font-mono">{{ stoff.cas_nummer or '–' }}</span>
                             {% if stoff.eg_nummer %}<br><span class="text-muted font-mono">{{ stoff.eg_nummer }}</span>{% endif %}
                         </td>
-                        <td style="font-size:0.85rem;">
+                        <td style="font-size:0.85rem;" class="d-none-mobile">
                             {% if stoff.unterbereich %}
                             <span style="display:flex; align-items:center; gap:0.35rem;">
                                 <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.75em;"></i>
@@ -202,8 +202,8 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td style="white-space: nowrap;">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
-                        <td>
+                        <td style="white-space: nowrap;" class="d-none-mobile">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
+                        <td class="d-none-mobile">
                             <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
                                 {% if stoff.sicherheitsdatenblatt %}
                                     {% set sdb_warn = false %}

@@ -262,6 +262,8 @@ h4 { font-size: 0.95rem; }
         padding: 1rem;
         gap: 0.25rem;
         border-bottom: 1px solid rgba(255,255,255,0.08);
+        z-index: 1000;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
     .nav-links.open { display: flex; }
     .nav-links li { width: 100%; }
@@ -1177,6 +1179,19 @@ footer i { color: var(--primary); }
 @media (max-width: 600px) {
     main { padding: 1.5rem 1rem; }
     .index-grid { grid-template-columns: 1fr; }
+    .d-none-mobile { display: none !important; }
+    .hp-list { max-height: 50vh; }
+    
+    /* Stack form rows dynamically if needed */
+    .mobile-stack {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .mobile-stack > * {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
 }
 
 /* ============================================================

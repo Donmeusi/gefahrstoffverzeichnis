@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.5 – Mobile & Responsive Update (Juli 2026)
+*   **Vollständig Responsives Design**: Die Applikation wurde für die Nutzung auf Smartphones und kleineren Monitoren optimiert.
+*   **Dynamische Tabellen**: Unwichtige Tabellenspalten (wie Standort, Menge, Dokumente) werden auf mobilen Geräten automatisch ausgeblendet, um horizontales Scrollen zu vermeiden.
+*   **Flexible Layouts**: Suchleisten, Filter und Eingabe-Formulare (inkl. Buttons für Autofill & SDB-Upload) stapeln sich nun auf schmalen Bildschirmen sauber untereinander.
+*   **Optimierte Modals**: Modal-Fenster für H- und P-Sätze sind nun in der Höhe begrenzt (`max-height`) und intern scrollbar, sodass sie auch auf Handys jederzeit bedienbar bleiben.
+
 ### v3.4 – Gefahrenkategorien & PubChem Optimierung (Juli 2026)
 *   **Gefahrenkategorien (CLP)**: Neues Feld für CLP-Gefahrenkategorien (wie z.B. "Met. Corr. 1" oder "Skin Corr. 1A"). Diese können beim Auslesen eines Sicherheitsdatenblatts (SDB) komplett automatisch erkannt und über ein übersichtliches Modal bearbeitet werden.
 *   **PubChem Autofill Update**: Die Automatik zum Abrufen von Daten anhand der CAS-Nummer aus der PubChem-Datenbank wurde signifikant verbessert. Es werden nun gezielt europäische Quellen (ECHA / Verordnung (EC) No 1272/2008) bevorzugt, um nur noch die tatsächlich in Europa relevanten GHS-Hinweise abzurufen (verhindert Widersprüche durch weltweite Aggregation).

@@ -9,6 +9,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ## ✨ Neue & Wichtige Funktionen (2026 Edition)
 
 *   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
+*   **Mobile Ready (Responsiv)**: Die gesamte Anwendung wurde mit einem "Mobile First" Ansatz überarbeitet. Auf Smartphones und kleinen Bildschirmen blenden Tabellen unwichtige Spalten aus und Eingabefelder stapeln sich dynamisch, für ein optimales Nutzungserlebnis unterwegs.
 *   **PubChem CAS-Autofill**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze) automatisch aus der offiziellen NIH/PubChem Datenbank herunter.
 *   **QR-Code Generator**: Erzeugen Sie mit einem Klick lokale, datenschutzkonforme QR-Codes für Ihre Lagerorte und Schränke, um per Smartphone-Scan direkt auf den gefilterten Schrank-Inhalt zuzugreifen.
 *   **Dokumenten-Zentralen**: Globale Menüpunkte listen alle hochgeladenen Betriebsanweisungen und Sicherheitsdatenblätter aus allen Bereichen alphabetisch sortiert auf. Inklusive Live-Suche – zugänglich für alle Nutzer.

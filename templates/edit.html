@@ -40,7 +40,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="cas_nummer">CAS-Nummer</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <div style="display:flex; gap:0.5rem; align-items:center;" class="mobile-stack">
                             <input type="text" id="cas_nummer" name="cas_nummer" value="{{ stoff.cas_nummer or '' }}" style="flex:1;">
                             <button type="button" class="btn btn-outline btn-sm" id="btn_autofill_cas" title="GHS-Daten per PubChem abrufen" style="white-space:nowrap; padding:0.5rem 0.75rem;">
                                 <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--primary);"></i> Autofill
