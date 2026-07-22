@@ -1785,16 +1785,18 @@ def admin_system():
     updates_available = False
     local_commit = "Unbekannt"
     remote_commit = "Unbekannt"
+    current_branch = "main"
     try:
+        current_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()
         subprocess.check_call(['git', 'fetch'], stderr=subprocess.STDOUT)
         local_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
-        remote_commit = subprocess.check_output(['git', 'rev-parse', 'origin/main'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
+        remote_commit = subprocess.check_output(['git', 'rev-parse', f'origin/{current_branch}'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
         if local_commit != remote_commit:
             updates_available = True
     except Exception as e:
         pass
 
-    return render_template('admin_system.html', remote_url=remote_url, local_commit=local_commit, remote_commit=remote_commit, updates_available=updates_available)
+    return render_template('admin_system.html', remote_url=remote_url, local_commit=local_commit, remote_commit=remote_commit, updates_available=updates_available, current_branch=current_branch)
 
 @app.route('/admin/system/update_repo', methods=['POST'])
 @login_required

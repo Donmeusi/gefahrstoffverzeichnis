@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
-{% block title %}System & Updates – Gefahrstoff-App{% endblock %}
+{% block title %}System & Updates ÔÇô Gefahrstoff-App{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -11,7 +11,7 @@
         </p>
     </div>
     <div>
-        <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zur├╝ck</a>
     </div>
 </div>
 
@@ -24,7 +24,7 @@
         <div class="form-group">
             <label class="form-label" for="repo_url">Git Repository URL</label>
             <input type="url" name="repo_url" id="repo_url" class="form-control" value="{{ remote_url }}" required>
-            <div class="text-muted" style="margin-top:0.25rem; font-size:0.8rem;">Die Quell-URL für automatische Updates. Standard: <code>https://github.com/Donmeusi/gefahrstoffverzeichnis</code></div>
+            <div class="text-muted" style="margin-top:0.25rem; font-size:0.8rem;">Die Quell-URL f├╝r automatische Updates. Standard: <code>https://github.com/Donmeusi/gefahrstoffverzeichnis</code></div>
         </div>
         <div>
             <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> URL speichern</button>
@@ -35,7 +35,7 @@
 
 <div class="glass-card fade-in" style="margin-top:1.5rem; max-width:800px; animation-delay:0.1s;">
     <h3 style="margin-bottom:1rem; color:var(--dark); display:flex; align-items:center; gap:0.5rem;">
-        <i class="fa-solid fa-cloud-download-alt" style="color:var(--primary);"></i> Versionsprüfung
+        <i class="fa-solid fa-cloud-download-alt" style="color:var(--primary);"></i> Versionspr├╝fung
     </h3>
     
     <div style="background:rgba(0,0,0,0.02); padding:1rem; border-radius:8px; border:1px solid var(--glass-border); margin-bottom:1rem;">
@@ -51,27 +51,39 @@
         </div>
     </div>
     
-    {% if updates_available %}
-        <div style="padding:1rem; background:rgba(40,167,69,0.1); border:1px solid rgba(40,167,69,0.2); border-radius:8px; color:#28a745; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-            <i class="fa-solid fa-circle-check"></i> <strong>Neues Update verfügbar!</strong>
+    <form method="POST" action="{{ url_for('do_update') }}" onsubmit="return confirmUpdate();">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.02); border-radius: 8px; border: 1px solid var(--glass-border);">
+            <label class="form-label" for="target_branch">Update-Kanal (Branch) w├ñhlen:</label>
+            <select name="target_branch" id="target_branch" class="form-control" style="max-width: 300px; display: inline-block;">
+                <option value="main" {% if current_branch == 'main' %}selected{% endif %}>Stable (main)</option>
+                <option value="beta" {% if current_branch == 'beta' %}selected{% endif %}>Beta (beta)</option>
+            </select>
+            <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.85rem;">
+                Aktueller Kanal: <strong>{{ current_branch }}</strong>. Wenn du den Kanal wechselst, wird das System beim Update automatisch auf den gew├ñhlten Zweig umgestellt.
+            </p>
         </div>
         
-        <form method="POST" action="{{ url_for('do_update') }}" onsubmit="return confirmUpdate();">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-primary" id="updateBtn">
-                <i class="fa-solid fa-rocket"></i> Update jetzt installieren (Neustart erforderlich)
-            </button>
-        </form>
-    {% else %}
-        <div style="padding:1rem; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); border-radius:8px; color:var(--dark); display:flex; align-items:center; gap:0.5rem;">
-            <i class="fa-solid fa-check" style="color:var(--primary);"></i> Dein System ist auf dem neuesten Stand.
-        </div>
-    {% endif %}
+        {% if updates_available %}
+            <div style="padding:1rem; background:rgba(40,167,69,0.1); border:1px solid rgba(40,167,69,0.2); border-radius:8px; color:#28a745; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                <i class="fa-solid fa-circle-check"></i> <strong>Neues Update auf aktuellem Kanal verf├╝gbar!</strong>
+            </div>
+        {% else %}
+            <div style="padding:1rem; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05); border-radius:8px; color:var(--dark); display:flex; align-items:center; gap:0.5rem; margin-bottom: 1rem;">
+                <i class="fa-solid fa-check" style="color:var(--primary);"></i> Dein System ist auf dem neuesten Stand f├╝r den Kanal '{{ current_branch }}'.
+            </div>
+        {% endif %}
+        
+        <button type="submit" class="btn btn-primary" id="updateBtn">
+            <i class="fa-solid fa-rocket"></i> Update / Kanal-Wechsel durchf├╝hren (Neustart)
+        </button>
+    </form>
 </div>
 
 <script>
 function confirmUpdate() {
-    if(confirm("Möchtest du das Update jetzt wirklich installieren?\nDas System wird kurzzeitig nicht erreichbar sein.")) {
+    if(confirm("M├Âchtest du das Update jetzt wirklich installieren?\nDas System wird kurzzeitig nicht erreichbar sein.")) {
         let btn = document.getElementById('updateBtn');
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Update wird vorbereitet...';
         btn.style.pointerEvents = 'none';
