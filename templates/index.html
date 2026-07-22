@@ -29,10 +29,10 @@
         </p>
     </div>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <a href="{{ url_for('export_excel') }}" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#059669;">
+        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#059669;">
             <i class="fa-solid fa-file-excel"></i> Excel
         </a>
-        <a href="{{ url_for('export_pdf') }}" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#dc2626;">
+        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#dc2626;">
             <i class="fa-solid fa-file-pdf"></i> PDF
         </a>
         <a href="{{ url_for('add') }}" class="btn btn-primary btn-sm">

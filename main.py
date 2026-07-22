@@ -396,23 +396,21 @@ def logout():
 
 # ─── Startseite ──────────────────────────────────────────────────────────────
 
-@app.route('/')
-@login_required
-def index():
+def get_filtered_gefahrstoff_query_for_request():
     bereich_id = request.args.get('bereich_id', type=int)
     unterbereich_id = request.args.get('unterbereich_id', type=int)
-    bereiche   = get_accessible_bereiche()
-    query      = get_gefahrstoff_query()
+    query = get_gefahrstoff_query()
     aktiver_bereich = None
     aktiver_unterbereich = None
+    error_message = None
 
     if bereich_id:
         aktiver_bereich = Bereich.query.get(bereich_id)
         if aktiver_bereich and not can_manage_bereich(aktiver_bereich) \
                 and aktiver_bereich not in current_user.assigned_bereiche.all() \
                 and not current_user.is_admin:
-            flash('Kein Zugriff auf diesen Bereich.', 'error')
-            return redirect(url_for('index'))
+            error_message = 'Kein Zugriff auf diesen Bereich.'
+            return query.filter(False), None, None, error_message
         if aktiver_bereich:
             query = query.join(Unterbereich).filter(Unterbereich.bereich_id == bereich_id)
 
@@ -423,8 +421,8 @@ def index():
             if not can_manage_bereich(aktiver_bereich) \
                     and aktiver_bereich not in current_user.assigned_bereiche.all() \
                     and not current_user.is_admin:
-                flash('Kein Zugriff auf diesen Standort.', 'error')
-                return redirect(url_for('index'))
+                error_message = 'Kein Zugriff auf diesen Standort.'
+                return query.filter(False), None, None, error_message
             
             def get_all_child_ids(ub):
                 ids = [ub.id]
@@ -435,6 +433,20 @@ def index():
             child_ids = get_all_child_ids(aktiver_unterbereich)
             query = query.filter(Gefahrstoff.unterbereich_id.in_(child_ids))
 
+    return query, aktiver_bereich, aktiver_unterbereich, error_message
+
+
+@app.route('/')
+@login_required
+def index():
+    query, aktiver_bereich, aktiver_unterbereich, error_message = get_filtered_gefahrstoff_query_for_request()
+    
+    if error_message:
+        flash(error_message, 'error')
+        if request.args.get('bereich_id') or request.args.get('unterbereich_id'):
+            return redirect(url_for('index'))
+            
+    bereiche = get_accessible_bereiche()
     gefahrstoffe = query.order_by(Gefahrstoff.name).all()
     
     # KPIs berechnen
@@ -927,7 +939,11 @@ def copy_stoff(id):
 @login_required
 def export_excel():
     import json
-    stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
+    query, _, _, error_message = get_filtered_gefahrstoff_query_for_request()
+    if error_message:
+        flash(error_message, 'error')
+        return redirect(url_for('index'))
+    stoffe = query.order_by(Gefahrstoff.name).all()
     data = []
     for s in stoffe:
         standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
@@ -1000,7 +1016,11 @@ def export_pdf():
     import json
     import os
 
-    stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
+    query, _, _, error_message = get_filtered_gefahrstoff_query_for_request()
+    if error_message:
+        flash(error_message, 'error')
+        return redirect(url_for('index'))
+    stoffe = query.order_by(Gefahrstoff.name).all()
     output = BytesIO()
     doc = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm, topMargin=1*cm, bottomMargin=1*cm)
     elements = []
