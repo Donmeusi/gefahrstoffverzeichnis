@@ -157,24 +157,34 @@
                         data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                         <td>
                             <a href="{{ url_for('view_stoff', id=stoff.id) }}"
-                               style="color:var(--text-main); font-weight:600; display:flex; align-items:center; gap:0.4rem;">
-                                {{ stoff.name }}
-                                {% if stoff.trgs_warnings %}
-                                <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);" title="Zusammenlagerungsverbot (TRGS 510)"></i>
-                                {% endif %}
-                                <i class="fa-solid fa-chevron-right" style="font-size:0.65em; color:var(--primary); opacity:0.7;"></i>
+                               style="color:var(--text-main); font-weight:600; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; line-height:1.3;">
+                                <span>{{ stoff.name }}</span>
+                                <span style="display:inline-flex; align-items:center; gap:0.3rem;">
+                                    {% if stoff.trgs_warnings %}
+                                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                                    {% endif %}
+                                    <i class="fa-solid fa-chevron-right" style="font-size:0.7em; color:var(--primary); opacity:0.7;"></i>
+                                </span>
                             </a>
                         </td>
-                        <td style="font-size:0.82rem;">
-                            <span class="font-mono">{{ stoff.cas_nummer or '–' }}</span>
-                            {% if stoff.eg_nummer %}<br><span class="text-muted font-mono">{{ stoff.eg_nummer }}</span>{% endif %}
+                        <td style="font-size:0.85rem; white-space: nowrap;">
+                            <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                                {% if stoff.cas_nummer %}
+                                <div class="font-mono"><span class="text-muted" style="font-size:0.75rem; margin-right:4px;">CAS</span>{{ stoff.cas_nummer }}</div>
+                                {% else %}
+                                <div class="text-muted">–</div>
+                                {% endif %}
+                                {% if stoff.eg_nummer %}
+                                <div class="font-mono"><span class="text-muted" style="font-size:0.75rem; margin-right:4px;">EG</span>{{ stoff.eg_nummer }}</div>
+                                {% endif %}
+                            </div>
                         </td>
                         <td style="font-size:0.85rem;" class="d-none-mobile">
                             {% if stoff.unterbereich %}
-                            <span style="display:flex; align-items:center; gap:0.35rem;">
-                                <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.75em;"></i>
-                                {{ stoff.unterbereich.get_full_path()|safe }}
-                            </span>
+                            <div style="display:flex; align-items:flex-start; gap:0.4rem; line-height:1.4;">
+                                <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.8em; margin-top:0.25em;"></i>
+                                <span style="word-break: break-word;">{{ stoff.unterbereich.get_full_path()|safe }}</span>
+                            </div>
                             {% else %}
                             <span class="text-muted">–</span>
                             {% endif %}
