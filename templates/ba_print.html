@@ -162,11 +162,26 @@
             cursor: pointer;
             border: none;
         }
+        
+        [contenteditable="true"] {
+            outline: none;
+        }
+        @media screen {
+            [contenteditable="true"]:hover, [contenteditable="true"]:focus {
+                outline: 2px dashed #0056b3;
+                background-color: #f8f9fa;
+                border-radius: 3px;
+                min-height: 1.5em;
+            }
+        }
     </style>
 </head>
 <body>
 
     <div class="print-btn-container no-print">
+        <div style="margin-bottom: 15px; color: #0056b3; font-weight: bold; font-family: Arial, sans-serif;">
+            <i class="fa-solid fa-lightbulb"></i> Tipp: Klicke auf einen beliebigen Text (wie Arbeitsbereich oder Maßnahmen), um ihn vor dem Drucken noch individuell anzupassen!
+        </div>
         <button class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Betriebsanweisung drucken / als PDF speichern</button>
         <br><br>
         <a href="{{ url_for('view_stoff', id=stoff.id) }}" style="color: #666;"><i class="fa-solid fa-arrow-left"></i> Zurück zum Gefahrstoff</a>
@@ -177,7 +192,7 @@
         <!-- Header -->
         <table class="header-table">
             <tr>
-                <td style="width: 25%;">
+                <td style="width: 25%;" contenteditable="true">
                     <strong>Arbeitsbereich:</strong><br><br>
                     {{ arbeitsbereich }}
                 </td>
@@ -192,7 +207,7 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="3">
+                <td colspan="3" contenteditable="true">
                     <strong>Tätigkeit:</strong>
                     Umgang mit Gefahrstoffen
                 </td>
@@ -201,7 +216,7 @@
 
         <!-- Gefahrstoffbezeichnung -->
         <div class="red-bar">GEFAHRSTOFFBEZEICHNUNG</div>
-        <div style="padding: 10px; text-align: center; font-size: 16pt; font-weight: bold; border-bottom: 1px solid #cc0000;">
+        <div style="padding: 10px; text-align: center; font-size: 16pt; font-weight: bold; border-bottom: 1px solid #cc0000;" contenteditable="true">
             Umgang / Tätigkeit mit<br>
             <span style="font-size: 18pt;">{{ stoff.name }}</span>
             {% if stoff.cas_nummer %}<br><span style="font-size: 10pt; font-weight: normal;">CAS: {{ stoff.cas_nummer }}</span>{% endif %}
@@ -224,7 +239,7 @@
                     -
                 {% endif %}
             </div>
-            <div class="text-col">
+            <div class="text-col" contenteditable="true">
                 {% if h_saetze_list %}
                     <ul>
                     {% for h in h_saetze_list %}
@@ -247,7 +262,7 @@
                 <div class="blue-icon"><i class="fa-solid fa-glasses"></i></div>
                 <div class="blue-icon"><i class="fa-solid fa-hands-bubbles"></i></div>
             </div>
-            <div class="text-col">
+            <div class="text-col" contenteditable="true">
                 <div class="sub-header">Technische und Organisatorische / Persönliche / Hygienische Schutzmaßnahmen:</div>
                 {% if p_saetze_list %}
                     <ul>
@@ -270,7 +285,7 @@
             <div class="icon-col">
                 <div class="red-icon"><i class="fa-solid fa-fire-extinguisher"></i></div>
             </div>
-            <div class="text-col">
+            <div class="text-col" contenteditable="true">
                 <div class="sub-header">Verschütten:</div>
                 <ul>
                     <li>Gefahrenbereich räumen und absperren.</li>
@@ -293,7 +308,7 @@
             <div class="icon-col">
                 <div class="green-icon"><i class="fa-solid fa-square-plus"></i></div>
             </div>
-            <div class="text-col">
+            <div class="text-col" contenteditable="true">
                 <div class="sub-header">Bei jeder Erste-Hilfe-Maßnahme:</div>
                 <ul>
                     <li>Auf Selbstschutz achten, ärztliche Behandlung. Lebensrettende Sofortmaßnahmen, wie 'Stabile Seitenlage', 'Herz-Lungen-Wiederbelebung', 'Schockbekämpfung' müssen situationsabhängig durchgeführt werden. Wunden keimfrei bedecken. Für Körperruhe sorgen, vor Wärmeverlust schützen. Ersthelfer hinzuziehen.</li>
