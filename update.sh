@@ -9,6 +9,12 @@ elif [ -f "gefahrstoffe.db" ]; then
     cp gefahrstoffe.db "data/backups/gefahrstoffe_${timestamp}.db"
 fi
 
+# Branch wechseln falls angegeben (via Umgebungsvariable TARGET_BRANCH)
+if [ -n "$TARGET_BRANCH" ]; then
+    git fetch
+    git checkout "$TARGET_BRANCH"
+fi
+
 git pull
 
 source venv/bin/activate

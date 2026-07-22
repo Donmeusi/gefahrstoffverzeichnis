@@ -1829,10 +1829,14 @@ def do_update():
     def trigger_update_script():
         import time, os, subprocess
         time.sleep(2)
-        
+
+        # Umgebungsvariable mit Ziel-Branch setzen
+        env = os.environ.copy()
+        if target_branch:
+            env['TARGET_BRANCH'] = target_branch
+
         if os.environ.get('RUNNING_IN_DOCKER') == 'true':
-            # In Docker: Backup DB, git pull, then exit. 
-            # Docker (restart: always) and entrypoint will handle pip and migrate.
+            # In Docker: Backup DB, branch wechseln, git pull, dann exit.
             db_path = os.path.join(app_data_dir, "gefahrstoffe.db")
             if os.path.exists(db_path):
                 backup_dir = os.path.join(app_data_dir, "backups")
@@ -1841,15 +1845,18 @@ def do_update():
                 from datetime import datetime
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 shutil.copy(db_path, os.path.join(backup_dir, f"gefahrstoffe_{timestamp}.db"))
-            
+
+            if target_branch:
+                subprocess.run(["git", "fetch"])
+                subprocess.run(["git", "checkout", target_branch])
             subprocess.run(["git", "pull"])
         else:
             import platform
             if platform.system() == "Windows":
-                subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update.ps1"])
+                subprocess.Popen(["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", "update.ps1"], env=env)
             else:
-                subprocess.Popen(["bash", "update.sh"])
-        
+                subprocess.Popen(["bash", "update.sh"], env=env)
+
         os._exit(0)
         
     import threading
