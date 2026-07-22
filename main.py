@@ -640,9 +640,32 @@ def betriebsanweisung_print(id):
     elif stoff.lagerort:
         arbeitsbereich = stoff.lagerort
 
-    # Sätze in Listen aufteilen
-    h_saetze_list = [h.strip() for h in (stoff.h_saetze or "").split(",") if h.strip()]
-    p_saetze_list = [p.strip() for p in (stoff.p_saetze or "").split(",") if p.strip()]
+    # Sätze in Listen aufteilen inkl. Text aus JSON
+    import json
+    import os
+    try:
+        json_path = os.path.join(app.root_path, 'static', 'hp_data.json')
+        with open(json_path, 'r', encoding='utf-8') as f:
+            hp_data = json.load(f)
+        h_dict = {item['code']: item['text'] for item in hp_data.get('h_saetze', [])}
+        p_dict = {item['code']: item['text'] for item in hp_data.get('p_saetze', [])}
+    except Exception:
+        h_dict = {}
+        p_dict = {}
+
+    h_saetze_list = []
+    for h in (stoff.h_saetze or "").split(","):
+        h_code = h.strip()
+        if h_code:
+            text = h_dict.get(h_code, "")
+            h_saetze_list.append(f"{h_code}: {text}" if text else h_code)
+            
+    p_saetze_list = []
+    for p in (stoff.p_saetze or "").split(","):
+        p_code = p.strip()
+        if p_code:
+            text = p_dict.get(p_code, "")
+            p_saetze_list.append(f"{p_code}: {text}" if text else p_code)
 
     return render_template('ba_print.html', 
                            stoff=stoff, 
