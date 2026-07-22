@@ -35,7 +35,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 *   **Backend**: Python 3.11, Flask, Flask-WTF (CSRF), Flask-SQLAlchemy, Flask-Login, pdfplumber
 *   **Datenbank**: SQLite (`gefahrstoffe.db`)
-*   **Frontend**: HTML5, Vanilla CSS3 ("Clinical Glassmorphism" Design), JavaScript
+*   **Frontend**: HTML5, Vanilla CSS3 ("Clinical & Clean" Design), JavaScript
 *   **Exporte**: Pandas (OpenPyXL) für Excel, ReportLab für PDFs
 
 ## 🚀 Installation & Ausführung

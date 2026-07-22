@@ -2,6 +2,10 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.6 – Clinical & Clean Design Update (Juli 2026)
+*   **Neues UI-Theme**: Das gesamte Design wurde auf ein helles, aufgeräumtes "Clinical & Clean" Theme (Labor/Corporate) umgestellt. 
+*   **Verbesserte UI**: Reines Weiß für Inhalts-Karten, tiefe Blau-Töne für primäre Aktionen, eine helle Navigationsleiste und weichere Schatten.
+
 ### v3.5 – Mobile & Responsive Update (Juli 2026)
 *   **Vollständig Responsives Design**: Die Applikation wurde für die Nutzung auf Smartphones und kleineren Monitoren optimiert.
 *   **Dynamische Tabellen**: Unwichtige Tabellenspalten (wie Standort, Menge, Dokumente) werden auf mobilen Geräten automatisch ausgeblendet, um horizontales Scrollen zu vermeiden.
