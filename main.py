@@ -624,6 +624,34 @@ def view_stoff(id):
     return render_template('view.html', stoff=stoff, today=datetime.utcnow().date())
 
 
+@app.route('/gefahrstoff/<int:id>/betriebsanweisung')
+@login_required
+def betriebsanweisung_print(id):
+    stoff = Gefahrstoff.query.get_or_404(id)
+    accessible = get_gefahrstoff_query().filter(Gefahrstoff.id == id).first()
+    if not accessible:
+        flash('Keine Berechtigung, diesen Gefahrstoff anzusehen.', 'error')
+        return redirect(url_for('index'))
+    
+    # Arbeitsbereich formatieren
+    arbeitsbereich = "Unbekannter Bereich"
+    if stoff.unterbereich:
+        arbeitsbereich = f"{stoff.unterbereich.bereich.name} / {stoff.unterbereich.name}"
+    elif stoff.lagerort:
+        arbeitsbereich = stoff.lagerort
+
+    # Sätze in Listen aufteilen
+    h_saetze_list = [h.strip() for h in (stoff.h_saetze or "").split(",") if h.strip()]
+    p_saetze_list = [p.strip() for p in (stoff.p_saetze or "").split(",") if p.strip()]
+
+    return render_template('ba_print.html', 
+                           stoff=stoff, 
+                           arbeitsbereich=arbeitsbereich,
+                           h_saetze_list=h_saetze_list,
+                           p_saetze_list=p_saetze_list,
+                           today=datetime.utcnow().date())
+
+
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
