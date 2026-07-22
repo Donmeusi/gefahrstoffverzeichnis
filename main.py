@@ -1825,7 +1825,8 @@ def do_update():
     if not current_user.is_admin:
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
-        
+    target_branch = request.form.get('target_branch', '').strip() or None
+
     def trigger_update_script():
         import time, os, subprocess
         time.sleep(2)
