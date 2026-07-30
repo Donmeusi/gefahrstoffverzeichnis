@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.7 – LDAPs, Schreibgeschützte Rolle, Schnell-Inventur & Aushang (Juli 2026)
+* **LDAPs-Authentifizierung**: Vollständige Anbindung an Unternehmens-Directories (Active Directory & OpenLDAP) über sichere SSL/TLS-Socket-Verbindungen (`ldaps://` Port 636 / StartTLS). Automatische Anlegung neuer LDAP-Benutzer mit konfigurierbarer Standardrolle (`LDAP_DEFAULT_ROLE`).
+* **Schreibgeschützte Rolle „Lesen“**: Neue feingranulare Benutzerrolle `lesen` für Betrachter. Leser sehen zugewiesene Bereiche, dürfen jedoch keine Daten bearbeiten, löschen, exportieren (Excel/PDF) oder Sicherheitsdokumente herunterladen.
+* **📱 Schnell-Inventur-Modus**: Neue touch-optimierte Mobile-Checkliste (`/location/<id>/inventur`) zum schnellen Abhaken und Anpassen von Schrank-Lagermengen direkt vor Ort. Automatische Protokollierung im Audit-Log (`INVENTUR`) und Erfassung des Prüfdatums (`last_inventur_datum`).
+* **🖨️ Schrank-Aushang & Druckansicht**: Neue A4-optimierte Druckseite (`/location/<id>/print`) für Schrank-Inhaltsverzeichnisse inkl. GHS-Piktogrammen, Mengenangaben, TRGS 510 Lagerklassen, Notfallhinweisen und QR-Code.
+* **Selbstheilende Auto-Migration**: Das System prüft und aktualisiert die SQLite-Datenbank beim Anwendungsstart (`migrate_db.py`) vollautomatisch auf fehlende Spalten, um Serverfehler nach Updates zu verhindern.
+* **DSB & IT-Dokumentation**: Neue ausführliche technische Systemdokumentation und Technisch-Organisatorische Maßnahmen (`DATENSCHUTZ_UND_TOM.md`) zur Vorlage beim Datenschutzbeauftragten (DSB).
+
 ### v3.6 – Clinical & Clean Design Update (Juli 2026)
 *   **Neues UI-Theme**: Das gesamte Design wurde auf ein helles, aufgeräumtes "Clinical & Clean" Theme (Labor/Corporate) umgestellt. 
 *   **Verbesserte UI**: Reines Weiß für Inhalts-Karten, tiefe Blau-Töne für primäre Aktionen, eine helle Navigationsleiste und weichere Schatten.

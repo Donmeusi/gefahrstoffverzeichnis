@@ -11,6 +11,8 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 *   **LDAPs-Authentifizierung (Active Directory / OpenLDAP)**: Binden Sie Ihr Unternehmens-Verzeichnis via LDAPs/TLS ein. Neue LDAP-Nutzer werden automatisch mit konfigurierbarer Standardrolle angelegt.
 *   **Schreibgeschützte Rolle „Lesen“**: Neue Benutzerrolle für reine Betrachter. Leser sehen zugewiesene Bereiche, dürfen jedoch keine Daten bearbeiten, löschen, exportieren (Excel/PDF) oder Dokumente herunterladen.
+*   **📱 Schnell-Inventur-Modus**: Touch-optimierte mobile Checkliste zum schnellen Abhaken, Vergleichen und Anpassen von Lagermengen vor Ort am Schrank inklusive automatischer Protokollierung im Audit Log.
+*   **🖨️ Schrank-Aushang & Druckansicht**: Generieren Sie A4-optimierte Inhaltsverzeichnisse für Sicherheitsschränke inklusive GHS-Piktogrammen, Notfallhinweisen, Lagerklassen und QR-Code zum Aushang vor Ort.
 *   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
 *   **Mobile Ready (Responsiv)**: Die gesamte Anwendung wurde mit einem "Mobile First" Ansatz überarbeitet. Auf Smartphones und kleinen Bildschirmen blenden Tabellen unwichtige Spalten aus und Eingabefelder stapeln sich dynamisch, für ein optimales Nutzungserlebnis unterwegs.
 *   **PubChem CAS-Autofill**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze) automatisch aus der offiziellen NIH/PubChem Datenbank herunter.
