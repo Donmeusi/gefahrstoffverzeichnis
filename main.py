@@ -1721,7 +1721,10 @@ def migrate_database():
 
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"create_all note: {e}")
     migrate_database()
 
 @app.route('/api/parse_sdb', methods=['POST'])
