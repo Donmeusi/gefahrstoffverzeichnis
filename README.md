@@ -4,7 +4,8 @@ Eine moderne, webbasierte Applikation (Flask, Python) zur einfachen, sicheren un
 
 Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen, die Verwaltung hierarchischer Standorte (Bereiche und Unterbereiche) sowie den Export der Daten als Excel (`.xlsx`) oder PDF. Eine integrierte Benutzerrollen-Funktion trennt die Sichtbarkeit von Einträgen normaler Nutzer und gewährt Administratoren und Moderatoren erweiterte Rechte inklusive eines speziellen Freigabe-Workflows.
 
-👉 **Für Nutzer:** Eine detaillierte Übersicht aller Funktionen und Rollen finden Sie im ausführlichen [Benutzerhandbuch (HANDBUCH.md)](HANDBUCH.md).
+👉 **Für Nutzer:** Eine detaillierte Übersicht aller Funktionen und Rollen finden Sie im ausführlichen [Benutzerhandbuch (HANDBUCH.md)](HANDBUCH.md).  
+👉 **Für Datenschutz & IT-Sicherheit:** Die vollständige technische Dokumentation inklusive **Technisch-Organisatorischer Maßnahmen (TOM)** für den Datenschutzbeauftragten (DSB) finden Sie in [DATENSCHUTZ_UND_TOM.md](DATENSCHUTZ_UND_TOM.md).
 
 ## ✨ Neue & Wichtige Funktionen (2026 Edition)
 
