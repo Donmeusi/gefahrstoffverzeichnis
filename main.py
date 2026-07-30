@@ -43,7 +43,13 @@ if os.environ.get('FLASK_ENV') == 'production':
 app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
 os.makedirs(app_data_dir, exist_ok=True)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app_data_dir, 'gefahrstoffe.db')
+db_data_path = os.path.join(app_data_dir, 'gefahrstoffe.db')
+db_root_path = os.path.join(basedir, 'gefahrstoffe.db')
+if not os.path.exists(db_data_path) and os.path.exists(db_root_path):
+    import shutil
+    shutil.copy2(db_root_path, db_data_path)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_data_path
 
 UPLOAD_FOLDER = os.path.join(app_data_dir, 'uploads')
 
