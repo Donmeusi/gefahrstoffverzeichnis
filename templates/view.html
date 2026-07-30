@@ -13,6 +13,7 @@
         <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Achtung</span>
         {% endif %}
     </div>
+    {% if current_user.can_write %}
     <div style="display:flex; gap:0.5rem;">
         <a href="{{ url_for('betriebsanweisung_print', id=stoff.id) }}" class="btn btn-warning btn-sm" target="_blank" style="color: black; font-weight: 600;">
             <i class="fa-solid fa-print"></i> Betriebsanweisung
@@ -28,6 +29,7 @@
             </button>
         </form>
     </div>
+    {% endif %}
 </div>
 
 {% if stoff.trgs_warnings %}
@@ -116,6 +118,7 @@
                 </dd>
             </dl>
 
+            {% if current_user.can_write %}
             <div style="margin-top:1.75rem; padding-top:1rem; border-top:1px solid var(--border); display:flex; gap:0.5rem; flex-wrap:wrap;">
 
                 <a href="{{ url_for('copy_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm">
@@ -125,6 +128,7 @@
                     <i class="fa-solid fa-dolly"></i> Umbuchen
                 </a>
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -184,12 +188,19 @@
                 </div>
                 <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
                     {% if stoff.sicherheitsdatenblatt %}
-                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
-                       class="btn btn-outline" target="_blank"
-                       style="border-color:#fca5a5;">
-                        <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
-                        SDB ansehen
-                    </a>
+                        {% if current_user.role == 'lesen' %}
+                        <span class="btn btn-outline" style="border-color:#fca5a5; opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            SDB vorhanden (Download gesperrt)
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
+                           class="btn btn-outline" target="_blank"
+                           style="border-color:#fca5a5;">
+                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            SDB ansehen
+                        </a>
+                        {% endif %}
                     {% else %}
                     <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
                         <i class="fa-regular fa-file-pdf"></i> Kein SDB
@@ -197,12 +208,19 @@
                     {% endif %}
 
                     {% if stoff.betriebsanweisung %}
-                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
-                       class="btn btn-outline" target="_blank"
-                       style="border-color:#a5b4fc;">
-                        <i class="fa-solid fa-file-word" style="color:var(--primary); font-size:1.2rem;"></i>
-                        BA ansehen
-                    </a>
+                        {% if current_user.role == 'lesen' %}
+                        <span class="btn btn-outline" style="border-color:#a5b4fc; opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <i class="fa-solid fa-file-word" style="color:var(--primary); font-size:1.2rem;"></i>
+                            BA vorhanden (Download gesperrt)
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
+                           class="btn btn-outline" target="_blank"
+                           style="border-color:#a5b4fc;">
+                            <i class="fa-solid fa-file-word" style="color:var(--primary); font-size:1.2rem;"></i>
+                            BA ansehen
+                        </a>
+                        {% endif %}
                     {% else %}
                     <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
                         <i class="fa-regular fa-file-word"></i> Keine BA
@@ -210,12 +228,19 @@
                     {% endif %}
 
                     {% if stoff.gefaehrdungsbeurteilung %}
-                    <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}"
-                       class="btn btn-outline" target="_blank"
-                       style="border-color:#86efac;">
-                        <i class="fa-solid fa-file-shield" style="color:var(--success); font-size:1.2rem;"></i>
-                        GB ansehen
-                    </a>
+                        {% if current_user.role == 'lesen' %}
+                        <span class="btn btn-outline" style="border-color:#86efac; opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <i class="fa-solid fa-file-shield" style="color:var(--success); font-size:1.2rem;"></i>
+                            GB vorhanden (Download gesperrt)
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}"
+                           class="btn btn-outline" target="_blank"
+                           style="border-color:#86efac;">
+                            <i class="fa-solid fa-file-shield" style="color:var(--success); font-size:1.2rem;"></i>
+                            GB ansehen
+                        </a>
+                        {% endif %}
                     {% else %}
                     <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
                         <i class="fa-solid fa-file-shield" style="color:#cbd5e1;"></i> Keine GB

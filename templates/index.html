@@ -29,15 +29,19 @@
         </p>
     </div>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        {% if current_user.role != 'lesen' %}
         <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#059669;">
             <i class="fa-solid fa-file-excel"></i> Excel
         </a>
         <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#dc2626;">
             <i class="fa-solid fa-file-pdf"></i> PDF
         </a>
+        {% endif %}
+        {% if current_user.can_write %}
         <a href="{{ url_for('add') }}" class="btn btn-primary btn-sm">
             <i class="fa-solid fa-plus"></i> Neuer Gefahrstoff
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -221,25 +225,43 @@
                                         {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
                                         {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
                                     {% endif %}
-                                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
-                                       class="doc-btn doc-btn-sdb" title="Sicherheitsdatenblatt" target="_blank">
-                                        <i class="fa-solid fa-file-pdf"></i> SDB
-                                        {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
-                                    </a>
+                                    {% if current_user.role == 'lesen' %}
+                                        <span class="doc-btn doc-btn-sdb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                            <i class="fa-solid fa-file-pdf"></i> SDB
+                                        </span>
+                                    {% else %}
+                                        <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
+                                           class="doc-btn doc-btn-sdb" title="Sicherheitsdatenblatt" target="_blank">
+                                            <i class="fa-solid fa-file-pdf"></i> SDB
+                                            {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                                        </a>
+                                    {% endif %}
                                 {% endif %}
                                 
                                 {% if stoff.betriebsanweisung %}
-                                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
-                                       class="doc-btn doc-btn-ba" title="Betriebsanweisung" target="_blank">
-                                        <i class="fa-solid fa-file-word"></i> BA
-                                    </a>
+                                    {% if current_user.role == 'lesen' %}
+                                        <span class="doc-btn doc-btn-ba" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                            <i class="fa-solid fa-file-word"></i> BA
+                                        </span>
+                                    {% else %}
+                                        <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}"
+                                           class="doc-btn doc-btn-ba" title="Betriebsanweisung" target="_blank">
+                                            <i class="fa-solid fa-file-word"></i> BA
+                                        </a>
+                                    {% endif %}
                                 {% endif %}
 
                                 {% if stoff.gefaehrdungsbeurteilung %}
-                                    <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}"
-                                       class="doc-btn doc-btn-gb" title="Gefährdungsbeurteilung" target="_blank">
-                                        <i class="fa-solid fa-file-shield"></i> GB
-                                    </a>
+                                    {% if current_user.role == 'lesen' %}
+                                        <span class="doc-btn doc-btn-gb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                            <i class="fa-solid fa-file-shield"></i> GB
+                                        </span>
+                                    {% else %}
+                                        <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}"
+                                           class="doc-btn doc-btn-gb" title="Gefährdungsbeurteilung" target="_blank">
+                                            <i class="fa-solid fa-file-shield"></i> GB
+                                        </a>
+                                    {% endif %}
                                 {% endif %}
                                 
                                 {% if not stoff.sicherheitsdatenblatt and not stoff.betriebsanweisung and not stoff.gefaehrdungsbeurteilung %}
@@ -301,21 +323,39 @@
                             {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
                             {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
                         {% endif %}
-                        <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
-                            <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
-                        </a>
+                        {% if current_user.role == 'lesen' %}
+                            <span class="doc-btn doc-btn-sdb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                <i class="fa-solid fa-file-pdf"></i> SDB
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
+                                <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                            </a>
+                        {% endif %}
                     {% endif %}
                     
                     {% if stoff.betriebsanweisung %}
-                        <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="doc-btn doc-btn-ba" target="_blank">
-                            <i class="fa-solid fa-file-word"></i> BA
-                        </a>
+                        {% if current_user.role == 'lesen' %}
+                            <span class="doc-btn doc-btn-ba" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                <i class="fa-solid fa-file-word"></i> BA
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="doc-btn doc-btn-ba" target="_blank">
+                                <i class="fa-solid fa-file-word"></i> BA
+                            </a>
+                        {% endif %}
                     {% endif %}
 
                     {% if stoff.gefaehrdungsbeurteilung %}
-                        <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" class="doc-btn doc-btn-gb" target="_blank">
-                            <i class="fa-solid fa-file-shield"></i> GB
-                        </a>
+                        {% if current_user.role == 'lesen' %}
+                            <span class="doc-btn doc-btn-gb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                <i class="fa-solid fa-file-shield"></i> GB
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" class="doc-btn doc-btn-gb" target="_blank">
+                                <i class="fa-solid fa-file-shield"></i> GB
+                            </a>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

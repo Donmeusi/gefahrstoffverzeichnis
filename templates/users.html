@@ -71,6 +71,8 @@
                                 <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
                             {% elif user.role == 'moderator' %}
                                 <span class="badge badge-mod"><i class="fa-solid fa-shield-halved"></i> Moderator</span>
+                            {% elif user.role == 'lesen' %}
+                                <span class="badge" style="background:#64748b; color:#fff;"><i class="fa-solid fa-eye"></i> Lesen</span>
                             {% else %}
                                 <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
                             {% endif %}
@@ -80,7 +82,7 @@
                         <td>
                             {% if user.role == 'admin' %}
                                 <span style="font-size:0.82rem; color:var(--text-muted); font-style:italic;">Alle Bereiche</span>
-                            {% elif user.role == 'moderator' or user.role == 'benutzer' %}
+                            {% elif user.role == 'moderator' or user.role == 'benutzer' or user.role == 'lesen' %}
                                 {% if user.role == 'moderator' %}
                                     {% set owned = bereiche | selectattr('owner_id', 'eq', user.id) | list %}
                                     {% if owned %}
@@ -103,7 +105,7 @@
                                         <span class="count-chip" style="background:var(--bg-subtle); border-color:var(--border);">{{ b.name }}</span>
                                         {% endfor %}
                                     </div>
-                                {% elif user.role == 'benutzer' %}
+                                {% elif user.role in ('benutzer', 'lesen') %}
                                     <span style="font-size:0.82rem; color:var(--text-muted); font-style:italic;">Keine Bereiche zugewiesen</span>
                                 {% endif %}
                             {% endif %}
@@ -121,6 +123,7 @@
                                         <option value="admin"     {% if user.role == 'admin' %}selected{% endif %}>👑 Admin</option>
                                         <option value="moderator" {% if user.role == 'moderator' %}selected{% endif %}>🛡️ Moderator</option>
                                         <option value="benutzer"  {% if user.role == 'benutzer' %}selected{% endif %}>👤 Benutzer</option>
+                                        <option value="lesen"     {% if user.role == 'lesen' %}selected{% endif %}>👁️ Lesen</option>
                                     </select>
                                 </form>
                                 {% endif %}

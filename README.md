@@ -8,6 +8,8 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 ## ✨ Neue & Wichtige Funktionen (2026 Edition)
 
+*   **LDAPs-Authentifizierung (Active Directory / OpenLDAP)**: Binden Sie Ihr Unternehmens-Verzeichnis via LDAPs/TLS ein. Neue LDAP-Nutzer werden automatisch mit konfigurierbarer Standardrolle angelegt.
+*   **Schreibgeschützte Rolle „Lesen“**: Neue Benutzerrolle für reine Betrachter. Leser sehen zugewiesene Bereiche, dürfen jedoch keine Daten bearbeiten, löschen, exportieren (Excel/PDF) oder Dokumente herunterladen.
 *   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
 *   **Mobile Ready (Responsiv)**: Die gesamte Anwendung wurde mit einem "Mobile First" Ansatz überarbeitet. Auf Smartphones und kleinen Bildschirmen blenden Tabellen unwichtige Spalten aus und Eingabefelder stapeln sich dynamisch, für ein optimales Nutzungserlebnis unterwegs.
 *   **PubChem CAS-Autofill**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze) automatisch aus der offiziellen NIH/PubChem Datenbank herunter.
@@ -77,6 +79,37 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     python main.py
     ```
     Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
+
+### 🔐 LDAPs-Authentifizierung & .env Konfiguration
+
+Zur Anbindung von **Active Directory** oder **OpenLDAP** kopieren Sie die Beispieldatei `.env.example` zu `.env` (oder setzen Sie die Umgebungsvariablen in Ihrem System / Docker Compose):
+
+```bash
+cp .env.example .env
+```
+
+**Beispiel `.env` Konfiguration:**
+```env
+# LDAPs Authentifizierung aktivieren
+LDAP_ENABLED=true
+LDAP_HOST=ldaps://ldap.beispiel.de
+LDAP_PORT=636
+LDAP_USE_SSL=true
+LDAP_BASE_DN=dc=beispiel,dc=de
+
+# Bind DN für Service Account (falls erforderlich)
+LDAP_BIND_DN=cn=service_gefahrstoff,ou=services,dc=beispiel,dc=de
+LDAP_BIND_PASSWORD=ServiceAccountPasswort
+
+# Benutzer-Suchfilter (Active Directory: sAMAccountName / OpenLDAP: uid)
+LDAP_USER_SEARCH_FILTER=(sAMAccountName={username})
+
+# Standardrolle für neue LDAP-Benutzer beim ersten Login (lesen | benutzer | moderator | admin)
+LDAP_DEFAULT_ROLE=lesen
+
+# SSL-Zertifikat erzwingen (false für selbstsignierte Zertifikate)
+LDAP_REQUIRE_CERT=false
+```
 
 ### 🐳 Vollständige Docker-Installation (Empfohlen für Server & Unraid)
 

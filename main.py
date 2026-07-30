@@ -24,6 +24,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from ldap_auth import authenticate_ldap, is_ldap_enabled
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -128,11 +129,11 @@ class User(UserMixin, db.Model):
     username      = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     _is_admin     = db.Column('is_admin', db.Boolean, default=False, nullable=False)
-    # Rollen: 'admin' | 'moderator' | 'benutzer'
+    # Rollen: 'admin' | 'moderator' | 'benutzer' | 'lesen'
     role          = db.Column(db.String(20), default='benutzer', nullable=False)
     created_by    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
-    # Bereiche, die diesem Benutzer (als regulärer User) zugewiesen sind
+    # Bereiche, die diesem Benutzer zugewiesen sind
     assigned_bereiche = db.relationship(
         'Bereich', secondary=user_bereiche,
         back_populates='assigned_users', lazy='dynamic'
@@ -145,6 +146,14 @@ class User(UserMixin, db.Model):
     @property
     def is_mod_or_admin(self):
         return self.role in ('admin', 'moderator')
+
+    @property
+    def is_leser(self):
+        return self.role == 'lesen'
+
+    @property
+    def can_write(self):
+        return self.role in ('admin', 'moderator', 'benutzer')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -321,6 +330,9 @@ def get_gefahrstoff_query():
 
 def can_edit_gefahrstoff(stoff):
     """Prüft, ob der aktuelle Benutzer den Gefahrstoff bearbeiten darf."""
+    if not current_user.can_write:
+        return False
+
     if current_user.is_admin:
         return True
         
@@ -334,6 +346,9 @@ def can_edit_gefahrstoff(stoff):
 
 def can_manage_bereich(bereich):
     """Prüft, ob der aktuelle Benutzer diesen Bereich verwalten darf."""
+    if not current_user.can_write:
+        return False
+
     if current_user.is_admin:
         return True
     if current_user.role == 'moderator':
@@ -379,6 +394,25 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+
+        # 1. LDAPs Authentifizierung versuchen, falls aktiviert
+        if is_ldap_enabled():
+            success, ldap_res = authenticate_ldap(username, password)
+            if success:
+                user = User.query.filter_by(username=username).first()
+                if not user:
+                    default_role = ldap_res.get('default_role', 'lesen')
+                    user = User(username=username, role=default_role)
+                    user.set_password(os.urandom(16).hex())
+                    db.session.add(user)
+                    db.session.commit()
+                    log_audit_event('USER_CREATE', 'User', user.id, f"Benutzer via LDAPs neu angelegt (Rolle: {default_role}).")
+                
+                login_user(user)
+                log_audit_event('LOGIN', 'User', user.id, "Erfolgreicher LDAPs Login.")
+                return redirect(url_for('index'))
+
+        # 2. Lokale Datenbank-Authentifizierung (Fallback)
         user = User.query.filter_by(username=username).first()
         if user is None or not user.check_password(password):
             flash('Ungültiger Benutzername oder Passwort', 'error')
@@ -678,6 +712,10 @@ def betriebsanweisung_print(id):
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+
     bereiche = get_accessible_bereiche()
 
     if request.method == 'POST':
@@ -989,6 +1027,9 @@ def copy_stoff(id):
 @app.route('/export/excel')
 @login_required
 def export_excel():
+    if current_user.role == 'lesen':
+        flash('Keine Berechtigung zum Exportieren von Daten (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
     import json
     query, _, _, error_message = get_filtered_gefahrstoff_query_for_request()
     if error_message:
@@ -1058,6 +1099,9 @@ def export_excel():
 @app.route('/export/pdf')
 @login_required
 def export_pdf():
+    if current_user.role == 'lesen':
+        flash('Keine Berechtigung zum Exportieren von Daten (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
     from svglib.svglib import svg2rlg
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
     from reportlab.lib import colors
@@ -1181,6 +1225,9 @@ def export_pdf():
 @app.route('/uploads/<filename>')
 @login_required
 def uploaded_file(filename):
+    if current_user.role == 'lesen':
+        flash('Keine Berechtigung zum Herunterladen von Dokumenten (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ─── Profil & Freigaben ────────────────────────────────────────────────────────
@@ -1292,7 +1339,7 @@ def reject_stoff(id):
 @app.route('/users')
 @login_required
 def users():
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
@@ -1310,11 +1357,11 @@ def users():
 @app.route('/users/create', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
-    allowed_roles   = ['admin', 'moderator', 'benutzer'] if current_user.is_admin else ['benutzer']
+    allowed_roles   = ['admin', 'moderator', 'benutzer', 'lesen'] if current_user.is_admin else ['benutzer', 'lesen']
     accessible      = get_accessible_bereiche()
 
     if request.method == 'POST':
@@ -1341,8 +1388,8 @@ def create_user():
         db.session.flush()  # ID generieren
 
         # Bereiche zuweisen
-        if role in ['benutzer', 'moderator']:
-            if current_user.role == 'moderator' and role == 'benutzer':
+        if role in ['benutzer', 'moderator', 'lesen']:
+            if current_user.role == 'moderator' and role in ['benutzer', 'lesen']:
                 # Automatisch alle eigenen Bereiche zuweisen
                 for b in accessible:
                     new_user.assigned_bereiche.append(b)
@@ -1367,7 +1414,7 @@ def create_user():
 @app.route('/users/set_role/<int:id>', methods=['POST'])
 @login_required
 def set_role(id):
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
@@ -1380,7 +1427,7 @@ def set_role(id):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('users'))
 
-    allowed_roles = ['admin', 'moderator', 'benutzer'] if current_user.is_admin else ['benutzer']
+    allowed_roles = ['admin', 'moderator', 'benutzer', 'lesen'] if current_user.is_admin else ['benutzer', 'lesen']
     new_role = request.form.get('role')
     if new_role not in allowed_roles:
         flash('Ungültige Rolle.', 'error')
@@ -1395,7 +1442,7 @@ def set_role(id):
 @app.route('/users/assign_bereiche/<int:id>', methods=['POST'])
 @login_required
 def assign_bereiche(id):
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
@@ -1428,7 +1475,7 @@ def assign_bereiche(id):
 @app.route('/users/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_user(id):
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
@@ -1442,7 +1489,7 @@ def edit_user(id):
         flash('Keine Berechtigung, diesen Benutzer zu bearbeiten.', 'error')
         return redirect(url_for('users'))
 
-    allowed_roles = ['admin', 'moderator', 'benutzer'] if current_user.is_admin else ['benutzer']
+    allowed_roles = ['admin', 'moderator', 'benutzer', 'lesen'] if current_user.is_admin else ['benutzer', 'lesen']
     accessible = get_accessible_bereiche()
 
     if request.method == 'POST':
@@ -1571,6 +1618,9 @@ with app.app_context():
 @app.route('/api/parse_sdb', methods=['POST'])
 @login_required
 def parse_sdb():
+    if not current_user.can_write:
+        return {'error': 'Keine Schreibberechtigung (Leser-Rolle)'}, 403
+
     if 'file' not in request.files:
         return {'error': 'Keine Datei hochgeladen'}, 400
         
@@ -1871,6 +1921,9 @@ def do_update():
 @app.route('/api/autofill/<cas_nummer>')
 @login_required
 def api_autofill(cas_nummer):
+    if not current_user.can_write:
+        return jsonify({'error': 'Keine Schreibberechtigung (Leser-Rolle)'}), 403
+
     import urllib.request
     import urllib.parse
     import json
