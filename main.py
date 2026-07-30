@@ -831,91 +831,96 @@ def add():
     bereiche = get_accessible_bereiche()
 
     if request.method == 'POST':
-        name         = request.form.get('name')
-        cas_nummer   = request.form.get('cas_nummer')
-        eg_nummer    = request.form.get('eg_nummer')
-        signalwort   = request.form.get('signalwort')
-        unterbereich_id = request.form.get('unterbereich_id')
-
-        # Sicherheitscheck: Unterbereich muss zum zugänglichen Bereich gehören
-        if unterbereich_id:
-            unter = Unterbereich.query.get(unterbereich_id)
-            if unter and unter.bereich.id not in [b.id for b in bereiche]:
-                flash('Kein Zugriff auf diesen Standort.', 'error')
-                return redirect(url_for('add'))
-
-        piktogramme_list = request.form.getlist('piktogramme')
-        piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
-        gefahrenkategorien = request.form.get('gefahrenkategorien')
-        h_saetze    = request.form.get('h_saetze')
-        p_saetze    = request.form.get('p_saetze')
-        lagerort    = request.form.get('lagerort')
-        lagerklasse = request.form.get('lagerklasse')
-        menge_str   = request.form.get('menge')
-        mengeneinheit = request.form.get('mengeneinheit')
-        
-        # Neue Felder Section 5
-        sdb_datum_str = request.form.get('sdb_datum')
-        sdb_datum = None
-        if sdb_datum_str:
-            try:
-                sdb_datum = datetime.strptime(sdb_datum_str, '%Y-%m-%d').date()
-            except ValueError:
-                pass
-                
-        substitutionspruefung = request.form.get('substitutionspruefung')
-        ersatzstoff = request.form.get('ersatzstoff') if substitutionspruefung == 'ja' else None
-        begruendung = request.form.get('begruendung') if substitutionspruefung == 'nein' else None
-
-        menge = None
-        if menge_str:
-            try:
-                menge = float(menge_str.replace(',', '.'))
-            except ValueError:
-                flash('Ungültiges Zahlenformat bei der Menge.', 'error')
-                return redirect(url_for('add'))
-
-        sdb_filename = ba_filename = gb_filename = None
-        if 'sicherheitsdatenblatt' in request.files:
-            file = request.files['sicherheitsdatenblatt']
-            if file and file.filename != '' and allowed_file(file.filename):
-                sdb_filename = save_file_with_stoff_name(file, name, "SDB")
-            elif file and file.filename != '':
-                flash('Ungültiger Dateityp für das Sicherheitsdatenblatt.', 'error')
-                return redirect(url_for('add'))
-
-        if 'betriebsanweisung' in request.files:
-            file = request.files['betriebsanweisung']
-            if file and file.filename != '' and allowed_file(file.filename):
-                ba_filename = save_file_with_stoff_name(file, name, "BA")
-            elif file and file.filename != '':
-                flash('Ungültiger Dateityp für die Betriebsanweisung.', 'error')
-                return redirect(url_for('add'))
-
-        if 'gefaehrdungsbeurteilung' in request.files:
-            file = request.files['gefaehrdungsbeurteilung']
-            if file and file.filename != '' and allowed_file(file.filename):
-                gb_filename = save_file_with_stoff_name(file, name, "GB")
-            elif file and file.filename != '':
-                flash('Ungültiger Dateityp für die Gefährdungsbeurteilung.', 'error')
-                return redirect(url_for('add'))
-
-        neuer_stoff = Gefahrstoff(
-            name=name, cas_nummer=cas_nummer, eg_nummer=eg_nummer,
-            signalwort=signalwort if signalwort else None,
-            piktogramme=piktogramme, gefahrenkategorien=gefahrenkategorien, h_saetze=h_saetze, p_saetze=p_saetze,
-            lagerort=lagerort, lagerklasse=lagerklasse, menge=menge, mengeneinheit=mengeneinheit,
-            sdb_datum=sdb_datum,
-            substitutionspruefung=substitutionspruefung,
-            ersatzstoff=ersatzstoff,
-            begruendung=begruendung,
-            sicherheitsdatenblatt=sdb_filename, betriebsanweisung=ba_filename,
-            gefaehrdungsbeurteilung=gb_filename,
-            unterbereich_id=unterbereich_id if unterbereich_id else None,
-            user_id=current_user.id,
-            is_approved=not is_cmr_stoff(h_saetze)
-        )
         try:
+            name         = request.form.get('name')
+            cas_nummer   = request.form.get('cas_nummer')
+            eg_nummer    = request.form.get('eg_nummer')
+            signalwort   = request.form.get('signalwort')
+            unterbereich_id_raw = request.form.get('unterbereich_id')
+
+            unterbereich_id = None
+            if unterbereich_id_raw and str(unterbereich_id_raw).strip():
+                try:
+                    unterbereich_id = int(unterbereich_id_raw)
+                    unter = Unterbereich.query.get(unterbereich_id)
+                    if unter and unter.bereich.id not in [b.id for b in bereiche]:
+                        flash('Kein Zugriff auf diesen Standort.', 'error')
+                        return redirect(url_for('add'))
+                except (ValueError, TypeError):
+                    unterbereich_id = None
+
+            piktogramme_list = request.form.getlist('piktogramme')
+            piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
+            gefahrenkategorien = request.form.get('gefahrenkategorien')
+            h_saetze    = request.form.get('h_saetze')
+            p_saetze    = request.form.get('p_saetze')
+            lagerort    = request.form.get('lagerort')
+            lagerklasse = request.form.get('lagerklasse')
+            menge_str   = request.form.get('menge')
+            mengeneinheit = request.form.get('mengeneinheit')
+            
+            # Neue Felder Section 5
+            sdb_datum_str = request.form.get('sdb_datum')
+            sdb_datum = None
+            if sdb_datum_str:
+                try:
+                    sdb_datum = datetime.strptime(sdb_datum_str, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+                    
+            substitutionspruefung = request.form.get('substitutionspruefung')
+            ersatzstoff = request.form.get('ersatzstoff') if substitutionspruefung == 'ja' else None
+            begruendung = request.form.get('begruendung') if substitutionspruefung == 'nein' else None
+
+            menge = None
+            if menge_str:
+                try:
+                    menge = float(menge_str.replace(',', '.'))
+                except ValueError:
+                    flash('Ungültiges Zahlenformat bei der Menge.', 'error')
+                    return redirect(url_for('add'))
+
+            sdb_filename = ba_filename = gb_filename = None
+            if 'sicherheitsdatenblatt' in request.files:
+                file = request.files['sicherheitsdatenblatt']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    sdb_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "SDB")
+                elif file and file.filename != '':
+                    flash('Ungültiger Dateityp für das Sicherheitsdatenblatt.', 'error')
+                    return redirect(url_for('add'))
+
+            if 'betriebsanweisung' in request.files:
+                file = request.files['betriebsanweisung']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    ba_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "BA")
+                elif file and file.filename != '':
+                    flash('Ungültiger Dateityp für die Betriebsanweisung.', 'error')
+                    return redirect(url_for('add'))
+
+            if 'gefaehrdungsbeurteilung' in request.files:
+                file = request.files['gefaehrdungsbeurteilung']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    gb_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "GB")
+                elif file and file.filename != '':
+                    flash('Ungültiger Dateityp für die Gefährdungsbeurteilung.', 'error')
+                    return redirect(url_for('add'))
+
+            neuer_stoff = Gefahrstoff(
+                name=name, cas_nummer=cas_nummer, eg_nummer=eg_nummer,
+                signalwort=signalwort if signalwort else None,
+                piktogramme=piktogramme, gefahrenkategorien=gefahrenkategorien, h_saetze=h_saetze, p_saetze=p_saetze,
+                lagerort=lagerort, lagerklasse=lagerklasse, menge=menge, mengeneinheit=mengeneinheit,
+                sdb_datum=sdb_datum,
+                substitutionspruefung=substitutionspruefung,
+                ersatzstoff=ersatzstoff,
+                begruendung=begruendung,
+                sicherheitsdatenblatt=sdb_filename, betriebsanweisung=ba_filename,
+                gefaehrdungsbeurteilung=gb_filename,
+                unterbereich_id=unterbereich_id,
+                user_id=current_user.id,
+                is_approved=not is_cmr_stoff(h_saetze)
+            )
+
             db.session.add(neuer_stoff)
             db.session.commit()
             
@@ -928,7 +933,10 @@ def add():
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Speichern: {str(e)}', 'error')
+            import traceback
+            traceback.print_exc()
+            flash(f'Fehler beim Speichern des Gefahrstoffs: {str(e)}', 'error')
+            return redirect(url_for('add'))
 
     return render_template('add.html', bereiche=bereiche)
 
@@ -2171,6 +2179,8 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    import traceback
+    traceback.print_exc()
     db.session.rollback()
     return render_template('errors/500.html'), 500
 
