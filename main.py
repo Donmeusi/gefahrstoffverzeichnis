@@ -250,6 +250,7 @@ class Gefahrstoff(db.Model):
     begruendung         = db.Column(db.String(500), nullable=True)
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
+    gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
     is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
