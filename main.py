@@ -51,6 +51,12 @@ if not os.path.exists(db_data_path) and os.path.exists(db_root_path):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_data_path
 
+try:
+    from migrate_db import run_migrations
+    run_migrations()
+except Exception as e:
+    print(f"Auto-migration warning: {e}")
+
 UPLOAD_FOLDER = os.path.join(app_data_dir, 'uploads')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

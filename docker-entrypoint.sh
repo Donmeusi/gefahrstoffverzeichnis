@@ -10,6 +10,10 @@ if [ -f "requirements.txt" ]; then
 fi
 
 # Ensure database is up to date
+if [ -f "migrate_db.py" ]; then
+    echo "Running database auto-migrations..."
+    python migrate_db.py
+fi
 if [ -d "migrations" ]; then
     echo "Running database migrations..."
     flask db upgrade
