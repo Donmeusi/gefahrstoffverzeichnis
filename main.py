@@ -13,7 +13,7 @@ import platform
 import threading
 import time
 from datetime import datetime
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
 from io import BytesIO
 import pdfplumber
@@ -31,7 +31,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 # Reverse Proxy Unterstützung (z.B. für Nginx/Apache Subdomains wie gefstoff.hs-anhalt.de)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "gefahrstoffe_secret_key_default_dev_2026")
 
 # --- Security & Session Configuration ---
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -45,14 +45,16 @@ os.makedirs(app_data_dir, exist_ok=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app_data_dir, 'gefahrstoffe.db')
 
-
-
-
 UPLOAD_FOLDER = os.path.join(app_data_dir, 'uploads')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 csrf = CSRFProtect(app)
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    flash('Deine Sitzung oder das Sicherheits-Token ist abgelaufen. Bitte melde dich erneut an.', 'error')
+    return redirect(url_for('login'))
 
 APP_VERSION = "2.0.1"
 
