@@ -92,6 +92,9 @@ def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
     Beispiel: stoff_name="Aceton", suffix="SDB" -> Aceton_SDB.pdf
     """
     import re
+    upload_dir = app.config.get('UPLOAD_FOLDER', os.path.join(basedir, 'data', 'uploads'))
+    os.makedirs(upload_dir, exist_ok=True)
+    
     ext = file_obj.filename.rsplit('.', 1)[1].lower() if '.' in file_obj.filename else 'pdf'
     
     # Bereinige den Stoffnamen für Dateinamen
@@ -109,11 +112,11 @@ def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
     original_filename = filename
     name_part, ext_part = os.path.splitext(original_filename)
     
-    while os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+    while os.path.exists(os.path.join(upload_dir, filename)):
         filename = f"{name_part}_{counter}{ext_part}"
         counter += 1
         
-    file_obj.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    file_obj.save(os.path.join(upload_dir, filename))
     return filename
 
 app.jinja_env.globals.update(getattr=getattr)
