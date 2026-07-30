@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}Schnell-Inventur: {{ unterbereich.name }} – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-clipboard-check" style="color:var(--primary); margin-right:0.4rem;"></i> Schnell-Inventur</h1>
+        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+            Standort: <strong>{{ unterbereich.get_full_path() | safe }}</strong>
+        </p>
+    </div>
+    <a href="{{ url_for('locations') }}" class="btn btn-outline">
+        <i class="fa-solid fa-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<!-- Progress Bar -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem; flex-wrap:wrap; gap:0.5rem;">
+            <span style="font-weight:600; font-size:0.95rem;">
+                <i class="fa-solid fa-tasks" style="color:var(--primary);"></i> Fortschritt:
+                <span id="checked_count">0</span> von {{ stoffe | length }} Stoffen abgehakt
+            </span>
+            <button type="button" class="btn btn-sm btn-outline" id="btn_toggle_all" onclick="toggleAllCheckboxes()">
+                <i class="fa-solid fa-check-double"></i> Alle abhaken
+            </button>
+        </div>
+        <div style="background: var(--border); height: 10px; border-radius: 5px; overflow: hidden;">
+            <div id="progress_bar" style="background: var(--success); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('location_inventur', id=unterbereich.id) }}" id="inventur_form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    {% if stoffe %}
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+        {% for stoff in stoffe %}
+        <div class="card inventur-card" id="card_{{ stoff.id }}" style="border-left: 4px solid var(--border); transition: border-color 0.2s, background 0.2s;">
+            <div class="card-body" style="padding: 1rem 1.25rem;">
+                <div style="display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;">
+                    
+                    <!-- Left: Big Touch Checkbox & Details -->
+                    <div style="display:flex; align-items:flex-start; gap:0.85rem; flex:1; min-width:240px;">
+                        <input type="checkbox" id="chk_{{ stoff.id }}" name="checked_{{ stoff.id }}" value="1"
+                               style="width: 24px; height: 24px; cursor: pointer; margin-top: 2px; accent-color: var(--success);"
+                               onchange="updateInventurCard({{ stoff.id }})">
+                        <div>
+                            <label for="chk_{{ stoff.id }}" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; color: var(--text);">
+                                {{ stoff.name }}
+                            </label>
+                            
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-top: 0.25rem; font-size:0.825rem; color:var(--text-muted);">
+                                {% if stoff.cas_nummer %}
+                                <span>CAS: <strong>{{ stoff.cas_nummer }}</strong></span>
+                                {% endif %}
+                                {% if stoff.lagerklasse %}
+                                <span>LGK: <strong>{{ stoff.lagerklasse }}</strong></span>
+                                {% endif %}
+                                {% if stoff.signalwort %}
+                                <span style="color:{% if stoff.signalwort == 'Gefahr' %}#b91c1c{% else %}#b45309{% endif %}; font-weight:600;">
+                                    {{ stoff.signalwort }}
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            {% if stoff.last_inventur_datum %}
+                            <div style="margin-top:0.35rem; font-size:0.75rem; color:var(--text-muted);">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Zuletzt geprüft: {{ stoff.last_inventur_datum.strftime('%d.%m.%Y %H:%M') }}
+                                {% if stoff.last_inventur_user %} von {{ stoff.last_inventur_user.username }}{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Right: Quantity adjustment buttons -->
+                    <div style="display:flex; align-items:center; gap:0.4rem; background:var(--bg-subtle); padding:0.4rem 0.6rem; border-radius:8px; border:1px solid var(--border);">
+                        <span style="font-size:0.8rem; color:var(--text-muted); margin-right:0.25rem;">Menge:</span>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="adjustMenge({{ stoff.id }}, -1)" style="padding:4px 10px; font-weight:bold;">–</button>
+                        <input type="number" step="0.01" id="menge_{{ stoff.id }}" name="menge_{{ stoff.id }}"
+                               value="{{ stoff.menge or 0 }}"
+                               style="width: 75px; text-align: center; font-weight: 700; font-size: 0.95rem; border:1px solid var(--border); border-radius:4px; padding:4px;">
+                        <span style="font-size:0.85rem; font-weight:600; color:var(--text-muted);">{{ stoff.mengeneinheit or '' }}</span>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="adjustMenge({{ stoff.id }}, 1)" style="padding:4px 10px; font-weight:bold;">+</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Bottom Submit Floating Bar -->
+    <div style="position: sticky; bottom: 1rem; margin-top: 1.5rem; background: var(--bg-card); border: 1px solid var(--border); padding: 1rem 1.5rem; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; z-index: 100;">
+        <div>
+            <strong style="font-size:0.95rem;"><i class="fa-solid fa-floppy-disk" style="color:var(--primary);"></i> Inventur speichern</strong>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Geprüfte Stoffe erhalten das heutige Prüfdatum</p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <a href="{{ url_for('locations') }}" class="btn btn-outline">Abbrechen</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-check"></i> Inventur abschließen
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fa-solid fa-info-circle"></i> In diesem Schrank/Standort befinden sich aktuell keine Gefahrstoffe.
+    </div>
+    {% endif %}
+</form>
+
+<script>
+const totalStoffe = {{ stoffe | length }};
+
+function updateProgress() {
+    const checked = document.querySelectorAll('input[type="checkbox"][name^="checked_"]:checked').length;
+    document.getElementById('checked_count').innerText = checked;
+    
+    const pct = totalStoffe > 0 ? (checked / totalStoffe) * 100 : 0;
+    document.getElementById('progress_bar').style.width = pct + '%';
+}
+
+function updateInventurCard(id) {
+    const chk = document.getElementById('chk_' + id);
+    const card = document.getElementById('card_' + id);
+    if (chk && card) {
+        if (chk.checked) {
+            card.style.borderColor = 'var(--success)';
+            card.style.backgroundColor = 'rgba(34, 197, 94, 0.05)';
+        } else {
+            card.style.borderColor = 'var(--border)';
+            card.style.backgroundColor = '';
+        }
+    }
+    updateProgress();
+}
+
+function adjustMenge(id, delta) {
+    const inp = document.getElementById('menge_' + id);
+    const chk = document.getElementById('chk_' + id);
+    if (inp) {
+        let val = parseFloat(inp.value) || 0;
+        val = Math.max(0, val + delta);
+        inp.value = val % 1 === 0 ? val : val.toFixed(2);
+    }
+    if (chk && !chk.checked) {
+        chk.checked = true;
+        updateInventurCard(id);
+    }
+}
+
+let allChecked = false;
+function toggleAllCheckboxes() {
+    allChecked = !allChecked;
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name^="checked_"]');
+    checkboxes.forEach(cb => {
+        cb.checked = allChecked;
+        const id = cb.id.replace('chk_', '');
+        updateInventurCard(id);
+    });
+    document.getElementById('btn_toggle_all').innerHTML = allChecked ? 
+        '<i class="fa-solid fa-times"></i> Alle abwählen' : 
+        '<i class="fa-solid fa-check-double"></i> Alle abhaken';
+}
+
+document.addEventListener('DOMContentLoaded', updateProgress);
+</script>
+{% endblock %}

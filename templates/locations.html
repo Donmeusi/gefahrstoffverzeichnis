@@ -17,8 +17,14 @@
         {{ unterbereich.name }}
         <span class="count-chip">{{ unterbereich.gefahrstoffe|length }} Stoff(e)</span>
     </span>
-    <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="QR-Code generieren und drucken" style="color:var(--text-light); font-size:0.9rem;">
+    <div style="display: flex; gap: 0.6rem; align-items: center;">
+        <a href="{{ url_for('location_inventur', id=unterbereich.id) }}" class="btn-icon" title="Schnell-Inventur durchführen" style="color:var(--success); font-size:0.95rem;">
+            <i class="fa-solid fa-clipboard-check"></i>
+        </a>
+        <a href="{{ url_for('location_print', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="Schrank-Aushang (A4) drucken" style="color:var(--primary); font-size:0.9rem;">
+            <i class="fa-solid fa-print"></i>
+        </a>
+        <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="QR-Code generieren" style="color:var(--text-light); font-size:0.9rem;">
             <i class="fa-solid fa-qrcode"></i>
         </a>
         <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST" style="margin:0;"

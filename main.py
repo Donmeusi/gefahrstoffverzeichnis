@@ -241,10 +241,12 @@ class Gefahrstoff(db.Model):
     begruendung         = db.Column(db.String(500), nullable=True)
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
-    gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
     is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
+    last_inventur_datum = db.Column(db.DateTime, nullable=True)
+    last_inventur_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    last_inventur_user  = db.relationship('User', foreign_keys=[last_inventur_user_id], lazy=True)
     unterbereich_id     = db.Column(db.Integer, db.ForeignKey('unterbereich.id'), nullable=True)
     user_id             = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
@@ -616,6 +618,99 @@ def location_qr(id):
     img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
     
     return render_template('print_qr.html', unterbereich=unterbereich, qr_code_b64=img_b64)
+
+
+@app.route('/location/<int:id>/print')
+@login_required
+def location_print(id):
+    unterbereich = Unterbereich.query.get_or_404(id)
+    
+    # Check permissions
+    if not current_user.is_admin \
+            and not can_manage_bereich(unterbereich.bereich) \
+            and unterbereich.bereich not in current_user.assigned_bereiche.all():
+        flash('Kein Zugriff auf diesen Standort.', 'error')
+        return redirect(url_for('index'))
+
+    # Get all active (non-deleted, approved) substances in this unterbereich
+    stoff_list = Gefahrstoff.query.filter_by(
+        unterbereich_id=unterbereich.id,
+        is_deleted=False,
+        is_approved=True
+    ).order_by(Gefahrstoff.name.asc()).all()
+
+    # Generate QR code for quick scan link
+    url = url_for('index', unterbereich_id=unterbereich.id, _external=True)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    return render_template('location_print.html', 
+                           unterbereich=unterbereich, 
+                           stoffe=stoff_list, 
+                           qr_code_b64=img_b64, 
+                           today_date=datetime.utcnow().strftime('%d.%m.%Y'))
+
+
+@app.route('/location/<int:id>/inventur', methods=['GET', 'POST'])
+@login_required
+def location_inventur(id):
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung für die Inventurdurchführung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+
+    unterbereich = Unterbereich.query.get_or_404(id)
+    
+    # Permission check
+    if not current_user.is_admin \
+            and not can_manage_bereich(unterbereich.bereich) \
+            and unterbereich.bereich not in current_user.assigned_bereiche.all():
+        flash('Kein Zugriff auf diesen Standort.', 'error')
+        return redirect(url_for('index'))
+
+    stoff_list = Gefahrstoff.query.filter_by(
+        unterbereich_id=unterbereich.id,
+        is_deleted=False
+    ).order_by(Gefahrstoff.name.asc()).all()
+
+    if request.method == 'POST':
+        count_checked = 0
+        now = datetime.utcnow()
+        for stoff in stoff_list:
+            is_checked = request.form.get(f'checked_{stoff.id}') == '1'
+            new_menge_str = request.form.get(f'menge_{stoff.id}')
+            
+            if is_checked:
+                count_checked += 1
+                stoff.last_inventur_datum = now
+                stoff.last_inventur_user_id = current_user.id
+                
+                if new_menge_str is not None and new_menge_str.strip() != '':
+                    try:
+                        new_menge = float(new_menge_str.replace(',', '.'))
+                        if stoff.menge != new_menge:
+                            stoff.menge = new_menge
+                    except ValueError:
+                        pass
+        
+        db.session.commit()
+        
+        log_audit_event('INVENTUR', 'Unterbereich', unterbereich.id, 
+                        f'Schnell-Inventur für "{unterbereich.get_full_path()}" abgeschlossen ({count_checked} von {len(stoff_list)} Stoffen geprüft)')
+        
+        flash(f'Inventur für "{unterbereich.name}" erfolgreich gespeichert ({count_checked} von {len(stoff_list)} Stoffen geprüft).', 'success')
+        return redirect(url_for('locations'))
+
+    return render_template('inventur.html', unterbereich=unterbereich, stoffe=stoff_list)
 
 
 @app.route('/location/delete_bereich/<int:id>', methods=['POST'])

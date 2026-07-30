@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gefahrstoffverzeichnis – {{ unterbereich.name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --bg-subtle: #f8fafc;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text);
+            background: #fff;
+            padding: 2rem;
+            line-height: 1.4;
+        }
+        .no-print-bar {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        
+        /* Print Document Layout */
+        .print-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .header-title h1 {
+            font-size: 1.6rem;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .header-title p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .header-qr {
+            text-align: right;
+        }
+        .header-qr img {
+            width: 90px;
+            height: 90px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 2px;
+        }
+        .header-qr span {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Safety & Location Banner */
+        .meta-box {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.85rem 1.25rem;
+            font-size: 0.85rem;
+        }
+        .meta-item strong {
+            color: var(--text);
+        }
+
+        /* Table Styling */
+        table.print-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+        table.print-table th,
+        table.print-table td {
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        table.print-table th {
+            background: var(--bg-subtle);
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .picto-box {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .picto-img {
+            width: 22px;
+            height: 22px;
+        }
+        .badge-signal {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        .signal-gefahr {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .signal-achtung {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Footer & Emergency Note */
+        .emergency-box {
+            border: 1.5px solid #ef4444;
+            background: #fef2f2;
+            color: #991b1b;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .emergency-box i {
+            font-size: 1.5rem;
+        }
+        .print-footer {
+            margin-top: 1.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Print Media Styles */
+        @media print {
+            body {
+                padding: 0;
+                background: #fff;
+            }
+            .no-print-bar {
+                display: none !important;
+            }
+            .print-table th {
+                background: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .signal-gefahr, .signal-achtung, .emergency-box {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- On-screen Navigation Bar -->
+    <div class="no-print-bar">
+        <div>
+            <strong>🖨️ Druckansicht Schrank-Aushang</strong>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">Format A4 Hochformat – Ideal zum Aushang am Sicherheitsschrank</p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="fa-solid fa-print"></i> Jetzt drucken
+            </button>
+            <button onclick="window.close()" class="btn btn-outline">
+                Schließen
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="print-header">
+        <div class="header-title">
+            <h1><i class="fa-solid fa-boxes-stacked"></i> Gefahrstoffverzeichnis</h1>
+            <p>Schrank-Inhaltsverzeichnis &amp; Standortüberblick</p>
+        </div>
+        <div class="header-qr">
+            <img src="data:image/png;base64,{{ qr_code_b64 }}" alt="QR Code">
+            <span>Online-Digitalakte</span>
+        </div>
+    </div>
+
+    <!-- Meta Info -->
+    <div class="meta-box">
+        <div>
+            <div class="meta-item"><strong>Standort:</strong> {{ unterbereich.get_full_path() | safe }}</div>
+            <div class="meta-item" style="margin-top:3px;"><strong>Bereich:</strong> {{ unterbereich.bereich.name }}</div>
+        </div>
+        <div style="text-align:right;">
+            <div class="meta-item"><strong>Erstellt am:</strong> {{ today_date }}</div>
+            <div class="meta-item" style="margin-top:3px;"><strong>Stoffanzahl:</strong> {{ stoffe | length }}</div>
+        </div>
+    </div>
+
+    <!-- Substance Table -->
+    {% if stoffe %}
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 30%;">Gefahrstoff</th>
+                <th style="width: 15%;">CAS-Nr.</th>
+                <th style="width: 15%;">Menge</th>
+                <th style="width: 10%;">LGK</th>
+                <th style="width: 25%;">GHS-Kennzeichnung</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stoff in stoffe %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <strong>{{ stoff.name }}</strong>
+                    {% if stoff.lagerort %}
+                    <br><small style="color:var(--text-muted); font-size:0.75rem;">Lagerort: {{ stoff.lagerort }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ stoff.cas_nummer or '–' }}</td>
+                <td>{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
+                <td><strong>{{ stoff.lagerklasse or '–' }}</strong></td>
+                <td>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:4px;">
+                        <div class="picto-box">
+                            {% if stoff.piktogramme %}
+                                {% set pic_list = stoff.piktogramme.split(',') %}
+                                {% for p in pic_list %}
+                                    {% set p_clean = p.strip() %}
+                                    {% if p_clean %}
+                                    <img src="{{ url_for('static', filename='pictograms/' + p_clean + '.svg') }}" class="picto-img" alt="{{ p_clean }}">
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        {% if stoff.signalwort == 'Gefahr' %}
+                            <span class="badge-signal signal-gefahr">☠️ Gefahr</span>
+                        {% elif stoff.signalwort == 'Achtung' %}
+                            <span class="badge-signal signal-achtung">⚠️ Achtung</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; border: 1px dashed var(--border); border-radius: 6px; margin-bottom: 1.5rem; color: var(--text-muted);">
+        Derzeit sind keine Gefahrstoffe in diesem Schrank/Standort registriert.
+    </div>
+    {% endif %}
+
+    <!-- Emergency Box -->
+    <div class="emergency-box">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+            <strong>WICHTIGER SICHERHEITSHINWEIS / NOTFALL:</strong><br>
+            Vor Benutzung der Stoffe ist die jeweilige <strong>Betriebsanweisung (TRGS 555)</strong> zu beachten. Im Notfall oder bei Leckagen sofort die Feuerwehr (<strong>112</strong>) oder den Sicherheitsbeauftragten informieren!
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="print-footer">
+        <span>Gefahrstoffverzeichnis App &bull; Generiert am {{ today_date }}</span>
+        <span>Seite 1 / 1</span>
+    </div>
+
+</body>
+</html>

@@ -76,5 +76,55 @@ class TestLdapAndRoles(unittest.TestCase):
             res_pdf = self.client.get('/export/pdf', follow_redirects=True)
             self.assertIn('Keine Berechtigung zum Exportieren', res_pdf.get_data(as_text=True))
 
+    def test_location_print_and_inventur(self):
+        with app.app_context():
+            admin = User(username='admin_inv', role='admin')
+            admin.set_password('pass123')
+            db.session.add(admin)
+            db.session.commit()
+
+            bereich = Bereich(name='Hauptlabor', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+
+            unterbereich = Unterbereich(name='Giftschrank A', bereich_id=bereich.id)
+            db.session.add(unterbereich)
+            db.session.commit()
+
+            stoff = Gefahrstoff(
+                name='Ethanol 99%',
+                cas_nummer='64-17-5',
+                menge=5.0,
+                mengeneinheit='L',
+                unterbereich_id=unterbereich.id,
+                user_id=admin.id
+            )
+            db.session.add(stoff)
+            db.session.commit()
+
+            self.client.post('/login', data={'username': 'admin_inv', 'password': 'pass123'}, follow_redirects=True)
+
+            # Test Print View
+            res_print = self.client.get(f'/location/{unterbereich.id}/print')
+            self.assertEqual(res_print.status_code, 200)
+            self.assertIn('Ethanol 99%', res_print.get_data(as_text=True))
+
+            # Test Inventur GET
+            res_inv_get = self.client.get(f'/location/{unterbereich.id}/inventur')
+            self.assertEqual(res_inv_get.status_code, 200)
+            self.assertIn('Ethanol 99%', res_inv_get.get_data(as_text=True))
+
+            # Test Inventur POST
+            res_inv_post = self.client.post(f'/location/{unterbereich.id}/inventur', data={
+                f'checked_{stoff.id}': '1',
+                f'menge_{stoff.id}': '4.5'
+            }, follow_redirects=True)
+            self.assertEqual(res_inv_post.status_code, 200)
+
+            updated_stoff = Gefahrstoff.query.get(stoff.id)
+            self.assertEqual(updated_stoff.menge, 4.5)
+            self.assertIsNotNone(updated_stoff.last_inventur_datum)
+            self.assertEqual(updated_stoff.last_inventur_user_id, admin.id)
+
 if __name__ == '__main__':
     unittest.main()
