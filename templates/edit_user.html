@@ -43,7 +43,7 @@
                 <select id="cu_role" name="role" onchange="toggleBereiche(this.value)">
                     {% for role in allowed_roles %}
                     <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>
-                        {% if role == 'admin' %}👑 Administrator{% elif role == 'moderator' %}🛡️ Moderator{% else %}👤 Benutzer{% endif %}
+                        {% if role == 'admin' %}👑 Administrator{% elif role == 'moderator' %}🛡️ Moderator{% elif role == 'lesen' %}👁️ Lesen (Schreibgeschützt){% else %}👤 Benutzer{% endif %}
                     </option>
                     {% endfor %}
                 </select>
@@ -80,7 +80,7 @@
                     </label>
                     {% endfor %}
                 </div>
-                <small class="form-text">Weise Moderatoren und Benutzern Bereiche zu, in denen sie Gefahrstoffe verwalten/sehen dürfen.</small>
+                <small class="form-text">Weise Moderatoren, Benutzern und Lesern Bereiche zu, in denen sie Gefahrstoffe sehen/verwalten dürfen.</small>
                 {% else %}
                 <div style="border:1px solid var(--border); border-radius:8px; padding:0.75rem; background:var(--bg-subtle);">
                     {% for b in bereiche %}
@@ -111,9 +111,9 @@ function toggleBereiche(role) {
     const section = document.getElementById('bereich_section');
     if (section) {
         {% if current_user.is_admin %}
-        section.style.display = (role === 'benutzer' || role === 'moderator') ? 'block' : 'none';
+        section.style.display = (role === 'benutzer' || role === 'moderator' || role === 'lesen') ? 'block' : 'none';
         {% else %}
-        section.style.display = (role === 'benutzer') ? 'block' : 'none';
+        section.style.display = (role === 'benutzer' || role === 'lesen') ? 'block' : 'none';
         {% endif %}
     }
 }
