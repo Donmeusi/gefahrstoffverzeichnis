@@ -25,8 +25,8 @@ git pull
 $env:FLASK_APP="main.py"
 & .\venv\Scripts\flask.exe db upgrade
 
-# Alten Python-Prozess beenden (falls noch aktiv)
-Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq "" } | Stop-Process -Force -ErrorAction SilentlyContinue
+# Beende alte Python-Prozesse, die main.py oder run_prod.py ausführen
+Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*main.py*" -or $_.CommandLine -like "*run_prod.py*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 1
 
 Start-Process -FilePath ".\venv\Scripts\python.exe" -ArgumentList "main.py"
