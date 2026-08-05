@@ -258,9 +258,14 @@
         <!-- Schutzmaßnahmen -->
         <div class="red-bar">SCHUTZMASSNAHMEN UND VERHALTENSREGELN</div>
         <div class="content-row">
-            <div class="icon-col">
-                <div class="blue-icon"><i class="fa-solid fa-glasses"></i></div>
-                <div class="blue-icon"><i class="fa-solid fa-hands-bubbles"></i></div>
+            <div class="icon-col" id="gebotszeichen-container" style="cursor: pointer;" onclick="openGebotszeichenModal(event)" title="Klicken, um ISO 7010 Gebotszeichen auszuwählen">
+                <div id="gebotszeichen-list" style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
+                    <img src="{{ url_for('static', filename='symbols/M003.svg') }}" class="gebotszeichen-img" style="width: 45px; height: 45px;" data-code="M003" title="M003 - Augenschutz benutzen">
+                    <img src="{{ url_for('static', filename='symbols/M009.svg') }}" class="gebotszeichen-img" style="width: 45px; height: 45px;" data-code="M009" title="M009 - Schutzhandschuhe benutzen">
+                </div>
+                <button type="button" class="no-print" onclick="openGebotszeichenModal(event)" style="font-size: 8.5pt; margin-top: 5px; padding: 2px 6px; background: #00539B; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">
+                    <i class="fa-solid fa-gear"></i> Zeichen
+                </button>
             </div>
             <div class="text-col" contenteditable="true">
                 <div class="sub-header">Technische und Organisatorische / Persönliche / Hygienische Schutzmaßnahmen:</div>
@@ -283,7 +288,7 @@
         </div>
         <div class="content-row">
             <div class="icon-col">
-                <div class="red-icon"><i class="fa-solid fa-fire-extinguisher"></i></div>
+                <img src="{{ url_for('static', filename='symbols/F001.svg') }}" style="width: 50px; height: 50px;" alt="ISO 7010 F001 Feuerlöscher" title="ISO 7010 F001 - Feuerlöscher">
             </div>
             <div class="text-col" contenteditable="true">
                 <div class="sub-header">Verschütten:</div>
@@ -306,7 +311,7 @@
         </div>
         <div class="content-row">
             <div class="icon-col">
-                <div class="green-icon"><i class="fa-solid fa-square-plus"></i></div>
+                <img src="{{ url_for('static', filename='symbols/E003.svg') }}" style="width: 50px; height: 50px;" alt="ISO 7010 E003 Erste Hilfe" title="ISO 7010 E003 - Erste Hilfe">
             </div>
             <div class="text-col" contenteditable="true">
                 <div class="sub-header">Bei jeder Erste-Hilfe-Maßnahme:</div>
@@ -326,12 +331,118 @@
         <!-- Sachgerechte Entsorgung -->
         <div class="red-bar">SACHGERECHTE ENTSORGUNG</div>
         <div class="content-row">
-            <div class="text-col" style="padding-left: 140px;">
+            <div class="text-col" style="padding-left: 140px;" contenteditable="true">
                 Nicht in Ausguss oder Mülltonne schütten. Größere Mengen in geeigneter Flasche sammeln und nach Absprache mit dem Entsorgungsbeauftragten im Sonderabfall-Lager lagern.
             </div>
         </div>
 
     </div>
+
+    <!-- Interaktives Modal für Gebotszeichen-Auswahl (DIN EN ISO 7010) -->
+    <div id="gebotszeichen-modal" class="no-print" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #fff; border-radius: 8px; padding: 20px; max-width: 550px; width: 92%; box-shadow: 0 5px 20px rgba(0,0,0,0.3); font-family: Arial, sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00539B; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #00539B; font-size: 13pt;"><i class="fa-solid fa-shield-halved"></i> Gebotszeichen auswählen (DIN EN ISO 7010)</h3>
+                <button onclick="closeGebotszeichenModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+            <p style="font-size: 9pt; color: #555; margin-bottom: 12px;">Wählen Sie die Gebotszeichen aus, die in den Schutzmaßnahmen erscheinen sollen:</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 340px; overflow-y: auto; padding: 5px;">
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M001" onchange="toggleGebotszeichen('M001', 'M001 - Allgemeines Gebotszeichen')">
+                    <img src="{{ url_for('static', filename='symbols/M001.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M001 Allgemein</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M002" onchange="toggleGebotszeichen('M002', 'M002 - Gehörschutz benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M002.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M002 Gehörschutz</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M003" checked onchange="toggleGebotszeichen('M003', 'M003 - Augenschutz benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M003.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M003 Augenschutz</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M004" onchange="toggleGebotszeichen('M004', 'M004 - Schutzhelm benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M004.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M004 Schutzhelm</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M008" onchange="toggleGebotszeichen('M008', 'M008 - Fußschutz benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M008.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M008 Fußschutz</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M009" checked onchange="toggleGebotszeichen('M009', 'M009 - Schutzhandschuhe benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M009.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M009 Handschuhe</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M010" onchange="toggleGebotszeichen('M010', 'M010 - Schutzkleidung benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M010.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M010 Schutzkleidung</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M011" onchange="toggleGebotszeichen('M011', 'M011 - Hände waschen')">
+                    <img src="{{ url_for('static', filename='symbols/M011.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M011 Hände waschen</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M013" onchange="toggleGebotszeichen('M013', 'M013 - Gesichtsschutzschirm')">
+                    <img src="{{ url_for('static', filename='symbols/M013.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M013 Visier</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M017" onchange="toggleGebotszeichen('M017', 'M017 - Atemschutz benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M017.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M017 Atemschutz</span>
+                </label>
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="M024" onchange="toggleGebotszeichen('M024', 'M024 - Hautschutzcreme benutzen')">
+                    <img src="{{ url_for('static', filename='symbols/M024.svg') }}" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>M024 Hautschutz</span>
+                </label>
+            </div>
+            
+            <div style="text-align: right; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                <button onclick="closeGebotszeichenModal()" style="background: #00539B; color: #fff; padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Fertig</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openGebotszeichenModal(e) {
+            if (e) e.stopPropagation();
+            document.getElementById('gebotszeichen-modal').style.display = 'flex';
+        }
+        function closeGebotszeichenModal() {
+            document.getElementById('gebotszeichen-modal').style.display = 'none';
+        }
+        function toggleGebotszeichen(code, title) {
+            const list = document.getElementById('gebotszeichen-list');
+            const existing = list.querySelector(`img[data-code="${code}"]`);
+            if (existing) {
+                existing.remove();
+            } else {
+                const img = document.createElement('img');
+                img.src = `/static/symbols/${code}.svg`;
+                img.style.width = '45px';
+                img.style.height = '45px';
+                img.className = 'gebotszeichen-img';
+                img.setAttribute('data-code', code);
+                img.title = title;
+                list.appendChild(img);
+            }
+        }
+        // Schließen bei Klick außerhalb des Modals
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('gebotszeichen-modal');
+            if (e.target === modal) {
+                closeGebotszeichenModal();
+            }
+        });
+    </script>
 
 </body>
 </html>
