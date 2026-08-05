@@ -8,16 +8,17 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 15mm;
+            margin: 0;
         }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 10mm;
             background: #fff;
             color: #000;
             font-size: 9.5pt;
             line-height: 1.15;
+            box-sizing: border-box;
         }
         .ba-container {
             border: 5px solid #cc0000;
@@ -137,6 +138,11 @@
         }
 
         @media print {
+            html, body {
+                margin: 0 !important;
+                padding: 10mm !important;
+                background: #fff !important;
+            }
             .no-print { display: none !important; }
             .ba-container { border: 5px solid #cc0000 !important; }
             .red-bar { background-color: #cc0000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
