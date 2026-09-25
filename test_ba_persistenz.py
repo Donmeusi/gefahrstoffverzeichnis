@@ -356,7 +356,9 @@ class TestGebotszeichenBeschriftung(unittest.TestCase):
         """Stichproben gegen die offizielle ISO-7010-Liste.
 
         M002/M003/M004/M024 waren zuvor falsch beschriftet; diese Erwartungen
-        halten den korrigierten Stand fest.
+        halten den korrigierten Stand fest. M014/M022 waren früher unter den
+        Beschriftungen anderer Zeichen geführt ("Schutzhelm", "Hautschutzcreme")
+        und werden hier mit ihren offiziellen Bezeichnungen erwartet.
         """
         namen = dict(BA_GEBOTSZEICHEN)
         self.assertEqual(namen['M001'], 'Allgemeines Gebotszeichen')
@@ -366,7 +368,9 @@ class TestGebotszeichenBeschriftung(unittest.TestCase):
         self.assertEqual(namen['M008'], 'Fußschutz benutzen')
         self.assertEqual(namen['M009'], 'Schutzhandschuhe benutzen')
         self.assertEqual(namen['M011'], 'Hände waschen')
+        self.assertEqual(namen['M014'], 'Kopfschutz benutzen')
         self.assertEqual(namen['M017'], 'Atemschutz benutzen')
+        self.assertEqual(namen['M022'], 'Hautschutzmittel benutzen')
         self.assertEqual(namen['M024'], 'Diesen Weg benutzen')
 
 

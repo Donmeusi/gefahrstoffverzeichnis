@@ -351,9 +351,12 @@ BA_SIGNATUR_MAX_NAME = 80
 # Quelle für Auswahlliste, Bildtitel und die Prüfung der gespeicherten Werte.
 #
 # Die Bezeichnungen wurden gegen die tatsächliche Grafik der Dateien und die
-# offizielle ISO-7010-Liste geprüft. Fünf Einträge waren zuvor falsch
-# beschriftet (M002, M003, M004, M024 trugen die Bedeutung anderer Zeichen,
-# "Schutzhelm" und "Hautschutzcreme" gehören zu M014/M022, die hier fehlen).
+# offizielle ISO-7010-Liste geprüft. Vier Einträge waren zuvor falsch
+# beschriftet (M002, M003, M004, M024 trugen die Bedeutung anderer Zeichen).
+# "Schutzhelm benutzen" und "Hautschutzcreme benutzen" waren die falschen
+# Beschriftungen von M014 und M022; beide Zeichen sind seit 25.09.2026 mit
+# belegter Herkunft vorhanden (siehe static/symbols/SOURCES.md) und tragen hier
+# ihre offiziellen Bezeichnungen nach ASR A1.3 Anhang 1 / DGUV 211-041.
 BA_GEBOTSZEICHEN = (
     ('M001', 'Allgemeines Gebotszeichen'),
     ('M002', 'Anleitung beachten'),
@@ -364,7 +367,9 @@ BA_GEBOTSZEICHEN = (
     ('M010', 'Schutzkleidung benutzen'),
     ('M011', 'Hände waschen'),
     ('M013', 'Gesichtsschutzschirm benutzen'),
+    ('M014', 'Kopfschutz benutzen'),
     ('M017', 'Atemschutz benutzen'),
+    ('M022', 'Hautschutzmittel benutzen'),
     ('M024', 'Diesen Weg benutzen'),
 )
 BA_GEBOTSZEICHEN_CODES = tuple(code for code, _ in BA_GEBOTSZEICHEN)
