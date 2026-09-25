@@ -10,14 +10,9 @@
            Datum, Seitenzahl) - er zeichnet sie nur, wenn ihm ein Seitenrand zur
            Verfügung steht. Nachgemessen: mit margin: 10mm erscheinen
            "25.09.26, 15:29 Betriebsanweisung - Aceton", die file:///-URL und "1/1",
-           mit margin: 0 nichts davon.
-
-           Der sichtbare Rand kommt deshalb nicht von @page, sondern als Padding
-           des Containers. Wichtig: nicht als Padding auf body - das schiebt die
-           body-Box über die Seitenhöhe hinaus und Chrome hängt eine leere zweite
-           Seite an (gemessen: body-Padding 10mm ergibt zwei Seiten, Container-
-           Padding 10mm eine). Nebeneffekt: bei einem Umbruch bleibt der
-           seitliche Rand auch auf Seite 2 erhalten. */
+           mit margin: 0 nichts davon. Der äußere Rand kommt deshalb nicht von
+           @page, sondern aus dem Padding von html/body weiter unten im
+           @media-print-Block. */
         @page {
             size: A4 portrait;
             margin: 0;
@@ -34,8 +29,9 @@
             line-height: 1.05;
             box-sizing: border-box;
         }
-        /* Auf dem Bildschirm bleibt der Rand am body, damit die Knöpfe nicht am
-           Fensterrand kleben. Im Druck kommt er vom Container (siehe @page oben). */
+        /* Auf dem Bildschirm ein Rand am body, damit die Knöpfe nicht am
+           Fensterrand kleben. Im Druck gilt der 5-mm-Rand aus dem
+           @media-print-Block. */
         @media screen {
             body {
                 padding: 10mm;
@@ -46,7 +42,8 @@
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
-            padding: 10mm;
+            /* Kein Innenabstand: der rote Rahmen schließt direkt an die Felder an. */
+            padding: 0;
         }
         .header-table {
             width: 100%;
@@ -182,13 +179,38 @@
         }
 
         @media print {
-            html, body {
+            /* Der äußere Abstand zur Papierkante kommt von hier, nicht von @page
+               (siehe Kommentar oben). box-sizing: border-box ist nötig, damit
+               height: 100% das Padding einschließt - sonst reicht die body-Box
+               über die Seite hinaus und Chrome hängt eine leere zweite Seite an.
+               Die Betriebsanweisung füllt damit genau eine Seite: der Container
+               ist eine Flex-Spalte über die volle Höhe, und die Abschnitte teilen
+               sich den Rest, sodass kein Weißraum bleibt. */
+            html {
                 margin: 0 !important;
                 padding: 0 !important;
+                height: 100% !important;
+                background: #fff !important;
+            }
+            body {
+                margin: 0 !important;
+                /* Das Padding gehört nur auf body. Mit dem Selektor "html, body"
+                   wird es zweimal angewendet und der Rand dadurch doppelt so
+                   breit (nachgemessen: 5mm ergab 10mm). */
+                padding: 5mm !important;
+                height: 100% !important;
+                box-sizing: border-box !important;
                 background: #fff !important;
             }
             .no-print { display: none !important; }
-            .ba-container { border: 5px solid #cc0000 !important; padding: 10mm !important; }
+            .ba-container {
+                border: 5px solid #cc0000 !important;
+                padding: 0 !important;
+                height: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .content-row { flex: 1 1 auto !important; }
             .red-bar { background-color: #cc0000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .header-table td, .content-row, .icon-col, .right-icon-col { border-color: #cc0000 !important; }
             .blue-icon { color: #0056b3 !important; border-color: #0056b3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
