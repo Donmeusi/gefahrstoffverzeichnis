@@ -277,6 +277,16 @@
                 height: 100% !important;
                 display: flex !important;
                 flex-direction: column !important;
+                /* Farben im Ausdruck erzwingen. print-color-adjust ist eine
+                   VERERBBARE Eigenschaft - hier einmal am Container gesetzt,
+                   gilt sie für alles darin. Ohne das druckt der Browser
+                   Hintergrundfarben (die roten Balken, die Kennzeichnungszeilen)
+                   weiß, wenn im Druckdialog "Hintergrundgrafiken" abgewählt ist.
+                   Vorher stand die Eigenschaft nur auf einzelnen Klassen
+                   (.red-bar, .blue-icon, .red-icon, .green-icon) - alles andere
+                   fiel auf Schwarzweiß zurück. */
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             /* Kein !important: das flex-grow setzt das Skript unten je Abschnitt
                proportional zur Inhaltshöhe. Ohne JavaScript bleibt es bei 1 1 auto,
