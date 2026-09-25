@@ -386,7 +386,7 @@
             <tr>
                 <td colspan="3">
                     <strong>Tätigkeit:</strong>
-                    <span contenteditable="true" data-ba-field="ba_taetigkeit">{% if ba_texte.get('ba_taetigkeit') %}{{ ba_texte['ba_taetigkeit']|safe }}{% else %}{{ ba_standard['ba_taetigkeit']|safe }}{% endif %}</span>
+                    <span contenteditable="true" data-ba-field="ba_taetigkeit">{% if ba_texte.get('ba_taetigkeit') %}{{ ba_texte['ba_taetigkeit']|safe }}{% else %}                        Umgang mit Gefahrstoffen{% endif %}</span>
                 </td>
             </tr>
         </table>
@@ -486,7 +486,10 @@
                     {% if ba_texte.get('ba_verhalten_verschuetten') %}
                         {{ ba_texte['ba_verhalten_verschuetten']|safe }}
                     {% else %}
-                        {{ ba_standard['ba_verhalten_verschuetten']|safe }}
+                                                <ul>
+                            <li>Gefahrenbereich räumen und absperren.</li>
+                            <li>Verschüttete Mengen mit geeignetem Bindemittel aufnehmen.</li>
+                        </ul>
                     {% endif %}
                 </div>
                 <div class="sub-header">Brand:</div>
@@ -494,7 +497,10 @@
                     {% if ba_texte.get('ba_verhalten_brand') %}
                         {{ ba_texte['ba_verhalten_brand']|safe }}
                     {% else %}
-                        {{ ba_standard['ba_verhalten_brand']|safe }}
+                                                <ul>
+                            <li>Brände in der Umgebung mit geeignetem Löschmittel (siehe Brandschutzordnung) bekämpfen.</li>
+                            <li>Gefäß wenn möglich aus der Gefahrenzone entfernen oder mit Wasser kühlen.</li>
+                        </ul>
                     {% endif %}
                 </div>
             </div>
@@ -515,7 +521,9 @@
                     {% if ba_texte.get('ba_erste_hilfe_massnahme') %}
                         {{ ba_texte['ba_erste_hilfe_massnahme']|safe }}
                     {% else %}
-                        {{ ba_standard['ba_erste_hilfe_massnahme']|safe }}
+                                                <ul>
+                            <li>Auf Selbstschutz achten, ärztliche Behandlung. Lebensrettende Sofortmaßnahmen, wie 'Stabile Seitenlage', 'Herz-Lungen-Wiederbelebung', 'Schockbekämpfung' müssen situationsabhängig durchgeführt werden. Wunden keimfrei bedecken. Für Körperruhe sorgen, vor Wärmeverlust schützen. Ersthelfer hinzuziehen.</li>
+                        </ul>
                     {% endif %}
                 </div>
                 <div class="sub-header">Einatmen / Hautkontakt / Augenkontakt / Verschlucken:</div>
@@ -523,7 +531,12 @@
                     {% if ba_texte.get('ba_erste_hilfe_kontakt') %}
                         {{ ba_texte['ba_erste_hilfe_kontakt']|safe }}
                     {% else %}
-                        {{ ba_standard['ba_erste_hilfe_kontakt']|safe }}
+                                                <ul>
+                            <li>Nach Einatmen: Frischluftzufuhr, bei Beschwerden Arzt aufsuchen.</li>
+                            <li>Nach Hautkontakt: Sofort mit viel Wasser und Seife abwaschen.</li>
+                            <li>Nach Augenkontakt: Augen mehrere Minuten bei geöffnetem Lidspalt unter fließendem Wasser spülen.</li>
+                            <li>Nach Verschlucken: Mund ausspülen und reichlich Wasser nachtrinken. Kein Erbrechen herbeiführen.</li>
+                        </ul>
                     {% endif %}
                 </div>
             </div>
@@ -536,7 +549,7 @@
                 {% if ba_texte.get('ba_entsorgung') %}
                     {{ ba_texte['ba_entsorgung']|safe }}
                 {% else %}
-                    {{ ba_standard['ba_entsorgung']|safe }}
+                                            Nicht in Ausguss oder Mülltonne schütten. Größere Mengen in geeigneter Flasche sammeln und nach Absprache mit dem Entsorgungsbeauftragten im Sonderabfall-Lager lagern.
                 {% endif %}
             </div>
         </div>

@@ -268,100 +268,36 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
                          data={'action': 'reset'}, follow_redirects=True)
         self.assertIsNone(self._stoff().ba_unterschrift)
 
-    # ── Ablage als Betriebsanweisung ────────────────────────────────────────
-
-    def _upload_ordner(self):
-        return app.config['UPLOAD_FOLDER']
+    # ── Keine Nebenwirkungen beim Speichern ────────────────────────────────
 
     def _dateien(self):
-        ordner = self._upload_ordner()
+        ordner = app.config['UPLOAD_FOLDER']
         return set(os.listdir(ordner)) if os.path.isdir(ordner) else set()
 
-    def test_entwurf_wird_als_betriebsanweisung_abgelegt(self):
-        self.assertIsNone(self._stoff().betriebsanweisung)
+    def test_speichern_legt_keine_dateien_an(self):
+        """Der Entwurf bleibt in der Datenbank - es wird nichts abgelegt."""
+        vorher = self._dateien()
         self._speichern(ba_nummer='2026-014', ba_gebotszeichen='M004,M009')
-        stoff = self._stoff()
-        self.assertTrue(stoff.betriebsanweisung, 'keine Betriebsanweisung abgelegt')
-        self.assertTrue(stoff.betriebsanweisung.lower().endswith('.pdf'))
-        pfad = os.path.join(self._upload_ordner(), stoff.betriebsanweisung)
-        self.assertTrue(os.path.exists(pfad))
-        with open(pfad, 'rb') as f:
-            self.assertEqual(f.read(5), b'%PDF-')
+        self.assertEqual(self._dateien(), vorher)
 
-    def test_vorhandene_betriebsanweisung_wird_nicht_ersetzt(self):
-        """Ein hochgeladenes, unterschriebenes PDF darf nicht ueberschrieben werden."""
+    def test_speichern_ruehrt_eine_vorhandene_betriebsanweisung_nicht_an(self):
         with app.app_context():
             stoff = db.session.get(Gefahrstoff, self.stoff_id)
             stoff.betriebsanweisung = 'hochgeladen_BA.pdf'
             db.session.commit()
-        vorher = self._dateien()
-
         self._speichern(ba_nummer='2026-014')
-
         self.assertEqual(self._stoff().betriebsanweisung, 'hochgeladen_BA.pdf')
-        self.assertEqual(self._dateien(), vorher, 'es wurde trotzdem eine Datei angelegt')
 
-    def test_abgelegte_ba_ist_downloadbar(self):
-        self._speichern(ba_nummer='2026-014')
-        name = self._stoff().betriebsanweisung
-        antwort = self.client.get(f'/uploads/{name}')
-        self.assertEqual(antwort.status_code, 200)
-        self.assertEqual(antwort.data[:5], b'%PDF-')
-
-    def test_abgelegte_ba_steht_in_der_dokumentenliste(self):
-        self._speichern(ba_nummer='2026-014')
-        html = self.client.get('/betriebsanweisungen').get_data(as_text=True)
-        self.assertIn('Aceton', html)
-
-    def test_pdf_enthaelt_die_gespeicherten_inhalte(self):
-        import pdfplumber
-        self._speichern(ba_nummer='2026-014',
-                        ba_entsorgung='<p>Sonderfall: siehe Anhang.</p>',
-                        ba_gebotszeichen='M004,M009')
-        pfad = os.path.join(self._upload_ordner(), self._stoff().betriebsanweisung)
-        with pdfplumber.open(pfad) as pdf:
-            text = ' '.join((pdf.pages[0].extract_text() or '').split())
-        self.assertIn('2026-014', text)
-        self.assertIn('Sonderfall: siehe Anhang.', text)
-        self.assertIn('Aceton', text)
-        self.assertIn('SACHGERECHTE ENTSORGUNG', text)
-
-    def test_zuruecksetzen_legt_keine_datei_an(self):
-        vorher = self._dateien()
-        self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
-                         data={'action': 'reset'}, follow_redirects=True)
-        self.assertEqual(self._dateien(), vorher)
-        self.assertIsNone(self._stoff().betriebsanweisung)
-
-    def test_hinweis_nach_der_ablage_ist_sichtbar(self):
+    def test_erfolgsmeldung_ist_sichtbar(self):
         """Regression: ba_print.html erbt nicht von base.html.
 
-        Ohne eigenen Meldungsblock blieb unsichtbar, dass die Betriebsanweisung
-        abgelegt wurde.
+        Ohne eigenen Meldungsblock blieb nach dem Speichern jede Rueckmeldung
+        unsichtbar - auch die schlichte Bestaetigung.
         """
         antwort = self.client.post(
             f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
             data={'action': 'save', 'ba_nummer': '2026-014'}, follow_redirects=True)
-        self.assertIn('abgelegt', antwort.get_data(as_text=True))
-
-    def test_hinweis_wenn_vorhandene_nicht_ersetzt_wurde(self):
-        with app.app_context():
-            stoff = db.session.get(Gefahrstoff, self.stoff_id)
-            stoff.betriebsanweisung = 'hochgeladen_BA.pdf'
-            db.session.commit()
-        antwort = self.client.post(
-            f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
-            data={'action': 'save', 'ba_nummer': '2026-014'}, follow_redirects=True)
-        html = antwort.get_data(as_text=True)
-        self.assertIn('nicht ersetzt', html)
-        self.assertIn('hochgeladen_BA.pdf', html)
-
-    def test_audit_log_wird_geschrieben(self):
-        self._speichern(ba_h_saetze='<ul><li>x</li></ul>')
-        with app.app_context():
-            eintraege = AuditLog.query.filter_by(entity_type='Gefahrstoff').all()
-        self.assertTrue(eintraege)
-        self.assertIn('Betriebsanweisung', eintraege[-1].details)
+        self.assertIn('Betriebsanweisung gespeichert', antwort.get_data(as_text=True))
 
 
 class TestUnterschriftPruefung(unittest.TestCase):
