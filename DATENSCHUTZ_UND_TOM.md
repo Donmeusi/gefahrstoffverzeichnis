@@ -34,11 +34,29 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 | **Rollen & Rechte** | Systemrolle (`admin`, `moderator`, `benutzer`, `lesen`), Bereichszuweisungen | Zugriffsbeschränkung gemäß Minimalprinzip (Need-to-know) | SQLite DB (`user`-Tabelle & `user_bereiche`) |
 | **Audit- & Protokolldaten** | User-ID, Aktions-Typ (`CREATE`, `UPDATE`, `DELETE`, `APPROVE`, `REJECT`, `LOGIN`), Datum/Uhrzeit (UTC), Details | Nachvollziehbarkeit & Rechenschaftspflicht (Art. 5 Abs. 2 DSGVO) | SQLite DB (`audit_log`-Tabelle) |
 | **Session & Sicherheit** | Session-Cookie (`session`), CSRF-Token | Sitzungssteuerung & Schutz vor Cross-Site Request Forgery | In-Memory Session / Browser-Cookie (`HTTPOnly`, `SameSite=Lax`, `Secure`) |
+| **Unterschrift der Betriebsanweisung** | Name (Klartext, max. 80 Zeichen) **oder** Unterschriftsbild (PNG als Data-URL, max. 300 kB) | Nachweis der erstellten bzw. unterwiesenen Betriebsanweisung | SQLite DB, Spalte `ba_unterschrift` am jeweiligen Gefahrstoff |
 
 ### 2.2 Sach- & Betriebsdaten
 * **Gefahrstoffdaten:** Stoffname, CAS-Nummer, EG-Nummer, GHS-Piktogramme, Signalwort, Gefahrenkategorien, H-Sätze, P-Sätze, Lagerklasse (LGK), Mengen und Mengeneinheiten.
 * **Standortdaten:** Hierarchische Bezeichnungen von Standorten, Hauptbereichen und Unterbereichen/Schränken.
 * **Dokumente:** Sicherheitsdatenblätter (SDB), Betriebsanweisungen (BA), Gefährdungsbeurteilungen (GB) im PDF- oder DOC-Format.
+
+### 2.3 Unterschrift zur Betriebsanweisung
+
+Dieser Punkt ist gesondert zu betrachten, weil er sich von allen übrigen Datenkategorien unterscheidet.
+
+* **Betroffene Personen sind nicht zwingend Systemnutzer.** Die Unterschrift leistet, wer die Betriebsanweisung erstellt oder die Unterweisung bestätigt — typischerweise Beschäftigte **ohne** Benutzerkonto. Die Anwendung kann damit personenbezogene Daten von Personen speichern, die keinen Zugang zum System haben; die Informationspflicht nach Art. 13 DSGVO lässt sich nicht über die Anwendung selbst erfüllen.
+* **Zwei Formen mit unterschiedlicher Aussagekraft:** ein eingetippter Name (wird als Text „gez. …“ gedruckt, kein Bild) oder ein gezeichnetes Unterschriftsbild (PNG). Beides ist eine *einfache* elektronische Signatur im Sinne von eIDAS, **keine qualifizierte (QES)**. Eine Identitätsprüfung findet nicht statt. Für Nachweispflichten, die eine QES verlangen, reicht es nicht.
+* **Bewusste Ausnahme von der Protokollierung:** Das Audit-Log hält nur „Unterschrift gesetzt“ bzw. „entfernt“ fest — **nicht** Name oder Bild. Begründung: das Audit-Log ist für Administratoren breit einsehbar und wird länger aufbewahrt als der Gefahrstoff-Datensatz; der Unterschriftsinhalt gehört dort nicht hinein. Dieses Verhalten weicht bewusst vom Grundsatz „sämtliche Änderungen werden protokolliert“ (Abschnitt 4.2) ab.
+* **Zugriffsschutz:** Die Betriebsanweisung und damit die Unterschrift sind nur für Nutzer sichtbar, die dem Bereich des Gefahrstoffs zugewiesen sind (`get_gefahrstoff_query()` in `betriebsanweisung_print`). Die Rolle `Lesen` kann die Seite ansehen, aber nicht speichern.
+* **Grenze dieser Schutzmaßnahme:** Wer die Betriebsanweisung am Bildschirm sehen darf, kann sie auch drucken oder abfotografieren. Der Ausdruck erfolgt im Browser und lässt sich durch die Anwendung nicht unterbinden. Der Schutz der Unterschrift stützt sich damit auf die Bereichszuordnung, nicht auf eine technische Sperre.
+* **Löschung:** Das Leeren des Unterschriftenfelds setzt den Wert auf `NULL`. Bei Soft-Delete eines Gefahrstoffs bleibt die Unterschrift — wie die übrigen Betriebsanweisungsdaten — erhalten.
+* **Rechtsgrundlage:** *[vom DSB zu bestätigen — naheliegend Art. 6 Abs. 1 lit. c DSGVO i. V. m. den Unterweisungs- und Dokumentationspflichten der GefStoffV, andernfalls lit. f]*
+
+⚠️ **Zwei Punkte brauchen eine Entscheidung des DSB, nicht des Betreibers:**
+
+1. Ob eine Unterschrift beim Soft-Delete eines Gefahrstoffs mitarchiviert werden darf oder zu löschen ist.
+2. Ob eine Rechtsgrundlage für das Speichern von Unterschriftsbildern *ohne* Einbeziehung der betroffenen Beschäftigten trägt.
 
 ---
 
@@ -144,6 +162,7 @@ Die Anwendung erzwingt ein striktes **Rollen- und Rechte-Modell (RBAC)** auf Dat
 
 * **Betriebsdaten / Gefahrstoffe:** Aufbewahrung während des aktiven Betriebs der Betriebsstätte gemäß GefStoffV. Nach Außerdienststellung eines Stoffes erfolgt die Soft-Delete Archivierung zur Einhaltung von Nachweispflichten bei Gewerbeaufsichts- und Berufsgenossenschaftsprüfungen.
 * **Benutzerkonten:** Beim Ausscheiden von Mitarbeiter:innen können deren Konten durch den Administrator gelöscht werden. Bereits getätigte Audit-Log-Einträge bleiben zur Einhaltung der Rechenschaftspflicht pseudonymisiert erhalten.
+* **Unterschriften:** Das Feld `ba_unterschrift` wird beim Leeren bzw. über „Zurücksetzen“ auf `NULL` gesetzt. Beim Soft-Delete eines Gefahrstoffs bleibt die Unterschrift zunächst erhalten; die Aufbewahrungsdauer folgt damit der des Gefahrstoffs und ist nicht eigenständig begrenzt. Siehe die offenen Punkte in Abschnitt 2.3.
 
 ---
 
