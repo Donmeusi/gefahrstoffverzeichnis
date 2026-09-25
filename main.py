@@ -18,6 +18,8 @@ import pandas as pd
 from io import BytesIO
 import pdfplumber
 import re
+from html import escape
+from html.parser import HTMLParser
 import qrcode
 import base64
 from reportlab.lib import colors
@@ -45,7 +47,8 @@ os.makedirs(app_data_dir, exist_ok=True)
 
 db_data_path = os.path.join(app_data_dir, 'gefahrstoffe.db')
 db_root_path = os.path.join(basedir, 'gefahrstoffe.db')
-if not os.path.exists(db_data_path) and os.path.exists(db_root_path):
+
+if os.path.exists(db_root_path) and (not os.path.exists(db_data_path) or os.path.getsize(db_data_path) == 0):
     import shutil
     shutil.copy2(db_root_path, db_data_path)
 
@@ -251,6 +254,12 @@ class Gefahrstoff(db.Model):
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
     gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
+    # Individuell angepasste Betriebsanweisung: Texte als JSON ({feldname: html}),
+    # die gewählten ISO-7010-Gebotszeichen als kommaseparierte Codes ("M004,M009")
+    # und die Unterschrift als JSON ({"typ": "bild"|"name", "wert": ...}).
+    ba_texte            = db.Column(db.Text, nullable=True)
+    ba_gebotszeichen    = db.Column(db.String(100), nullable=True)
+    ba_unterschrift     = db.Column(db.Text, nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
     is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
@@ -297,6 +306,212 @@ def log_audit_event(action, entity_type, entity_id, details=""):
         db.session.commit()
     except Exception as e:
         print(f"Failed to log audit event: {e}")
+
+
+# ─── Betriebsanweisung: individuell angepasste Inhalte ───────────────────────
+#
+# Die editierbaren Bereiche auf ba_print.html werden als HTML gespeichert und im
+# Template mit |safe ausgegeben. Deshalb läuft jeder Wert serverseitig durch eine
+# Whitelist (Tags ja, Attribute nein), damit über contenteditable kein Markup wie
+# <script>, style= oder onerror= in die Datenbank und von dort in den Browser
+# eines Administrators gelangen kann.
+
+BA_ALLOWED_TAGS = {
+    'b', 'strong', 'i', 'em', 'u', 's', 'br', 'hr', 'p', 'div', 'span',
+    'ul', 'ol', 'li', 'sub', 'sup', 'small', 'blockquote',
+}
+BA_MAX_FIELD_LEN = 20000
+
+# Felder, die gespeichert werden. Arbeitsbereich, Stoffname und CAS stehen
+# bewusst nicht dabei: die kommen live aus der Datenbank, ein gespeicherter
+# Text würde eine spätere Umbenennung des Stoffs stillschweigend verdecken.
+# Die Zwischenüberschriften ("Verschütten:", "Brand:" ...) bleiben Teil des
+# Templates, damit nur echte Inhalte überschrieben werden.
+BA_TEXT_FIELDS = (
+    'ba_nummer',
+    'ba_taetigkeit',
+    'ba_h_saetze',
+    'ba_schutzmassnahmen',
+    'ba_verhalten_verschuetten',
+    'ba_verhalten_brand',
+    'ba_erste_hilfe_massnahme',
+    'ba_erste_hilfe_kontakt',
+    'ba_entsorgung',
+)
+
+# Unterschrift: entweder ein gezeichnetes PNG als Data-URL oder ein eingetippter
+# Name. Beides landet im Ausdruck (als <img src> bzw. als Text), deshalb wird hier
+# streng geprüft statt nur bereinigt.
+BA_SIGNATUR_BILD_PRAEFIX = 'data:image/png;base64,'
+BA_SIGNATUR_MAX_BILD = 300000      # Zeichen; ein Unterschrift-PNG liegt bei wenigen KB
+BA_SIGNATUR_MAX_NAME = 80
+
+# Auswählbare ISO-7010-Gebotszeichen als (Code, Bezeichnung). Die Codes müssen
+# als static/symbols/<CODE>.svg vorhanden sein. Diese Liste ist die einzige
+# Quelle für Auswahlliste, Bildtitel und die Prüfung der gespeicherten Werte.
+#
+# Die Bezeichnungen wurden gegen die tatsächliche Grafik der Dateien und die
+# offizielle ISO-7010-Liste geprüft. Vier Einträge waren zuvor falsch
+# beschriftet (M002, M003, M004, M024 trugen die Bedeutung anderer Zeichen).
+# "Schutzhelm benutzen" und "Hautschutzcreme benutzen" waren die falschen
+# Beschriftungen von M014 und M022; beide Zeichen sind seit 25.09.2026 mit
+# belegter Herkunft vorhanden (siehe static/symbols/SOURCES.md) und tragen hier
+# ihre offiziellen Bezeichnungen nach ASR A1.3 Anhang 1 / DGUV 211-041.
+BA_GEBOTSZEICHEN = (
+    ('M001', 'Allgemeines Gebotszeichen'),
+    ('M002', 'Anleitung beachten'),
+    ('M003', 'Gehörschutz benutzen'),
+    ('M004', 'Augenschutz benutzen'),
+    ('M008', 'Fußschutz benutzen'),
+    ('M009', 'Schutzhandschuhe benutzen'),
+    ('M010', 'Schutzkleidung benutzen'),
+    ('M011', 'Hände waschen'),
+    ('M013', 'Gesichtsschutzschirm benutzen'),
+    ('M014', 'Kopfschutz benutzen'),
+    ('M017', 'Atemschutz benutzen'),
+    ('M022', 'Hautschutzmittel benutzen'),
+    ('M024', 'Diesen Weg benutzen'),
+)
+BA_GEBOTSZEICHEN_CODES = tuple(code for code, _ in BA_GEBOTSZEICHEN)
+# Obergrenze für die Icon-Spalte auf A4. Empirisch ermittelt (Seite rendern, mit
+# Chrome nach PDF drucken, Seiten zählen): mit sechs Zeichen passt die
+# Betriebsanweisung auch bei 13 langen P-Sätzen noch auf eine Seite. Mehr wären
+# unnötig, weil die Spalte nur 100 px breit ist.
+BA_MAX_GEBOTSZEICHEN = 6
+
+
+class _BASanitizer(HTMLParser):
+    """Behält nur Tags aus BA_ALLOWED_TAGS und verwirft sämtliche Attribute."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self._out = []
+        self._open = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in BA_ALLOWED_TAGS:
+            return
+        self._out.append(f"<{tag}>")
+        if tag not in ('br', 'hr'):
+            self._open.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        if tag in BA_ALLOWED_TAGS:
+            self._out.append(f"<{tag}>")
+
+    def handle_endtag(self, tag):
+        if tag not in BA_ALLOWED_TAGS or tag not in self._open:
+            return
+        # Zwischenliegende Tags mitschließen, damit das Ergebnis wohlgeformt bleibt.
+        while self._open:
+            offen = self._open.pop()
+            self._out.append(f"</{offen}>")
+            if offen == tag:
+                break
+
+    def handle_data(self, data):
+        self._out.append(escape(data))
+
+    def result(self):
+        while self._open:
+            self._out.append(f"</{self._open.pop()}>")
+        return ''.join(self._out)
+
+
+def sanitize_ba_html(raw):
+    if not raw:
+        return ''
+    parser = _BASanitizer()
+    try:
+        parser.feed(raw[:BA_MAX_FIELD_LEN])
+        parser.close()
+    except Exception as e:
+        print(f"BA-Text konnte nicht bereinigt werden: {e}")
+        return ''
+    return parser.result()
+
+
+def load_ba_texte(stoff):
+    """Liefert die gespeicherten BA-Texte, auf bekannte Felder begrenzt und bereinigt."""
+    try:
+        data = json.loads(stoff.ba_texte) if stoff.ba_texte else {}
+    except (ValueError, TypeError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return {f: sanitize_ba_html(data.get(f)) for f in BA_TEXT_FIELDS if data.get(f)}
+
+
+def load_ba_gebotszeichen(stoff):
+    """Liefert die gespeicherten Gebotszeichen-Codes in Reihenfolge der Auswahlliste."""
+    gespeichert = [c.strip() for c in (stoff.ba_gebotszeichen or '').split(',')]
+    return [c for c in BA_GEBOTSZEICHEN_CODES if c in gespeichert][:BA_MAX_GEBOTSZEICHEN]
+
+
+def sanitize_ba_unterschrift(raw):
+    """Prüft die Unterschrift und liefert JSON zum Speichern - oder None.
+
+    Erlaubt sind genau zwei Formen: ein PNG als Data-URL ("gezeichnet") oder ein
+    reiner Name. Alles andere wird verworfen. Der Wert landet im Ausdruck als
+    <img src> beziehungsweise als Text, hier darf also nichts Beliebiges durch.
+    """
+    if not raw:
+        return None
+    try:
+        daten = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(daten, dict):
+        return None
+
+    typ = daten.get('typ')
+    wert = daten.get('wert')
+    if not isinstance(wert, str):
+        return None
+
+    if typ == 'bild':
+        if not wert.startswith(BA_SIGNATUR_BILD_PRAEFIX):
+            return None
+        nutzlast = re.sub(r'\s+', '', wert[len(BA_SIGNATUR_BILD_PRAEFIX):])
+        if not nutzlast or len(nutzlast) > BA_SIGNATUR_MAX_BILD:
+            return None
+        if not re.fullmatch(r'[A-Za-z0-9+/=]+', nutzlast):
+            return None
+        # Nicht nur das Präfix prüfen: der Wert wird als <img src> in die
+        # Betriebsanweisung eingebettet. Was sich nicht als PNG lesen lässt, wird
+        # abgelehnt - sonst stünde später ein kaputtes Bild im Ausdruck.
+        try:
+            from PIL import Image
+            rohdaten = base64.b64decode(nutzlast, validate=True)
+            pruefbild = Image.open(BytesIO(rohdaten))
+            if (pruefbild.format or '').upper() != 'PNG':
+                return None
+            pruefbild.verify()
+        except Exception:
+            return None
+        return json.dumps({'typ': 'bild', 'wert': BA_SIGNATUR_BILD_PRAEFIX + nutzlast},
+                          ensure_ascii=False)
+
+    if typ == 'name':
+        name = ' '.join(wert.split())[:BA_SIGNATUR_MAX_NAME]
+        if not name:
+            return None
+        return json.dumps({'typ': 'name', 'wert': name}, ensure_ascii=False)
+
+    return None
+
+
+def load_ba_unterschrift(stoff):
+    """Liefert {'typ': ..., 'wert': ...} der gespeicherten Unterschrift oder {}."""
+    geprueft = sanitize_ba_unterschrift(stoff.ba_unterschrift)
+    if not geprueft:
+        return {}
+    try:
+        return json.loads(geprueft)
+    except (ValueError, TypeError):
+        return {}
+
+
 
 def get_accessible_bereiche():
     """Gibt die Bereiche zurück, auf die der aktuelle Benutzer Zugriff hat."""
@@ -814,12 +1029,98 @@ def betriebsanweisung_print(id):
             text = p_dict.get(p_code, "")
             p_saetze_list.append(f"{p_code}: {text}" if text else p_code)
 
-    return render_template('ba_print.html', 
-                           stoff=stoff, 
+    return render_template('ba_print.html',
+                           stoff=stoff,
                            arbeitsbereich=arbeitsbereich,
                            h_saetze_list=h_saetze_list,
                            p_saetze_list=p_saetze_list,
+                           ba_texte=load_ba_texte(stoff),
+                           gebotszeichen=load_ba_gebotszeichen(stoff),
+                           gebotszeichen_auswahl=BA_GEBOTSZEICHEN,
+                           ba_max_gebotszeichen=BA_MAX_GEBOTSZEICHEN,
+                           unterschrift=load_ba_unterschrift(stoff),
                            today=datetime.utcnow().date())
+
+
+@app.route('/gefahrstoff/<int:id>/betriebsanweisung/speichern', methods=['POST'])
+@login_required
+def betriebsanweisung_speichern(id):
+    """Speichert die individuell angepassten Texte und Gebotszeichen der Betriebsanweisung."""
+    stoff = Gefahrstoff.query.get_or_404(id)
+    if not get_gefahrstoff_query().filter(Gefahrstoff.id == id).first():
+        flash('Keine Berechtigung für diesen Gefahrstoff.', 'error')
+        return redirect(url_for('index'))
+
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('betriebsanweisung_print', id=id))
+
+    try:
+        if request.form.get('action') == 'reset':
+            stoff.ba_texte = None
+            stoff.ba_gebotszeichen = None
+            stoff.ba_unterschrift = None
+            db.session.commit()
+            log_audit_event('UPDATE', 'Gefahrstoff', id,
+                            'Betriebsanweisung auf Standardwerte zurückgesetzt.')
+            flash('Betriebsanweisung auf die Standardwerte zurückgesetzt.', 'success')
+            return redirect(url_for('betriebsanweisung_print', id=id))
+
+        # Mit dem gespeicherten Stand zusammenführen statt ihn zu ersetzen: ohne
+        # JavaScript werden die contenteditable-Bereiche nicht übertragen, ein
+        # Teil-Submit darf bereits gespeicherte Felder nicht verwerfen.
+        texte = {}
+        try:
+            texte = json.loads(stoff.ba_texte) if stoff.ba_texte else {}
+        except (ValueError, TypeError):
+            texte = {}
+        if not isinstance(texte, dict):
+            texte = {}
+
+        for field in BA_TEXT_FIELDS:
+            if field not in request.form:
+                continue
+            value = sanitize_ba_html(request.form.get(field, ''))
+            if value:
+                texte[field] = value
+            else:
+                texte.pop(field, None)          # bewusst geleertes Feld
+
+        texte = {f: v for f, v in texte.items() if f in BA_TEXT_FIELDS}
+
+        codes = []
+        for code in request.form.get('ba_gebotszeichen', '').split(','):
+            code = code.strip()
+            if code in BA_GEBOTSZEICHEN_CODES and code not in codes:
+                codes.append(code)
+        codes = codes[:BA_MAX_GEBOTSZEICHEN]
+
+        if any(f in request.form for f in BA_TEXT_FIELDS):
+            stoff.ba_texte = json.dumps(texte, ensure_ascii=False) if texte else None
+        if 'ba_gebotszeichen' in request.form:
+            stoff.ba_gebotszeichen = ','.join(codes) if codes else None
+        if 'ba_unterschrift' in request.form:
+            stoff.ba_unterschrift = sanitize_ba_unterschrift(
+                request.form.get('ba_unterschrift', ''))
+
+        db.session.commit()
+        # Der Inhalt der Unterschrift (Name oder Bild) gehört nicht ins Audit-Log,
+        # nur die Tatsache, dass eine gesetzt oder entfernt wurde.
+        unterschrift_hinweis = ''
+        if 'ba_unterschrift' in request.form:
+            unterschrift_hinweis = (', Unterschrift gesetzt' if stoff.ba_unterschrift
+                                    else ', Unterschrift entfernt')
+        log_audit_event('UPDATE', 'Gefahrstoff', id,
+                        f'Betriebsanweisung gespeichert '
+                        f'({len(texte)} Textfelder, {len(codes)} Gebotszeichen'
+                        f'{unterschrift_hinweis}).')
+        flash('Betriebsanweisung gespeichert.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Fehler beim Speichern der Betriebsanweisung: {e}")
+        flash('Betriebsanweisung konnte nicht gespeichert werden.', 'error')
+
+    return redirect(url_for('betriebsanweisung_print', id=id))
 
 
 @app.route('/add', methods=['GET', 'POST'])

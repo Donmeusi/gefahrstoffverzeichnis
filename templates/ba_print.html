@@ -6,9 +6,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* @page margin: 0 unterdrückt die Kopf- und Fußzeile des Browsers (URL,
+           Datum, Seitenzahl) - er zeichnet sie nur, wenn ihm ein Seitenrand zur
+           Verfügung steht. Nachgemessen: mit margin: 10mm erscheinen
+           "25.09.26, 15:29 Betriebsanweisung - Aceton", die file:///-URL und "1/1",
+           mit margin: 0 nichts davon. Der äußere Rand kommt deshalb nicht von
+           @page, sondern aus dem Padding von html/body weiter unten im
+           @media-print-Block. */
         @page {
             size: A4 portrait;
-            margin: 15mm;
+            margin: 0;
         }
         body {
             font-family: Arial, sans-serif;
@@ -17,14 +24,26 @@
             background: #fff;
             color: #000;
             font-size: 9.5pt;
-            line-height: 1.15;
+            /* 1.05 statt 1.15: nachgemessen passt damit auch eine Betriebsanweisung
+               mit 13 langen P-Sätzen und sechs Gebotszeichen noch auf eine Seite. */
+            line-height: 1.05;
+            box-sizing: border-box;
+        }
+        /* Auf dem Bildschirm ein Rand am body, damit die Knöpfe nicht am
+           Fensterrand kleben. Im Druck gilt der 5-mm-Rand aus dem
+           @media-print-Block. */
+        @media screen {
+            body {
+                padding: 10mm;
+            }
         }
         .ba-container {
             border: 5px solid #cc0000;
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
-            page-break-after: always;
+            /* Kein Innenabstand: der rote Rahmen schließt direkt an die Felder an. */
+            padding: 0;
         }
         .header-table {
             width: 100%;
@@ -136,9 +155,114 @@
             line-height: 1;
         }
 
+        /* Gebotszeichen in der Schutzmaßnahmen-Spalte. Die Spalte ist 100px breit;
+           max-width erzwingt den Umbruch auf zwei Spalten, damit auch sechs
+           Zeichen die A4-Zeile nicht sprengen. */
+        #gebotszeichen-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 4px;
+            max-width: 90px;
+        }
+        .gebotszeichen-img {
+            width: 38px;
+            height: 38px;
+        }
+
+        .btn-reset {
+            background: #6c757d;
+        }
+        .print-btn-container .btn + .btn {
+            margin-left: 8px;
+        }
+
+        /* Unterschrift im Kopfbereich. Am Bildschirm eine Vorschau zum Anklicken,
+           im Druck die Unterschrift selbst. Ist keine gesetzt, bleibt im Druck ein
+           leeres umrandetes Feld stehen, das von Hand unterschrieben werden kann. */
+        .unterschrift-feld {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 10mm;
+            margin-top: 2px;
+            border: 1px solid #cc0000;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .unterschrift-feld img {
+            max-height: 9mm;
+            max-width: 100%;
+        }
+        #unterschrift-name {
+            font-size: 9pt;
+            font-style: italic;
+        }
+        .unterschrift-leer {
+            color: #999;
+            font-size: 7.5pt;
+        }
+        .unterschrift-btn {
+            font-size: 8.5pt;
+            margin-top: 3px;
+            padding: 2px 6px;
+            background: #00539B;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #unterschrift-canvas {
+            border: 1px dashed #00539B;
+            border-radius: 4px;
+            background: #fff;
+            width: 100%;
+            height: 170px;
+            touch-action: none;   /* ohne das scrollt ein Tablet beim Zeichnen */
+            cursor: crosshair;
+        }
+
         @media print {
+            /* Der äußere Abstand zur Papierkante kommt von hier, nicht von @page
+               (siehe Kommentar oben). box-sizing: border-box ist nötig, damit
+               height: 100% das Padding einschließt - sonst reicht die body-Box
+               über die Seite hinaus und Chrome hängt eine leere zweite Seite an.
+               Die Betriebsanweisung füllt damit genau eine Seite: der Container
+               ist eine Flex-Spalte über die volle Höhe, und die Abschnitte teilen
+               sich den Rest, sodass kein Weißraum bleibt. */
+            html {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: 100% !important;
+                background: #fff !important;
+            }
+            body {
+                margin: 0 !important;
+                /* Das Padding gehört nur auf body. Mit dem Selektor "html, body"
+                   wird es zweimal angewendet und der Rand dadurch doppelt so
+                   breit (nachgemessen: 5mm ergab 10mm). */
+                padding: 5mm !important;
+                height: 100% !important;
+                box-sizing: border-box !important;
+                background: #fff !important;
+            }
             .no-print { display: none !important; }
-            .ba-container { border: 5px solid #cc0000 !important; }
+            /* Ohne Unterschrift bleibt das Feld leer - dann ist es die Zeile zum
+               handschriftlichen Unterschreiben, der Hinweistext stört dort nur. */
+            .unterschrift-leer { display: none !important; }
+            .ba-container {
+                border: 5px solid #cc0000 !important;
+                padding: 0 !important;
+                height: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            /* Kein !important: das flex-grow setzt das Skript unten je Abschnitt
+               proportional zur Inhaltshöhe. Ohne JavaScript bleibt es bei 1 1 auto,
+               dann wachsen alle Abschnitte gleichmäßig und die Seite ist trotzdem voll. */
+            .content-row { flex: 1 1 auto; }
             .red-bar { background-color: #cc0000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .header-table td, .content-row, .icon-col, .right-icon-col { border-color: #cc0000 !important; }
             .blue-icon { color: #0056b3 !important; border-color: #0056b3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -166,6 +290,25 @@
         [contenteditable="true"] {
             outline: none;
         }
+        /* Ein leeres, inline stehendes Eingabefeld hat keine Fläche (Breite 0) und
+           lässt sich deshalb nicht anklicken - am Nummernfeld nachgemessen. Es
+           bekommt daher eine Mindestgröße; die Schreiblinie gibt es nur am
+           Bildschirm, im Druck bleibt die Stelle leer. */
+        span[contenteditable="true"]:empty,
+        .nummer-feld {
+            display: inline-block;
+            min-width: 6em;
+            min-height: 1.2em;
+        }
+        @media screen {
+            .nummer-feld {
+                border-bottom: 1px dashed #0056b3;
+            }
+            .nummer-feld:empty::before {
+                content: 'eintragen';
+                color: #aaa;
+            }
+        }
         @media screen {
             [contenteditable="true"]:hover, [contenteditable="true"]:focus {
                 outline: 2px dashed #0056b3;
@@ -178,11 +321,34 @@
 </head>
 <body>
 
+    {# Diese Seite erbt nicht von base.html, hatte also bisher keine Ausgabe für
+       Hinweismeldungen. Nach dem Speichern landet man hier - ohne diesen Block
+       bliebe unsichtbar, ob die Betriebsanweisung abgelegt oder eine vorhandene
+       nicht ersetzt wurde. #}
+    {% with meldungen = get_flashed_messages(with_categories=true) %}
+        {% if meldungen %}
+        <div class="print-btn-container no-print" style="margin-bottom: 0;">
+            {% for kategorie, text in meldungen %}
+                <div style="margin-bottom: 8px; padding: 10px 14px; border-radius: 5px; font-family: Arial, sans-serif; font-size: 10pt;
+                            {% if kategorie == 'error' %}background: #fdecea; color: #8a1c12; border: 1px solid #cc0000;
+                            {% elif kategorie == 'info' %}background: #eaf2fb; color: #1a4a7a; border: 1px solid #00539B;
+                            {% else %}background: #eafaef; color: #1a6b34; border: 1px solid #237F52;{% endif %}">
+                    {{ text }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
     <div class="print-btn-container no-print">
         <div style="margin-bottom: 15px; color: #0056b3; font-weight: bold; font-family: Arial, sans-serif;">
-            <i class="fa-solid fa-lightbulb"></i> Tipp: Klicke auf einen beliebigen Text (wie Arbeitsbereich oder Maßnahmen), um ihn vor dem Drucken noch individuell anzupassen!
+            <i class="fa-solid fa-lightbulb"></i> Tipp: Klicke auf einen Text, um ihn anzupassen, und auf das Unterschriftfeld, um zu zeichnen oder einen Namen einzutragen. Nummer, Texte, Gebotszeichen und Unterschrift werden mit <strong>Speichern</strong> am Gefahrstoff hinterlegt; Stoffname, CAS und Arbeitsbereich kommen weiterhin live aus der Datenbank.
         </div>
-        <button class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Betriebsanweisung drucken / als PDF speichern</button>
+        <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Betriebsanweisung drucken / als PDF speichern</button>
+        {% if current_user.can_write %}
+            <button type="submit" form="ba-form" class="btn" onclick="document.getElementById('ba-action').value='save'"><i class="fa-solid fa-floppy-disk"></i> Speichern</button>
+            <button type="submit" form="ba-form" class="btn btn-reset" onclick="document.getElementById('ba-action').value='reset'"><i class="fa-solid fa-rotate-left"></i> Zurücksetzen</button>
+        {% endif %}
         <br><br>
         <a href="{{ url_for('view_stoff', id=stoff.id) }}" style="color: #666;"><i class="fa-solid fa-arrow-left"></i> Zurück zum Gefahrstoff</a>
     </div>
@@ -201,15 +367,26 @@
                     <p>gemäß §14 GefStoffV</p>
                 </td>
                 <td style="width: 25%;">
-                    <strong>Nummer:</strong><br><br>
-                    <strong>(Prüfung jährlich)</strong><br><br>
+                    <strong>Nummer:</strong>
+                    <span class="nummer-feld" contenteditable="true" data-ba-field="ba_nummer">{% if ba_texte.get('ba_nummer') %}{{ ba_texte['ba_nummer']|safe }}{% endif %}</span><br>
+                    <strong>(Prüfung jährlich)</strong><br>
                     <strong>Unterschrift:</strong>
+                    <div class="unterschrift-feld" id="unterschrift-feld" onclick="openUnterschriftModal(event)"
+                         title="Klicken, um zu zeichnen oder einen Namen einzutragen">
+                        <img id="unterschrift-bild" alt="Unterschrift"
+                             {% if unterschrift.get('typ') == 'bild' %}src="{{ unterschrift['wert'] }}"{% else %}style="display: none;"{% endif %}>
+                        <span id="unterschrift-name"{% if unterschrift.get('typ') != 'name' %} style="display: none;"{% endif %}>{% if unterschrift.get('typ') == 'name' %}gez. {{ unterschrift['wert'] }}{% endif %}</span>
+                        <span id="unterschrift-leer" class="unterschrift-leer"{% if unterschrift %} style="display: none;"{% endif %}>zeichnen oder Namen</span>
+                    </div>
+                    <button type="button" class="no-print unterschrift-btn" onclick="openUnterschriftModal(event)">
+                        <i class="fa-solid fa-signature"></i> Unterschrift
+                    </button>
                 </td>
             </tr>
             <tr>
-                <td colspan="3" contenteditable="true">
+                <td colspan="3">
                     <strong>Tätigkeit:</strong>
-                    Umgang mit Gefahrstoffen
+                    <span contenteditable="true" data-ba-field="ba_taetigkeit">{% if ba_texte.get('ba_taetigkeit') %}{{ ba_texte['ba_taetigkeit']|safe }}{% else %}                        Umgang mit Gefahrstoffen{% endif %}</span>
                 </td>
             </tr>
         </table>
@@ -239,8 +416,10 @@
                     -
                 {% endif %}
             </div>
-            <div class="text-col" contenteditable="true">
-                {% if h_saetze_list %}
+            <div class="text-col" contenteditable="true" data-ba-field="ba_h_saetze">
+                {% if ba_texte.get('ba_h_saetze') %}
+                    {{ ba_texte['ba_h_saetze']|safe }}
+                {% elif h_saetze_list %}
                     <ul>
                     {% for h in h_saetze_list %}
                         <li>{{ h }}</li>
@@ -258,21 +437,37 @@
         <!-- Schutzmaßnahmen -->
         <div class="red-bar">SCHUTZMASSNAHMEN UND VERHALTENSREGELN</div>
         <div class="content-row">
-            <div class="icon-col">
-                <div class="blue-icon"><i class="fa-solid fa-glasses"></i></div>
-                <div class="blue-icon"><i class="fa-solid fa-hands-bubbles"></i></div>
-            </div>
-            <div class="text-col" contenteditable="true">
-                <div class="sub-header">Technische und Organisatorische / Persönliche / Hygienische Schutzmaßnahmen:</div>
-                {% if p_saetze_list %}
-                    <ul>
-                    {% for p in p_saetze_list %}
-                        <li>{{ p }}</li>
+            <div class="icon-col" id="gebotszeichen-container" style="cursor: pointer;" onclick="openGebotszeichenModal(event)" title="Klicken, um ISO 7010 Gebotszeichen auszuwählen">
+                {% set namen = dict(gebotszeichen_auswahl) %}
+                {# Vorbelegung: Augenschutz (M004) und Schutzhandschuhe (M009). #}
+                {% set gewaehlt = gebotszeichen if gebotszeichen else ['M004', 'M009'] %}
+                <div id="gebotszeichen-list">
+                    {% for code in gewaehlt %}
+                        <img src="{{ url_for('static', filename='symbols/' ~ code ~ '.svg') }}"
+                             class="gebotszeichen-img" data-code="{{ code }}"
+                             alt="{{ code }} - {{ namen.get(code, '') }}"
+                             title="{{ code }} - {{ namen.get(code, '') }}">
                     {% endfor %}
-                    </ul>
-                {% else %}
-                    Keine P-Sätze hinterlegt. Bitte spezifische Schutzmaßnahmen beachten.
-                {% endif %}
+                </div>
+                <button type="button" class="no-print" onclick="openGebotszeichenModal(event)" style="font-size: 8.5pt; margin-top: 5px; padding: 2px 6px; background: #00539B; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">
+                    <i class="fa-solid fa-gear"></i> Zeichen
+                </button>
+            </div>
+            <div class="text-col">
+                <div class="sub-header">Technische und Organisatorische / Persönliche / Hygienische Schutzmaßnahmen:</div>
+                <div contenteditable="true" data-ba-field="ba_schutzmassnahmen">
+                    {% if ba_texte.get('ba_schutzmassnahmen') %}
+                        {{ ba_texte['ba_schutzmassnahmen']|safe }}
+                    {% elif p_saetze_list %}
+                        <ul>
+                        {% for p in p_saetze_list %}
+                            <li>{{ p }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        Keine P-Sätze hinterlegt. Bitte spezifische Schutzmaßnahmen beachten.
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -283,19 +478,31 @@
         </div>
         <div class="content-row">
             <div class="icon-col">
-                <div class="red-icon"><i class="fa-solid fa-fire-extinguisher"></i></div>
+                <img src="{{ url_for('static', filename='symbols/F001.svg') }}" style="width: 50px; height: 50px;" alt="ISO 7010 F001 Feuerlöscher" title="ISO 7010 F001 - Feuerlöscher">
             </div>
-            <div class="text-col" contenteditable="true">
+            <div class="text-col">
                 <div class="sub-header">Verschütten:</div>
-                <ul>
-                    <li>Gefahrenbereich räumen und absperren.</li>
-                    <li>Verschüttete Mengen mit geeignetem Bindemittel aufnehmen.</li>
-                </ul>
+                <div contenteditable="true" data-ba-field="ba_verhalten_verschuetten">
+                    {% if ba_texte.get('ba_verhalten_verschuetten') %}
+                        {{ ba_texte['ba_verhalten_verschuetten']|safe }}
+                    {% else %}
+                                                <ul>
+                            <li>Gefahrenbereich räumen und absperren.</li>
+                            <li>Verschüttete Mengen mit geeignetem Bindemittel aufnehmen.</li>
+                        </ul>
+                    {% endif %}
+                </div>
                 <div class="sub-header">Brand:</div>
-                <ul>
-                    <li>Brände in der Umgebung mit geeignetem Löschmittel (siehe Brandschutzordnung) bekämpfen.</li>
-                    <li>Gefäß wenn möglich aus der Gefahrenzone entfernen oder mit Wasser kühlen.</li>
-                </ul>
+                <div contenteditable="true" data-ba-field="ba_verhalten_brand">
+                    {% if ba_texte.get('ba_verhalten_brand') %}
+                        {{ ba_texte['ba_verhalten_brand']|safe }}
+                    {% else %}
+                                                <ul>
+                            <li>Brände in der Umgebung mit geeignetem Löschmittel (siehe Brandschutzordnung) bekämpfen.</li>
+                            <li>Gefäß wenn möglich aus der Gefahrenzone entfernen oder mit Wasser kühlen.</li>
+                        </ul>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -306,32 +513,413 @@
         </div>
         <div class="content-row">
             <div class="icon-col">
-                <div class="green-icon"><i class="fa-solid fa-square-plus"></i></div>
+                <img src="{{ url_for('static', filename='symbols/E003.svg') }}" style="width: 50px; height: 50px;" alt="ISO 7010 E003 Erste Hilfe" title="ISO 7010 E003 - Erste Hilfe">
             </div>
-            <div class="text-col" contenteditable="true">
+            <div class="text-col">
                 <div class="sub-header">Bei jeder Erste-Hilfe-Maßnahme:</div>
-                <ul>
-                    <li>Auf Selbstschutz achten, ärztliche Behandlung. Lebensrettende Sofortmaßnahmen, wie 'Stabile Seitenlage', 'Herz-Lungen-Wiederbelebung', 'Schockbekämpfung' müssen situationsabhängig durchgeführt werden. Wunden keimfrei bedecken. Für Körperruhe sorgen, vor Wärmeverlust schützen. Ersthelfer hinzuziehen.</li>
-                </ul>
+                <div contenteditable="true" data-ba-field="ba_erste_hilfe_massnahme">
+                    {% if ba_texte.get('ba_erste_hilfe_massnahme') %}
+                        {{ ba_texte['ba_erste_hilfe_massnahme']|safe }}
+                    {% else %}
+                                                <ul>
+                            <li>Auf Selbstschutz achten, ärztliche Behandlung. Lebensrettende Sofortmaßnahmen, wie 'Stabile Seitenlage', 'Herz-Lungen-Wiederbelebung', 'Schockbekämpfung' müssen situationsabhängig durchgeführt werden. Wunden keimfrei bedecken. Für Körperruhe sorgen, vor Wärmeverlust schützen. Ersthelfer hinzuziehen.</li>
+                        </ul>
+                    {% endif %}
+                </div>
                 <div class="sub-header">Einatmen / Hautkontakt / Augenkontakt / Verschlucken:</div>
-                <ul>
-                    <li>Nach Einatmen: Frischluftzufuhr, bei Beschwerden Arzt aufsuchen.</li>
-                    <li>Nach Hautkontakt: Sofort mit viel Wasser und Seife abwaschen.</li>
-                    <li>Nach Augenkontakt: Augen mehrere Minuten bei geöffnetem Lidspalt unter fließendem Wasser spülen.</li>
-                    <li>Nach Verschlucken: Mund ausspülen und reichlich Wasser nachtrinken. Kein Erbrechen herbeiführen.</li>
-                </ul>
+                <div contenteditable="true" data-ba-field="ba_erste_hilfe_kontakt">
+                    {% if ba_texte.get('ba_erste_hilfe_kontakt') %}
+                        {{ ba_texte['ba_erste_hilfe_kontakt']|safe }}
+                    {% else %}
+                                                <ul>
+                            <li>Nach Einatmen: Frischluftzufuhr, bei Beschwerden Arzt aufsuchen.</li>
+                            <li>Nach Hautkontakt: Sofort mit viel Wasser und Seife abwaschen.</li>
+                            <li>Nach Augenkontakt: Augen mehrere Minuten bei geöffnetem Lidspalt unter fließendem Wasser spülen.</li>
+                            <li>Nach Verschlucken: Mund ausspülen und reichlich Wasser nachtrinken. Kein Erbrechen herbeiführen.</li>
+                        </ul>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
         <!-- Sachgerechte Entsorgung -->
         <div class="red-bar">SACHGERECHTE ENTSORGUNG</div>
         <div class="content-row">
-            <div class="text-col" style="padding-left: 140px;">
-                Nicht in Ausguss oder Mülltonne schütten. Größere Mengen in geeigneter Flasche sammeln und nach Absprache mit dem Entsorgungsbeauftragten im Sonderabfall-Lager lagern.
+            <div class="text-col" style="padding-left: 140px;" contenteditable="true" data-ba-field="ba_entsorgung">
+                {% if ba_texte.get('ba_entsorgung') %}
+                    {{ ba_texte['ba_entsorgung']|safe }}
+                {% else %}
+                                            Nicht in Ausguss oder Mülltonne schütten. Größere Mengen in geeigneter Flasche sammeln und nach Absprache mit dem Entsorgungsbeauftragten im Sonderabfall-Lager lagern.
+                {% endif %}
             </div>
         </div>
 
     </div>
+
+    <!-- Formular für die angepasste Betriebsanweisung. Die Textfelder werden erst
+         beim Absenden per JavaScript eingehängt, damit die editierbaren Bereiche
+         nicht in ein zusätzliches Wrapper-Element eingeschlossen werden müssen. -->
+    <form id="ba-form" method="post" action="{{ url_for('betriebsanweisung_speichern', id=stoff.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" id="ba-action" value="save">
+        <input type="hidden" name="ba_gebotszeichen" id="ba-gebotszeichen-input" value="{{ gebotszeichen|join(',') }}">
+    </form>
+
+    <!-- Interaktives Modal für Gebotszeichen-Auswahl (DIN EN ISO 7010) -->
+    <div id="gebotszeichen-modal" class="no-print" role="dialog" aria-modal="true" aria-labelledby="gebotszeichen-modal-titel" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #fff; border-radius: 8px; padding: 20px; max-width: 550px; width: 92%; box-shadow: 0 5px 20px rgba(0,0,0,0.3); font-family: Arial, sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00539B; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 id="gebotszeichen-modal-titel" style="margin: 0; color: #00539B; font-size: 13pt;"><i class="fa-solid fa-shield-halved"></i> Gebotszeichen auswählen (DIN EN ISO 7010)</h3>
+                <button type="button" onclick="closeGebotszeichenModal()" aria-label="Schließen" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+            <p style="font-size: 9pt; color: #555; margin-bottom: 6px;">Wählen Sie die Gebotszeichen aus, die in den Schutzmaßnahmen erscheinen sollen (max. {{ ba_max_gebotszeichen }}):</p>
+            <p id="gebotszeichen-zaehler" style="font-size: 9pt; font-weight: bold; color: #00539B; margin-bottom: 12px;"></p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 340px; overflow-y: auto; padding: 5px;">
+                {% for code, name in gebotszeichen_auswahl %}
+                <label style="display: flex; flex-direction: column; align-items: center; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 8pt; background: #fafafa;">
+                    <input type="checkbox" value="{{ code }}" data-name="{{ name }}" onchange="toggleGebotszeichen('{{ code }}')">
+                    <img src="{{ url_for('static', filename='symbols/' ~ code ~ '.svg') }}" alt="" style="width: 38px; height: 38px; margin: 4px 0;">
+                    <span>{{ code }} {{ name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            
+            <div style="text-align: right; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                <button type="button" onclick="closeGebotszeichenModal()" style="background: #00539B; color: #fff; padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Fertig</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unterschrift: zeichnen oder Namen eintragen. Beides in einem Fenster,
+         damit die schmale Kopfzelle nur die Vorschau tragen muss. -->
+    <div id="unterschrift-modal" class="no-print" role="dialog" aria-modal="true" aria-labelledby="unterschrift-modal-titel"
+         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #fff; border-radius: 8px; padding: 20px; max-width: 600px; width: 92%; box-shadow: 0 5px 20px rgba(0,0,0,0.3); font-family: Arial, sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00539B; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 id="unterschrift-modal-titel" style="margin: 0; color: #00539B; font-size: 13pt;"><i class="fa-solid fa-signature"></i> Unterschrift</h3>
+                <button type="button" onclick="closeUnterschriftModal()" aria-label="Schließen" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+
+            <p style="font-size: 9pt; color: #555; margin: 0 0 6px 0;">Mit Maus oder Finger unterschreiben:</p>
+            <canvas id="unterschrift-canvas" width="1040" height="340"></canvas>
+            <div style="margin: 8px 0 16px 0;">
+                <button type="button" onclick="unterschriftLoeschen()" style="background: #6c757d; color: #fff; padding: 6px 14px; border: none; border-radius: 5px; cursor: pointer;">Zeichnung löschen</button>
+                <button type="button" onclick="unterschriftAusZeichnung()" style="background: #00539B; color: #fff; padding: 6px 14px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 6px;">Diese Zeichnung übernehmen</button>
+            </div>
+
+            <p style="font-size: 9pt; color: #555; margin: 0 0 6px 0;">… oder einen Namen eintragen:</p>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="unterschrift-name-input" maxlength="80" placeholder="z. B. M. Mustermann"
+                       style="flex: 1; padding: 7px 9px; border: 1px solid #ccc; border-radius: 5px; font-size: 10pt;">
+                <button type="button" onclick="unterschriftAusName()" style="background: #00539B; color: #fff; padding: 8px 14px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Namen übernehmen</button>
+            </div>
+
+            <div style="text-align: right; margin-top: 16px; border-top: 1px solid #eee; padding-top: 10px;">
+                <button type="button" onclick="unterschriftEntfernen()" style="background: none; border: none; color: #b00; cursor: pointer; text-decoration: underline;">Unterschrift entfernen</button>
+                <button type="button" onclick="closeUnterschriftModal()" style="background: #00539B; color: #fff; padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 12px;">Fertig</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SYMBOLS_BASE = "{{ url_for('static', filename='symbols/') }}";
+        const BA_MAX_GEBOTSZEICHEN = {{ ba_max_gebotszeichen }};
+        const BA_UNTERSCHRIFT_INITIAL = {{ unterschrift|tojson }};
+        const gebotszeichenModal = document.getElementById('gebotszeichen-modal');
+
+        function gewaehlteCodes() {
+            return Array.from(document.querySelectorAll('#gebotszeichen-list img'))
+                        .map(img => img.getAttribute('data-code'));
+        }
+
+        function aktualisiereZaehler() {
+            const anzahl = gewaehlteCodes().length;
+            document.getElementById('gebotszeichen-zaehler').textContent =
+                anzahl + ' von ' + BA_MAX_GEBOTSZEICHEN + ' ausgewählt';
+            // Ab der Obergrenze die noch freien Kästchen sperren.
+            document.querySelectorAll('#gebotszeichen-modal input[type="checkbox"]').forEach(box => {
+                box.disabled = !box.checked && anzahl >= BA_MAX_GEBOTSZEICHEN;
+            });
+        }
+
+        function syncCheckboxen() {
+            const aktiv = gewaehlteCodes();
+            document.querySelectorAll('#gebotszeichen-modal input[type="checkbox"]').forEach(box => {
+                box.checked = aktiv.indexOf(box.value) !== -1;
+            });
+            aktualisiereZaehler();
+        }
+
+        function openGebotszeichenModal(e) {
+            if (e) e.stopPropagation();
+            syncCheckboxen();
+            gebotszeichenModal.style.display = 'flex';
+            const ersteBox = gebotszeichenModal.querySelector('input[type="checkbox"]');
+            if (ersteBox) ersteBox.focus();
+        }
+
+        function closeGebotszeichenModal() {
+            gebotszeichenModal.style.display = 'none';
+        }
+
+        function toggleGebotszeichen(code) {
+            const list = document.getElementById('gebotszeichen-list');
+            const vorhanden = list.querySelector('img[data-code="' + code + '"]');
+            if (vorhanden) {
+                vorhanden.remove();
+            } else {
+                if (gewaehlteCodes().length >= BA_MAX_GEBOTSZEICHEN) {
+                    syncCheckboxen();
+                    return;
+                }
+                const box = document.querySelector('#gebotszeichen-modal input[value="' + code + '"]');
+                const name = box ? box.getAttribute('data-name') : '';
+                const img = document.createElement('img');
+                img.src = SYMBOLS_BASE + code + '.svg';
+                img.className = 'gebotszeichen-img';
+                img.setAttribute('data-code', code);
+                img.alt = code + ' - ' + name;
+                img.title = img.alt;
+                list.appendChild(img);
+            }
+            aktualisiereZaehler();
+        }
+
+        // Die Abschnitte sollen proportional zu ihrem Inhalt wachsen. Die
+        // Inhaltshöhe lässt sich mit CSS nicht ermitteln, deshalb wird die
+        // Betriebsanweisung einmal unsichtbar in Druckbreite nachgebaut und jeder
+        // Abschnitt gemessen. Auf Bildschirmbreite zu messen wäre falsch: dort
+        // bricht der Text anders um als auf A4, und die Verhältnisse verschieben
+        // sich. Der gemessene Wert wird als flex-grow gesetzt (siehe @media print).
+        function verteileAbschnitte() {
+            const container = document.querySelector('.ba-container');
+            if (!container) return;
+
+            const mm = 96 / 25.4;                       // CSS-Pixel pro Millimeter
+            const druckbreite = 210 * mm - 2 * 5 * mm - 2 * 5;   // A4 minus 5 mm Rand minus Rahmen
+
+            const halter = document.createElement('div');
+            halter.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;' +
+                                   'width:' + druckbreite + 'px;';
+
+            const probe = container.cloneNode(true);
+            // Doppelte IDs im Dokument vermeiden, solange die Kopie im DOM hängt.
+            probe.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            halter.appendChild(probe);
+            document.body.appendChild(halter);
+
+            const original = container.querySelectorAll('.content-row');
+            const kopie = probe.querySelectorAll('.content-row');
+            for (let i = 0; i < original.length && i < kopie.length; i++) {
+                const hoehe = kopie[i].getBoundingClientRect().height;
+                if (hoehe > 0) {
+                    original[i].style.flexGrow = String(Math.round(hoehe));
+                }
+            }
+            document.body.removeChild(halter);
+        }
+
+        // ── Unterschrift ────────────────────────────────────────────────────
+        // Zwei Formen: eine Zeichnung (wird als PNG gespeichert) oder ein Name.
+        // Der aktuelle Stand steht in baUnterschrift und wird beim Absenden als
+        // verstecktes Feld mitgeschickt - wie die Textfelder.
+        const unterschriftModal = document.getElementById('unterschrift-modal');
+        const unterschriftCanvas = document.getElementById('unterschrift-canvas');
+        const unterschriftNameFeld = document.getElementById('unterschrift-name-input');
+        let baUnterschrift = null;
+        let zeichnungVorhanden = false;
+        let zeichnetGerade = false;
+
+        function unterschriftAnzeigen() {
+            const bild = document.getElementById('unterschrift-bild');
+            const name = document.getElementById('unterschrift-name');
+            const leer = document.getElementById('unterschrift-leer');
+            bild.style.display = 'none';
+            name.style.display = 'none';
+            leer.style.display = 'none';
+            if (baUnterschrift && baUnterschrift.typ === 'bild') {
+                bild.src = baUnterschrift.wert;
+                bild.style.display = '';
+            } else if (baUnterschrift && baUnterschrift.typ === 'name') {
+                name.textContent = 'gez. ' + baUnterschrift.wert;
+                name.style.display = '';
+            } else {
+                leer.style.display = '';
+            }
+        }
+
+        function unterschriftUebernehmen(daten) {
+            baUnterschrift = daten;
+            unterschriftAnzeigen();
+        }
+
+        function zeichnungLoeschen() {
+            const ctx = unterschriftCanvas.getContext('2d');
+            ctx.clearRect(0, 0, unterschriftCanvas.width, unterschriftCanvas.height);
+            zeichnungVorhanden = false;
+        }
+
+        function zeichnungInCanvas(daten) {
+            zeichnungLoeschen();
+            if (!daten || daten.typ !== 'bild') return;
+            const bild = new Image();
+            bild.onload = function () {
+                const ctx = unterschriftCanvas.getContext('2d');
+                ctx.drawImage(bild, 0, 0, unterschriftCanvas.width, unterschriftCanvas.height);
+                zeichnungVorhanden = true;
+            };
+            bild.src = daten.wert;
+        }
+
+        // Die Canvas-Punkte liegen auf einer hoeheren Aufloesung als die Anzeige
+        // (scharfe Linien), deshalb muessen die Mauskoordinaten skaliert werden.
+        function canvasSkalierung() {
+            const rect = unterschriftCanvas.getBoundingClientRect();
+            return {
+                x: unterschriftCanvas.width / (rect.width || 1),
+                y: unterschriftCanvas.height / (rect.height || 1)
+            };
+        }
+
+        function zeichenStart(e) {
+            e.preventDefault();
+            unterschriftCanvas.setPointerCapture(e.pointerId);
+            zeichnetGerade = true;
+            const ctx = unterschriftCanvas.getContext('2d');
+            const s = canvasSkalierung();
+            const rect = unterschriftCanvas.getBoundingClientRect();
+            ctx.lineWidth = 2.5 * s.x;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#111111';
+            ctx.beginPath();
+            ctx.moveTo((e.clientX - rect.left) * s.x, (e.clientY - rect.top) * s.y);
+        }
+
+        function zeichenBewegen(e) {
+            if (!zeichnetGerade) return;
+            e.preventDefault();
+            const ctx = unterschriftCanvas.getContext('2d');
+            const s = canvasSkalierung();
+            const rect = unterschriftCanvas.getBoundingClientRect();
+            ctx.lineTo((e.clientX - rect.left) * s.x, (e.clientY - rect.top) * s.y);
+            ctx.stroke();
+            zeichnungVorhanden = true;
+        }
+
+        function zeichenEnde(e) {
+            if (!zeichnetGerade) return;
+            zeichnetGerade = false;
+            try { unterschriftCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+        }
+
+        unterschriftCanvas.addEventListener('pointerdown', zeichenStart);
+        unterschriftCanvas.addEventListener('pointermove', zeichenBewegen);
+        unterschriftCanvas.addEventListener('pointerup', zeichenEnde);
+        unterschriftCanvas.addEventListener('pointercancel', zeichenEnde);
+
+        function unterschriftLoeschen() {
+            zeichnungLoeschen();
+        }
+
+        function unterschriftAusZeichnung() {
+            if (!zeichnungVorhanden) {
+                alert('Bitte zuerst unterschreiben.');
+                return;
+            }
+            unterschriftUebernehmen({ typ: 'bild', wert: unterschriftCanvas.toDataURL('image/png') });
+            closeUnterschriftModal();
+        }
+
+        function unterschriftAusName() {
+            const wert = unterschriftNameFeld.value.trim().replace(/\s+/g, ' ');
+            if (!wert) {
+                alert('Bitte einen Namen eintragen.');
+                return;
+            }
+            unterschriftUebernehmen({ typ: 'name', wert: wert });
+            closeUnterschriftModal();
+        }
+
+        function unterschriftEntfernen() {
+            unterschriftUebernehmen(null);
+            zeichnungLoeschen();
+            unterschriftNameFeld.value = '';
+            closeUnterschriftModal();
+        }
+
+        function openUnterschriftModal(e) {
+            if (e) e.stopPropagation();
+            if (baUnterschrift && baUnterschrift.typ === 'name') {
+                unterschriftNameFeld.value = baUnterschrift.wert;
+            }
+            zeichnungInCanvas(baUnterschrift);
+            unterschriftModal.style.display = 'flex';
+        }
+
+        function closeUnterschriftModal() {
+            unterschriftModal.style.display = 'none';
+        }
+
+        window.addEventListener('click', function (e) {
+            if (e.target === unterschriftModal) {
+                closeUnterschriftModal();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Startzustand der Auswahl in Zähler und Kästchen übernehmen.
+            syncCheckboxen();
+            verteileAbschnitte();
+            baUnterschrift = BA_UNTERSCHRIFT_INITIAL && BA_UNTERSCHRIFT_INITIAL.typ
+                ? BA_UNTERSCHRIFT_INITIAL : null;
+            unterschriftAnzeigen();
+        });
+        // Unmittelbar vor dem Druck neu messen, falls das Fenster zwischendurch
+        // anders groß war.
+        window.addEventListener('beforeprint', verteileAbschnitte);
+
+        // Textfelder und Auswahl erst beim Absenden in das Formular hängen.
+        document.getElementById('ba-form').addEventListener('submit', function () {
+            const form = this;
+            form.querySelectorAll('input[data-ba-generated]').forEach(el => el.remove());
+            document.querySelectorAll('[data-ba-field]').forEach(el => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = el.getAttribute('data-ba-field');
+                input.value = el.innerHTML;
+                input.setAttribute('data-ba-generated', '1');
+                form.appendChild(input);
+            });
+            document.getElementById('ba-gebotszeichen-input').value = gewaehlteCodes().join(',');
+
+            // Unterschrift mitschicken. Ist keine gesetzt, wird ein leeres Feld
+            // gesendet - das entfernt eine früher gespeicherte Unterschrift.
+            const uInput = document.createElement('input');
+            uInput.type = 'hidden';
+            uInput.name = 'ba_unterschrift';
+            uInput.value = baUnterschrift ? JSON.stringify(baUnterschrift) : '';
+            uInput.setAttribute('data-ba-generated', '1');
+            form.appendChild(uInput);
+        });
+
+        // Schließen bei Klick außerhalb und mit Escape.
+        window.addEventListener('click', function (e) {
+            if (e.target === gebotszeichenModal) {
+                closeGebotszeichenModal();
+            }
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            if (gebotszeichenModal.style.display === 'flex') {
+                closeGebotszeichenModal();
+            }
+            if (unterschriftModal.style.display === 'flex') {
+                closeUnterschriftModal();
+            }
+        });
+    </script>
 
 </body>
 </html>
