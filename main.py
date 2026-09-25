@@ -363,6 +363,11 @@ BA_SIGNATUR_MAX_NAME = 80
 # die einzige mit Namensnennungspflicht. Eine freiere Fassung dieses Motivs gibt
 # es dort nicht, und M002 fehlt auch in ASR A1.3 Anhang 1. Einzelheiten in
 # static/symbols/SOURCES.md.
+#
+# M024 ("Diesen Weg benutzen") wurde am selben Tag aus der Auswahl entfernt:
+# das Zeichen ist fachlich für eine Gefahrstoff-Betriebsanweisung ohne Nutzen.
+# Die Datei bleibt im Ordner (gemeinfrei, kein Lizenzgrund zu löschen), sie wird
+# hier nur nicht mehr angeboten. Ein Wiederaufnehmen ist eine Zeile.
 BA_GEBOTSZEICHEN = (
     ('M001', 'Allgemeines Gebotszeichen'),
     ('M003', 'Gehörschutz benutzen'),
@@ -375,7 +380,6 @@ BA_GEBOTSZEICHEN = (
     ('M014', 'Kopfschutz benutzen'),
     ('M017', 'Atemschutz benutzen'),
     ('M022', 'Hautschutzmittel benutzen'),
-    ('M024', 'Diesen Weg benutzen'),
 )
 BA_GEBOTSZEICHEN_CODES = tuple(code for code, _ in BA_GEBOTSZEICHEN)
 # Obergrenze für die Icon-Spalte auf A4. Empirisch ermittelt (Seite rendern, mit

@@ -366,7 +366,9 @@ class TestGebotszeichenBeschriftung(unittest.TestCase):
 
         M002 fehlt hier bewusst: das Zeichen wurde am 25.09.2026 wegen seiner
         CC-BY-SA-3.0-Lizenz aus der Auswahl entfernt (siehe
-        static/symbols/SOURCES.md).
+        static/symbols/SOURCES.md). M024 wurde am selben Tag aus fachlichen
+        Gründen entfernt -- die Datei liegt weiter im Ordner, wird aber nicht
+        mehr angeboten.
         """
         namen = dict(BA_GEBOTSZEICHEN)
         self.assertEqual(namen['M001'], 'Allgemeines Gebotszeichen')
@@ -378,8 +380,8 @@ class TestGebotszeichenBeschriftung(unittest.TestCase):
         self.assertEqual(namen['M014'], 'Kopfschutz benutzen')
         self.assertEqual(namen['M017'], 'Atemschutz benutzen')
         self.assertEqual(namen['M022'], 'Hautschutzmittel benutzen')
-        self.assertEqual(namen['M024'], 'Diesen Weg benutzen')
         self.assertNotIn('M002', namen)
+        self.assertNotIn('M024', namen)
 
 
 if __name__ == '__main__':

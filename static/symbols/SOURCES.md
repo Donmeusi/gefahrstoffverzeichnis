@@ -114,7 +114,7 @@ Die Grafik jedes Zeichens passt zur Beschriftung — der Fehler der Vorfassung
 (fünf falsche Beschriftungen, u. a. „Schutzhelm" an einem Augenschutz-Zeichen)
 ist behoben.
 
-**Drei Beschriftungen weichen bewusst vom amtlichen Wortlaut ab.** Sie sind
+**Zwei Beschriftungen weichen bewusst vom amtlichen Wortlaut ab.** Sie sind
 inhaltlich nicht falsch, treffen aber nicht die Normformulierung. Das ist eine
 **getroffene Entscheidung**, kein offener Punkt: der Betreiber hat am 25.09.2026
 entschieden, sie zugunsten der Verständlichkeit für die Anwender so zu lassen.
@@ -123,14 +123,31 @@ entschieden, sie zugunsten der Verständlichkeit für die Anwender so zu lassen.
 |---|---|---|---|
 | `M009` | Handschutz benutzen | Schutzhandschuhe benutzen | ASR A1.3 |
 | `M013` | Gesichtsschutz benutzen | Gesichtsschutzschirm benutzen | ASR A1.3 |
-| `M024` | Fußgängerweg benutzen | Diesen Weg benutzen | Repo = wörtlich aus dem Englischen |
 
 Geprüft gegen **drei** Quellen, die sich in diesen Fällen einig sind: ASR A1.3
 Anhang 1, DGUV Information 211-041 Anhang 3 und der Wikipedia-Artikel
 „ISO 7010".
 
 `M001`, `M003`, `M004`, `M008`, `M010`, `M011`, `M014`, `M017`, `M022` stimmen
-wörtlich mit der amtlichen Liste überein. `M002` entfällt (Zeichen entfernt).
+wörtlich mit der amtlichen Liste überein.
+
+## Zwei Zeichen sind nicht mehr in der Auswahl
+
+| Code | Bezeichnung | Grund | Datei |
+|---|---|---|---|
+| `M002` | Gebrauchsanweisung beachten | CC BY-SA 3.0, Namensnennungspflicht | **gelöscht** |
+| `M024` | Fußgängerweg benutzen / „Diesen Weg benutzen" | fachlich ohne Nutzen für eine Gefahrstoff-BA | liegt weiter im Ordner |
+
+`M024` wurde am 25.09.2026 aus `BA_GEBOTSZEICHEN` entfernt. Anders als bei `M002`
+ist die Datei **gemeinfrei** — es gab also keinen Lizenzgrund, sie zu löschen. Sie
+liegt weiterhin hier; sie wird nur nicht mehr angeboten. Ein Wiederaufnehmen wäre
+eine Zeile in `main.py`. Wird sie wieder angeboten, ist die Beschriftung wieder
+die Abweichung „Diesen Weg benutzen" (amtlich: „Fußgängerweg benutzen").
+
+`load_ba_gebotszeichen` in `main.py` filtert beide Codes heraus. Bereits
+gespeicherte Betriebsanweisungen verlieren das Zeichen dadurch einfach; in der
+Datenbank war ohnehin kein Datensatz mit Gebotszeichen belegt (geprüft am
+25.09.2026).
 
 ## `E003.svg` — doch keine Eigenkonstruktion
 
@@ -151,9 +168,9 @@ offizielle.
 
 * ~~**`M002` lizenzieren oder ersetzen.**~~ **Erledigt am 25.09.2026** — Zeichen
   entfernt, siehe oben. Alle verbliebenen Dateien sind gemeinfrei.
-* ~~**Vier Beschriftungen** auf den amtlichen Wortlaut umstellen.~~
-  **Entschieden am 25.09.2026:** bleiben wie sie sind (`M009`, `M013`, `M024`);
-  `M002` entfällt mit dem Zeichen. Siehe Tabelle oben.
+* ~~**Beschriftungen** auf den amtlichen Wortlaut umstellen.~~
+  **Entschieden am 25.09.2026:** `M009` und `M013` bleiben wie sie sind,
+  `M002` und `M024` werden nicht mehr angeboten. Siehe Tabellen oben.
 * **Nachkontrolle.** Die Hashes oben sind der Stand vom 25.09.2026. Wenn Commons
   eine Datei überarbeitet, laufen Repo und Quelle auseinander. Bei Zweifel
   erneut laden und vergleichen.
