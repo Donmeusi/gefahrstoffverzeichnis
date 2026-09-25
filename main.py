@@ -358,11 +358,11 @@ BA_GEBOTSZEICHEN = (
     ('M024', 'Diesen Weg benutzen'),
 )
 BA_GEBOTSZEICHEN_CODES = tuple(code for code, _ in BA_GEBOTSZEICHEN)
-# Obergrenze für die Icon-Spalte auf A4. Empirisch ermittelt: mit vier Zeichen
-# passt die Betriebsanweisung bei mittellanger P-Satz-Liste noch auf eine Seite,
-# mit fünf läuft sie über. Bei sehr langen Texten kann sie unabhängig davon
-# umbrechen - die Grenze schützt die Spalte, nicht das ganze Dokument.
-BA_MAX_GEBOTSZEICHEN = 4
+# Obergrenze für die Icon-Spalte auf A4. Empirisch ermittelt (Seite rendern, mit
+# Chrome nach PDF drucken, Seiten zählen): mit sechs Zeichen passt die
+# Betriebsanweisung auch bei 13 langen P-Sätzen noch auf eine Seite. Mehr wären
+# unnötig, weil die Spalte nur 100 px breit ist.
+BA_MAX_GEBOTSZEICHEN = 6
 
 
 class _BASanitizer(HTMLParser):

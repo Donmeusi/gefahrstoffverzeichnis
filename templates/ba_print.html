@@ -6,6 +6,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* @page margin: 0 unterdrückt die Kopf- und Fußzeile des Browsers (URL,
+           Datum, Seitenzahl) - er zeichnet sie nur, wenn ihm ein Seitenrand zur
+           Verfügung steht. Nachgemessen: mit margin: 10mm erscheinen
+           "25.09.26, 15:29 Betriebsanweisung - Aceton", die file:///-URL und "1/1",
+           mit margin: 0 nichts davon.
+
+           Der sichtbare Rand kommt deshalb nicht von @page, sondern als Padding
+           des Containers. Wichtig: nicht als Padding auf body - das schiebt die
+           body-Box über die Seitenhöhe hinaus und Chrome hängt eine leere zweite
+           Seite an (gemessen: body-Padding 10mm ergibt zwei Seiten, Container-
+           Padding 10mm eine). Nebeneffekt: bei einem Umbruch bleibt der
+           seitliche Rand auch auf Seite 2 erhalten. */
         @page {
             size: A4 portrait;
             margin: 0;
@@ -13,18 +25,28 @@
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 10mm;
+            padding: 0;
             background: #fff;
             color: #000;
             font-size: 9.5pt;
-            line-height: 1.15;
+            /* 1.05 statt 1.15: nachgemessen passt damit auch eine Betriebsanweisung
+               mit 13 langen P-Sätzen und sechs Gebotszeichen noch auf eine Seite. */
+            line-height: 1.05;
             box-sizing: border-box;
+        }
+        /* Auf dem Bildschirm bleibt der Rand am body, damit die Knöpfe nicht am
+           Fensterrand kleben. Im Druck kommt er vom Container (siehe @page oben). */
+        @media screen {
+            body {
+                padding: 10mm;
+            }
         }
         .ba-container {
             border: 5px solid #cc0000;
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
+            padding: 10mm;
         }
         .header-table {
             width: 100%;
@@ -162,11 +184,11 @@
         @media print {
             html, body {
                 margin: 0 !important;
-                padding: 10mm !important;
+                padding: 0 !important;
                 background: #fff !important;
             }
             .no-print { display: none !important; }
-            .ba-container { border: 5px solid #cc0000 !important; }
+            .ba-container { border: 5px solid #cc0000 !important; padding: 10mm !important; }
             .red-bar { background-color: #cc0000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .header-table td, .content-row, .icon-col, .right-icon-col { border-color: #cc0000 !important; }
             .blue-icon { color: #0056b3 !important; border-color: #0056b3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
