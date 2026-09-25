@@ -158,10 +158,14 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
         self.assertNotIn('ba_bezeichnung', texte)
 
     def test_gebotszeichen_obergrenze_und_unbekannte_codes(self):
+        # M999 ist ein nie vergebener Code, M002 ein am 25.09.2026 entfernter.
+        # Beide müssen herausfallen -- darauf verlässt sich auch die Anzeige
+        # bereits gespeicherter Betriebsanweisungen.
         self._speichern(ba_gebotszeichen='M001,M002,M003,M004,M008,M009,M010,M999')
         gespeichert = self._stoff().ba_gebotszeichen.split(',')
         self.assertEqual(len(gespeichert), BA_MAX_GEBOTSZEICHEN)
         self.assertNotIn('M999', gespeichert)
+        self.assertNotIn('M002', gespeichert)
         # Reihenfolge folgt der Auswahlliste, nicht der Eingabe
         self.assertEqual(gespeichert, list(BA_GEBOTSZEICHEN_CODES[:BA_MAX_GEBOTSZEICHEN]))
 
@@ -359,10 +363,13 @@ class TestGebotszeichenBeschriftung(unittest.TestCase):
         halten den korrigierten Stand fest. M014/M022 waren früher unter den
         Beschriftungen anderer Zeichen geführt ("Schutzhelm", "Hautschutzcreme")
         und werden hier mit ihren offiziellen Bezeichnungen erwartet.
+
+        M002 fehlt hier bewusst: das Zeichen wurde am 25.09.2026 wegen seiner
+        CC-BY-SA-3.0-Lizenz aus der Auswahl entfernt (siehe
+        static/symbols/SOURCES.md).
         """
         namen = dict(BA_GEBOTSZEICHEN)
         self.assertEqual(namen['M001'], 'Allgemeines Gebotszeichen')
-        self.assertEqual(namen['M002'], 'Anleitung beachten')
         self.assertEqual(namen['M003'], 'Gehörschutz benutzen')
         self.assertEqual(namen['M004'], 'Augenschutz benutzen')
         self.assertEqual(namen['M008'], 'Fußschutz benutzen')
@@ -372,6 +379,7 @@ class TestGebotszeichenBeschriftung(unittest.TestCase):
         self.assertEqual(namen['M017'], 'Atemschutz benutzen')
         self.assertEqual(namen['M022'], 'Hautschutzmittel benutzen')
         self.assertEqual(namen['M024'], 'Diesen Weg benutzen')
+        self.assertNotIn('M002', namen)
 
 
 if __name__ == '__main__':

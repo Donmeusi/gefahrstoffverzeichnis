@@ -357,9 +357,14 @@ BA_SIGNATUR_MAX_NAME = 80
 # Beschriftungen von M014 und M022; beide Zeichen sind seit 25.09.2026 mit
 # belegter Herkunft vorhanden (siehe static/symbols/SOURCES.md) und tragen hier
 # ihre offiziellen Bezeichnungen nach ASR A1.3 Anhang 1 / DGUV 211-041.
+#
+# M002 wurde am 25.09.2026 aus der Auswahl entfernt: es ist auf Wikimedia Commons
+# die einzige Datei unter CC BY-SA 3.0 (alle übrigen sind gemeinfrei) und damit
+# die einzige mit Namensnennungspflicht. Eine freiere Fassung dieses Motivs gibt
+# es dort nicht, und M002 fehlt auch in ASR A1.3 Anhang 1. Einzelheiten in
+# static/symbols/SOURCES.md.
 BA_GEBOTSZEICHEN = (
     ('M001', 'Allgemeines Gebotszeichen'),
-    ('M002', 'Anleitung beachten'),
     ('M003', 'Gehörschutz benutzen'),
     ('M004', 'Augenschutz benutzen'),
     ('M008', 'Fußschutz benutzen'),
