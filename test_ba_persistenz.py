@@ -188,6 +188,17 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
         self.assertNotIn('Speichern</button>', html)
         self.assertNotIn('Zurücksetzen</button>', html)
 
+    def test_nummernfeld_ist_anklickbar(self):
+        """Regression: das Nummernfeld war nicht bearbeitbar.
+
+        Ein leeres <span> hat Breite 0 und damit keine Fläche zum Anklicken. Die
+        Mindestgröße kommt aus der CSS-Regel für leere inline-Felder; damit die
+        greift, muss das Feld die Klasse tragen. Beides wird hier festgehalten.
+        """
+        html = self.client.get(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung').get_data(as_text=True)
+        self.assertIn('class="nummer-feld"', html)
+        self.assertIn('span[contenteditable="true"]:empty', html)
+
     def test_zuruecksetzen_leert_beides(self):
         self._speichern(ba_h_saetze='<ul><li>x</li></ul>', ba_gebotszeichen='M004')
         self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',

@@ -290,6 +290,25 @@
         [contenteditable="true"] {
             outline: none;
         }
+        /* Ein leeres, inline stehendes Eingabefeld hat keine Fläche (Breite 0) und
+           lässt sich deshalb nicht anklicken - am Nummernfeld nachgemessen. Es
+           bekommt daher eine Mindestgröße; die Schreiblinie gibt es nur am
+           Bildschirm, im Druck bleibt die Stelle leer. */
+        span[contenteditable="true"]:empty,
+        .nummer-feld {
+            display: inline-block;
+            min-width: 6em;
+            min-height: 1.2em;
+        }
+        @media screen {
+            .nummer-feld {
+                border-bottom: 1px dashed #0056b3;
+            }
+            .nummer-feld:empty::before {
+                content: 'eintragen';
+                color: #aaa;
+            }
+        }
         @media screen {
             [contenteditable="true"]:hover, [contenteditable="true"]:focus {
                 outline: 2px dashed #0056b3;
@@ -330,7 +349,7 @@
                 </td>
                 <td style="width: 25%;">
                     <strong>Nummer:</strong>
-                    <span contenteditable="true" data-ba-field="ba_nummer">{% if ba_texte.get('ba_nummer') %}{{ ba_texte['ba_nummer']|safe }}{% endif %}</span><br>
+                    <span class="nummer-feld" contenteditable="true" data-ba-field="ba_nummer">{% if ba_texte.get('ba_nummer') %}{{ ba_texte['ba_nummer']|safe }}{% endif %}</span><br>
                     <strong>(Prüfung jährlich)</strong><br>
                     <strong>Unterschrift:</strong>
                     <div class="unterschrift-feld" id="unterschrift-feld" onclick="openUnterschriftModal(event)"
