@@ -35,7 +35,9 @@ def run_migrations():
             'deleted_at': 'DATETIME',
             'last_inventur_datum': 'DATETIME',
             'last_inventur_user_id': 'INTEGER',
-            'gefaehrdungsbeurteilung': 'VARCHAR(200)'
+            'gefaehrdungsbeurteilung': 'VARCHAR(200)',
+            'ba_texte': 'TEXT',
+            'ba_gebotszeichen': 'VARCHAR(100)'
         }
         for col, col_type in columns_to_add.items():
             if col not in existing:

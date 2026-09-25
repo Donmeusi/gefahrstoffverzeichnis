@@ -18,6 +18,8 @@ import pandas as pd
 from io import BytesIO
 import pdfplumber
 import re
+from html import escape
+from html.parser import HTMLParser
 import qrcode
 import base64
 from reportlab.lib import colors
@@ -252,6 +254,10 @@ class Gefahrstoff(db.Model):
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
     gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
+    # Individuell angepasste Betriebsanweisung: Texte als JSON ({feldname: html})
+    # und die gewählten ISO-7010-Gebotszeichen als kommaseparierte Codes ("M004,M009").
+    ba_texte            = db.Column(db.Text, nullable=True)
+    ba_gebotszeichen    = db.Column(db.String(100), nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
     is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
@@ -298,6 +304,134 @@ def log_audit_event(action, entity_type, entity_id, details=""):
         db.session.commit()
     except Exception as e:
         print(f"Failed to log audit event: {e}")
+
+
+# ─── Betriebsanweisung: individuell angepasste Inhalte ───────────────────────
+#
+# Die editierbaren Bereiche auf ba_print.html werden als HTML gespeichert und im
+# Template mit |safe ausgegeben. Deshalb läuft jeder Wert serverseitig durch eine
+# Whitelist (Tags ja, Attribute nein), damit über contenteditable kein Markup wie
+# <script>, style= oder onerror= in die Datenbank und von dort in den Browser
+# eines Administrators gelangen kann.
+
+BA_ALLOWED_TAGS = {
+    'b', 'strong', 'i', 'em', 'u', 's', 'br', 'hr', 'p', 'div', 'span',
+    'ul', 'ol', 'li', 'sub', 'sup', 'small', 'blockquote',
+}
+BA_MAX_FIELD_LEN = 20000
+
+# Felder, die gespeichert werden. Arbeitsbereich, Stoffname und CAS stehen
+# bewusst nicht dabei: die kommen live aus der Datenbank, ein gespeicherter
+# Text würde eine spätere Umbenennung des Stoffs stillschweigend verdecken.
+# Die Zwischenüberschriften ("Verschütten:", "Brand:" ...) bleiben Teil des
+# Templates, damit nur echte Inhalte überschrieben werden.
+BA_TEXT_FIELDS = (
+    'ba_taetigkeit',
+    'ba_h_saetze',
+    'ba_schutzmassnahmen',
+    'ba_verhalten_verschuetten',
+    'ba_verhalten_brand',
+    'ba_erste_hilfe_massnahme',
+    'ba_erste_hilfe_kontakt',
+    'ba_entsorgung',
+)
+
+# Auswählbare ISO-7010-Gebotszeichen als (Code, Bezeichnung). Die Codes müssen
+# als static/symbols/<CODE>.svg vorhanden sein. Diese Liste ist die einzige
+# Quelle für Auswahlliste, Bildtitel und die Prüfung der gespeicherten Werte.
+#
+# Die Bezeichnungen wurden gegen die tatsächliche Grafik der Dateien und die
+# offizielle ISO-7010-Liste geprüft. Fünf Einträge waren zuvor falsch
+# beschriftet (M002, M003, M004, M024 trugen die Bedeutung anderer Zeichen,
+# "Schutzhelm" und "Hautschutzcreme" gehören zu M014/M022, die hier fehlen).
+BA_GEBOTSZEICHEN = (
+    ('M001', 'Allgemeines Gebotszeichen'),
+    ('M002', 'Anleitung beachten'),
+    ('M003', 'Gehörschutz benutzen'),
+    ('M004', 'Augenschutz benutzen'),
+    ('M008', 'Fußschutz benutzen'),
+    ('M009', 'Schutzhandschuhe benutzen'),
+    ('M010', 'Schutzkleidung benutzen'),
+    ('M011', 'Hände waschen'),
+    ('M013', 'Gesichtsschutzschirm benutzen'),
+    ('M017', 'Atemschutz benutzen'),
+    ('M024', 'Diesen Weg benutzen'),
+)
+BA_GEBOTSZEICHEN_CODES = tuple(code for code, _ in BA_GEBOTSZEICHEN)
+# Obergrenze für die Icon-Spalte auf A4. Empirisch ermittelt: mit vier Zeichen
+# passt die Betriebsanweisung bei mittellanger P-Satz-Liste noch auf eine Seite,
+# mit fünf läuft sie über. Bei sehr langen Texten kann sie unabhängig davon
+# umbrechen - die Grenze schützt die Spalte, nicht das ganze Dokument.
+BA_MAX_GEBOTSZEICHEN = 4
+
+
+class _BASanitizer(HTMLParser):
+    """Behält nur Tags aus BA_ALLOWED_TAGS und verwirft sämtliche Attribute."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self._out = []
+        self._open = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in BA_ALLOWED_TAGS:
+            return
+        self._out.append(f"<{tag}>")
+        if tag not in ('br', 'hr'):
+            self._open.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        if tag in BA_ALLOWED_TAGS:
+            self._out.append(f"<{tag}>")
+
+    def handle_endtag(self, tag):
+        if tag not in BA_ALLOWED_TAGS or tag not in self._open:
+            return
+        # Zwischenliegende Tags mitschließen, damit das Ergebnis wohlgeformt bleibt.
+        while self._open:
+            offen = self._open.pop()
+            self._out.append(f"</{offen}>")
+            if offen == tag:
+                break
+
+    def handle_data(self, data):
+        self._out.append(escape(data))
+
+    def result(self):
+        while self._open:
+            self._out.append(f"</{self._open.pop()}>")
+        return ''.join(self._out)
+
+
+def sanitize_ba_html(raw):
+    if not raw:
+        return ''
+    parser = _BASanitizer()
+    try:
+        parser.feed(raw[:BA_MAX_FIELD_LEN])
+        parser.close()
+    except Exception as e:
+        print(f"BA-Text konnte nicht bereinigt werden: {e}")
+        return ''
+    return parser.result()
+
+
+def load_ba_texte(stoff):
+    """Liefert die gespeicherten BA-Texte, auf bekannte Felder begrenzt und bereinigt."""
+    try:
+        data = json.loads(stoff.ba_texte) if stoff.ba_texte else {}
+    except (ValueError, TypeError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return {f: sanitize_ba_html(data.get(f)) for f in BA_TEXT_FIELDS if data.get(f)}
+
+
+def load_ba_gebotszeichen(stoff):
+    """Liefert die gespeicherten Gebotszeichen-Codes in Reihenfolge der Auswahlliste."""
+    gespeichert = [c.strip() for c in (stoff.ba_gebotszeichen or '').split(',')]
+    return [c for c in BA_GEBOTSZEICHEN_CODES if c in gespeichert][:BA_MAX_GEBOTSZEICHEN]
+
 
 def get_accessible_bereiche():
     """Gibt die Bereiche zurück, auf die der aktuelle Benutzer Zugriff hat."""
@@ -815,12 +949,86 @@ def betriebsanweisung_print(id):
             text = p_dict.get(p_code, "")
             p_saetze_list.append(f"{p_code}: {text}" if text else p_code)
 
-    return render_template('ba_print.html', 
-                           stoff=stoff, 
+    return render_template('ba_print.html',
+                           stoff=stoff,
                            arbeitsbereich=arbeitsbereich,
                            h_saetze_list=h_saetze_list,
                            p_saetze_list=p_saetze_list,
+                           ba_texte=load_ba_texte(stoff),
+                           gebotszeichen=load_ba_gebotszeichen(stoff),
+                           gebotszeichen_auswahl=BA_GEBOTSZEICHEN,
+                           ba_max_gebotszeichen=BA_MAX_GEBOTSZEICHEN,
                            today=datetime.utcnow().date())
+
+
+@app.route('/gefahrstoff/<int:id>/betriebsanweisung/speichern', methods=['POST'])
+@login_required
+def betriebsanweisung_speichern(id):
+    """Speichert die individuell angepassten Texte und Gebotszeichen der Betriebsanweisung."""
+    stoff = Gefahrstoff.query.get_or_404(id)
+    if not get_gefahrstoff_query().filter(Gefahrstoff.id == id).first():
+        flash('Keine Berechtigung für diesen Gefahrstoff.', 'error')
+        return redirect(url_for('index'))
+
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('betriebsanweisung_print', id=id))
+
+    try:
+        if request.form.get('action') == 'reset':
+            stoff.ba_texte = None
+            stoff.ba_gebotszeichen = None
+            db.session.commit()
+            log_audit_event('UPDATE', 'Gefahrstoff', id,
+                            'Betriebsanweisung auf Standardwerte zurückgesetzt.')
+            flash('Betriebsanweisung auf die Standardwerte zurückgesetzt.', 'success')
+            return redirect(url_for('betriebsanweisung_print', id=id))
+
+        # Mit dem gespeicherten Stand zusammenführen statt ihn zu ersetzen: ohne
+        # JavaScript werden die contenteditable-Bereiche nicht übertragen, ein
+        # Teil-Submit darf bereits gespeicherte Felder nicht verwerfen.
+        texte = {}
+        try:
+            texte = json.loads(stoff.ba_texte) if stoff.ba_texte else {}
+        except (ValueError, TypeError):
+            texte = {}
+        if not isinstance(texte, dict):
+            texte = {}
+
+        for field in BA_TEXT_FIELDS:
+            if field not in request.form:
+                continue
+            value = sanitize_ba_html(request.form.get(field, ''))
+            if value:
+                texte[field] = value
+            else:
+                texte.pop(field, None)          # bewusst geleertes Feld
+
+        texte = {f: v for f, v in texte.items() if f in BA_TEXT_FIELDS}
+
+        codes = []
+        for code in request.form.get('ba_gebotszeichen', '').split(','):
+            code = code.strip()
+            if code in BA_GEBOTSZEICHEN_CODES and code not in codes:
+                codes.append(code)
+        codes = codes[:BA_MAX_GEBOTSZEICHEN]
+
+        if any(f in request.form for f in BA_TEXT_FIELDS):
+            stoff.ba_texte = json.dumps(texte, ensure_ascii=False) if texte else None
+        if 'ba_gebotszeichen' in request.form:
+            stoff.ba_gebotszeichen = ','.join(codes) if codes else None
+
+        db.session.commit()
+        log_audit_event('UPDATE', 'Gefahrstoff', id,
+                        f'Betriebsanweisung gespeichert '
+                        f'({len(texte)} Textfelder, {len(codes)} Gebotszeichen).')
+        flash('Betriebsanweisung gespeichert.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Fehler beim Speichern der Betriebsanweisung: {e}")
+        flash('Betriebsanweisung konnte nicht gespeichert werden.', 'error')
+
+    return redirect(url_for('betriebsanweisung_print', id=id))
 
 
 @app.route('/add', methods=['GET', 'POST'])
