@@ -472,9 +472,9 @@ def sanitize_ba_unterschrift(raw):
             return None
         if not re.fullmatch(r'[A-Za-z0-9+/=]+', nutzlast):
             return None
-        # Nicht nur das Präfix prüfen: der Wert wird als Bild in den Ausdruck und
-        # ins PDF eingebettet. Was sich nicht als PNG lesen lässt, wird abgelehnt -
-        # sonst stünde später ein kaputtes Bild in der Betriebsanweisung.
+        # Nicht nur das Präfix prüfen: der Wert wird als <img src> in die
+        # Betriebsanweisung eingebettet. Was sich nicht als PNG lesen lässt, wird
+        # abgelehnt - sonst stünde später ein kaputtes Bild im Ausdruck.
         try:
             from PIL import Image
             rohdaten = base64.b64decode(nutzlast, validate=True)
