@@ -210,7 +210,10 @@
                 display: flex !important;
                 flex-direction: column !important;
             }
-            .content-row { flex: 1 1 auto !important; }
+            /* Kein !important: das flex-grow setzt das Skript unten je Abschnitt
+               proportional zur Inhaltshöhe. Ohne JavaScript bleibt es bei 1 1 auto,
+               dann wachsen alle Abschnitte gleichmäßig und die Seite ist trotzdem voll. */
+            .content-row { flex: 1 1 auto; }
             .red-bar { background-color: #cc0000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .header-table td, .content-row, .icon-col, .right-icon-col { border-color: #cc0000 !important; }
             .blue-icon { color: #0056b3 !important; border-color: #0056b3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -553,10 +556,48 @@
             aktualisiereZaehler();
         }
 
+        // Die Abschnitte sollen proportional zu ihrem Inhalt wachsen. Die
+        // Inhaltshöhe lässt sich mit CSS nicht ermitteln, deshalb wird die
+        // Betriebsanweisung einmal unsichtbar in Druckbreite nachgebaut und jeder
+        // Abschnitt gemessen. Auf Bildschirmbreite zu messen wäre falsch: dort
+        // bricht der Text anders um als auf A4, und die Verhältnisse verschieben
+        // sich. Der gemessene Wert wird als flex-grow gesetzt (siehe @media print).
+        function verteileAbschnitte() {
+            const container = document.querySelector('.ba-container');
+            if (!container) return;
+
+            const mm = 96 / 25.4;                       // CSS-Pixel pro Millimeter
+            const druckbreite = 210 * mm - 2 * 5 * mm - 2 * 5;   // A4 minus 5 mm Rand minus Rahmen
+
+            const halter = document.createElement('div');
+            halter.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;' +
+                                   'width:' + druckbreite + 'px;';
+
+            const probe = container.cloneNode(true);
+            // Doppelte IDs im Dokument vermeiden, solange die Kopie im DOM hängt.
+            probe.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            halter.appendChild(probe);
+            document.body.appendChild(halter);
+
+            const original = container.querySelectorAll('.content-row');
+            const kopie = probe.querySelectorAll('.content-row');
+            for (let i = 0; i < original.length && i < kopie.length; i++) {
+                const hoehe = kopie[i].getBoundingClientRect().height;
+                if (hoehe > 0) {
+                    original[i].style.flexGrow = String(Math.round(hoehe));
+                }
+            }
+            document.body.removeChild(halter);
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // Startzustand der Auswahl in Zähler und Kästchen übernehmen.
             syncCheckboxen();
+            verteileAbschnitte();
         });
+        // Unmittelbar vor dem Druck neu messen, falls das Fenster zwischendurch
+        // anders groß war.
+        window.addEventListener('beforeprint', verteileAbschnitte);
 
         // Textfelder und Auswahl erst beim Absenden in das Formular hängen.
         document.getElementById('ba-form').addEventListener('submit', function () {
