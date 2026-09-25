@@ -208,7 +208,7 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
         self.assertIsNone(stoff.ba_gebotszeichen)
 
     PNG = ('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
-           'AAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==')
+           'AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
 
     def _unterschrift(self, daten):
         self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
@@ -258,13 +258,103 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
         self.assertTrue(eintraege)
         for e in eintraege:
             self.assertNotIn('Mustermann', e.details or '')
-        self.assertIn('Unterschrift gesetzt', eintraege[-1].details)
+        # Der Eintrag zum Speichern nennt die Tatsache, nicht den Inhalt. (Der
+        # letzte Eintrag ist inzwischen die Ablage als PDF, deshalb nicht [-1].)
+        self.assertTrue(any('Unterschrift gesetzt' in (e.details or '') for e in eintraege))
 
     def test_zuruecksetzen_leert_auch_die_unterschrift(self):
         self._unterschrift({'typ': 'name', 'wert': 'M. Mustermann'})
         self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
                          data={'action': 'reset'}, follow_redirects=True)
         self.assertIsNone(self._stoff().ba_unterschrift)
+
+    # ── Ablage als Betriebsanweisung ────────────────────────────────────────
+
+    def _upload_ordner(self):
+        return app.config['UPLOAD_FOLDER']
+
+    def _dateien(self):
+        ordner = self._upload_ordner()
+        return set(os.listdir(ordner)) if os.path.isdir(ordner) else set()
+
+    def test_entwurf_wird_als_betriebsanweisung_abgelegt(self):
+        self.assertIsNone(self._stoff().betriebsanweisung)
+        self._speichern(ba_nummer='2026-014', ba_gebotszeichen='M004,M009')
+        stoff = self._stoff()
+        self.assertTrue(stoff.betriebsanweisung, 'keine Betriebsanweisung abgelegt')
+        self.assertTrue(stoff.betriebsanweisung.lower().endswith('.pdf'))
+        pfad = os.path.join(self._upload_ordner(), stoff.betriebsanweisung)
+        self.assertTrue(os.path.exists(pfad))
+        with open(pfad, 'rb') as f:
+            self.assertEqual(f.read(5), b'%PDF-')
+
+    def test_vorhandene_betriebsanweisung_wird_nicht_ersetzt(self):
+        """Ein hochgeladenes, unterschriebenes PDF darf nicht ueberschrieben werden."""
+        with app.app_context():
+            stoff = db.session.get(Gefahrstoff, self.stoff_id)
+            stoff.betriebsanweisung = 'hochgeladen_BA.pdf'
+            db.session.commit()
+        vorher = self._dateien()
+
+        self._speichern(ba_nummer='2026-014')
+
+        self.assertEqual(self._stoff().betriebsanweisung, 'hochgeladen_BA.pdf')
+        self.assertEqual(self._dateien(), vorher, 'es wurde trotzdem eine Datei angelegt')
+
+    def test_abgelegte_ba_ist_downloadbar(self):
+        self._speichern(ba_nummer='2026-014')
+        name = self._stoff().betriebsanweisung
+        antwort = self.client.get(f'/uploads/{name}')
+        self.assertEqual(antwort.status_code, 200)
+        self.assertEqual(antwort.data[:5], b'%PDF-')
+
+    def test_abgelegte_ba_steht_in_der_dokumentenliste(self):
+        self._speichern(ba_nummer='2026-014')
+        html = self.client.get('/betriebsanweisungen').get_data(as_text=True)
+        self.assertIn('Aceton', html)
+
+    def test_pdf_enthaelt_die_gespeicherten_inhalte(self):
+        import pdfplumber
+        self._speichern(ba_nummer='2026-014',
+                        ba_entsorgung='<p>Sonderfall: siehe Anhang.</p>',
+                        ba_gebotszeichen='M004,M009')
+        pfad = os.path.join(self._upload_ordner(), self._stoff().betriebsanweisung)
+        with pdfplumber.open(pfad) as pdf:
+            text = ' '.join((pdf.pages[0].extract_text() or '').split())
+        self.assertIn('2026-014', text)
+        self.assertIn('Sonderfall: siehe Anhang.', text)
+        self.assertIn('Aceton', text)
+        self.assertIn('SACHGERECHTE ENTSORGUNG', text)
+
+    def test_zuruecksetzen_legt_keine_datei_an(self):
+        vorher = self._dateien()
+        self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
+                         data={'action': 'reset'}, follow_redirects=True)
+        self.assertEqual(self._dateien(), vorher)
+        self.assertIsNone(self._stoff().betriebsanweisung)
+
+    def test_hinweis_nach_der_ablage_ist_sichtbar(self):
+        """Regression: ba_print.html erbt nicht von base.html.
+
+        Ohne eigenen Meldungsblock blieb unsichtbar, dass die Betriebsanweisung
+        abgelegt wurde.
+        """
+        antwort = self.client.post(
+            f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
+            data={'action': 'save', 'ba_nummer': '2026-014'}, follow_redirects=True)
+        self.assertIn('abgelegt', antwort.get_data(as_text=True))
+
+    def test_hinweis_wenn_vorhandene_nicht_ersetzt_wurde(self):
+        with app.app_context():
+            stoff = db.session.get(Gefahrstoff, self.stoff_id)
+            stoff.betriebsanweisung = 'hochgeladen_BA.pdf'
+            db.session.commit()
+        antwort = self.client.post(
+            f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
+            data={'action': 'save', 'ba_nummer': '2026-014'}, follow_redirects=True)
+        html = antwort.get_data(as_text=True)
+        self.assertIn('nicht ersetzt', html)
+        self.assertIn('hochgeladen_BA.pdf', html)
 
     def test_audit_log_wird_geschrieben(self):
         self._speichern(ba_h_saetze='<ul><li>x</li></ul>')
@@ -277,8 +367,10 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
 class TestUnterschriftPruefung(unittest.TestCase):
     """Die Unterschrift landet als <img src> bzw. als Text im Ausdruck."""
 
+    # Echtes 1x1-PNG (mit PIL geprueft). Ein erfundenes Base64 wuerde an der
+    # Bildpruefung scheitern - das war zuerst der Fall.
     PNG = ('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
-           'AAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==')
+           'AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
 
     def test_zeichnung_wird_angenommen(self):
         gespeichert = sanitize_ba_unterschrift(json.dumps({'typ': 'bild', 'wert': self.PNG}))

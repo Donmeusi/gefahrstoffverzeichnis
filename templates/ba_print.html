@@ -321,6 +321,25 @@
 </head>
 <body>
 
+    {# Diese Seite erbt nicht von base.html, hatte also bisher keine Ausgabe für
+       Hinweismeldungen. Nach dem Speichern landet man hier - ohne diesen Block
+       bliebe unsichtbar, ob die Betriebsanweisung abgelegt oder eine vorhandene
+       nicht ersetzt wurde. #}
+    {% with meldungen = get_flashed_messages(with_categories=true) %}
+        {% if meldungen %}
+        <div class="print-btn-container no-print" style="margin-bottom: 0;">
+            {% for kategorie, text in meldungen %}
+                <div style="margin-bottom: 8px; padding: 10px 14px; border-radius: 5px; font-family: Arial, sans-serif; font-size: 10pt;
+                            {% if kategorie == 'error' %}background: #fdecea; color: #8a1c12; border: 1px solid #cc0000;
+                            {% elif kategorie == 'info' %}background: #eaf2fb; color: #1a4a7a; border: 1px solid #00539B;
+                            {% else %}background: #eafaef; color: #1a6b34; border: 1px solid #237F52;{% endif %}">
+                    {{ text }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
     <div class="print-btn-container no-print">
         <div style="margin-bottom: 15px; color: #0056b3; font-weight: bold; font-family: Arial, sans-serif;">
             <i class="fa-solid fa-lightbulb"></i> Tipp: Klicke auf einen Text, um ihn anzupassen, und auf das Unterschriftfeld, um zu zeichnen oder einen Namen einzutragen. Nummer, Texte, Gebotszeichen und Unterschrift werden mit <strong>Speichern</strong> am Gefahrstoff hinterlegt; Stoffname, CAS und Arbeitsbereich kommen weiterhin live aus der Datenbank.
@@ -367,7 +386,7 @@
             <tr>
                 <td colspan="3">
                     <strong>Tätigkeit:</strong>
-                    <span contenteditable="true" data-ba-field="ba_taetigkeit">{% if ba_texte.get('ba_taetigkeit') %}{{ ba_texte['ba_taetigkeit']|safe }}{% else %}Umgang mit Gefahrstoffen{% endif %}</span>
+                    <span contenteditable="true" data-ba-field="ba_taetigkeit">{% if ba_texte.get('ba_taetigkeit') %}{{ ba_texte['ba_taetigkeit']|safe }}{% else %}{{ ba_standard['ba_taetigkeit']|safe }}{% endif %}</span>
                 </td>
             </tr>
         </table>
@@ -467,10 +486,7 @@
                     {% if ba_texte.get('ba_verhalten_verschuetten') %}
                         {{ ba_texte['ba_verhalten_verschuetten']|safe }}
                     {% else %}
-                        <ul>
-                            <li>Gefahrenbereich räumen und absperren.</li>
-                            <li>Verschüttete Mengen mit geeignetem Bindemittel aufnehmen.</li>
-                        </ul>
+                        {{ ba_standard['ba_verhalten_verschuetten']|safe }}
                     {% endif %}
                 </div>
                 <div class="sub-header">Brand:</div>
@@ -478,10 +494,7 @@
                     {% if ba_texte.get('ba_verhalten_brand') %}
                         {{ ba_texte['ba_verhalten_brand']|safe }}
                     {% else %}
-                        <ul>
-                            <li>Brände in der Umgebung mit geeignetem Löschmittel (siehe Brandschutzordnung) bekämpfen.</li>
-                            <li>Gefäß wenn möglich aus der Gefahrenzone entfernen oder mit Wasser kühlen.</li>
-                        </ul>
+                        {{ ba_standard['ba_verhalten_brand']|safe }}
                     {% endif %}
                 </div>
             </div>
@@ -502,9 +515,7 @@
                     {% if ba_texte.get('ba_erste_hilfe_massnahme') %}
                         {{ ba_texte['ba_erste_hilfe_massnahme']|safe }}
                     {% else %}
-                        <ul>
-                            <li>Auf Selbstschutz achten, ärztliche Behandlung. Lebensrettende Sofortmaßnahmen, wie 'Stabile Seitenlage', 'Herz-Lungen-Wiederbelebung', 'Schockbekämpfung' müssen situationsabhängig durchgeführt werden. Wunden keimfrei bedecken. Für Körperruhe sorgen, vor Wärmeverlust schützen. Ersthelfer hinzuziehen.</li>
-                        </ul>
+                        {{ ba_standard['ba_erste_hilfe_massnahme']|safe }}
                     {% endif %}
                 </div>
                 <div class="sub-header">Einatmen / Hautkontakt / Augenkontakt / Verschlucken:</div>
@@ -512,12 +523,7 @@
                     {% if ba_texte.get('ba_erste_hilfe_kontakt') %}
                         {{ ba_texte['ba_erste_hilfe_kontakt']|safe }}
                     {% else %}
-                        <ul>
-                            <li>Nach Einatmen: Frischluftzufuhr, bei Beschwerden Arzt aufsuchen.</li>
-                            <li>Nach Hautkontakt: Sofort mit viel Wasser und Seife abwaschen.</li>
-                            <li>Nach Augenkontakt: Augen mehrere Minuten bei geöffnetem Lidspalt unter fließendem Wasser spülen.</li>
-                            <li>Nach Verschlucken: Mund ausspülen und reichlich Wasser nachtrinken. Kein Erbrechen herbeiführen.</li>
-                        </ul>
+                        {{ ba_standard['ba_erste_hilfe_kontakt']|safe }}
                     {% endif %}
                 </div>
             </div>
@@ -530,7 +536,7 @@
                 {% if ba_texte.get('ba_entsorgung') %}
                     {{ ba_texte['ba_entsorgung']|safe }}
                 {% else %}
-                    Nicht in Ausguss oder Mülltonne schütten. Größere Mengen in geeigneter Flasche sammeln und nach Absprache mit dem Entsorgungsbeauftragten im Sonderabfall-Lager lagern.
+                    {{ ba_standard['ba_entsorgung']|safe }}
                 {% endif %}
             </div>
         </div>
