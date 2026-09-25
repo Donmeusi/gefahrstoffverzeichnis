@@ -178,6 +178,52 @@
             margin-left: 8px;
         }
 
+        /* Unterschrift im Kopfbereich. Am Bildschirm eine Vorschau zum Anklicken,
+           im Druck die Unterschrift selbst. Ist keine gesetzt, bleibt im Druck ein
+           leeres umrandetes Feld stehen, das von Hand unterschrieben werden kann. */
+        .unterschrift-feld {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 10mm;
+            margin-top: 2px;
+            border: 1px solid #cc0000;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .unterschrift-feld img {
+            max-height: 9mm;
+            max-width: 100%;
+        }
+        #unterschrift-name {
+            font-size: 9pt;
+            font-style: italic;
+        }
+        .unterschrift-leer {
+            color: #999;
+            font-size: 7.5pt;
+        }
+        .unterschrift-btn {
+            font-size: 8.5pt;
+            margin-top: 3px;
+            padding: 2px 6px;
+            background: #00539B;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #unterschrift-canvas {
+            border: 1px dashed #00539B;
+            border-radius: 4px;
+            background: #fff;
+            width: 100%;
+            height: 170px;
+            touch-action: none;   /* ohne das scrollt ein Tablet beim Zeichnen */
+            cursor: crosshair;
+        }
+
         @media print {
             /* Der äußere Abstand zur Papierkante kommt von hier, nicht von @page
                (siehe Kommentar oben). box-sizing: border-box ist nötig, damit
@@ -203,6 +249,9 @@
                 background: #fff !important;
             }
             .no-print { display: none !important; }
+            /* Ohne Unterschrift bleibt das Feld leer - dann ist es die Zeile zum
+               handschriftlichen Unterschreiben, der Hinweistext stört dort nur. */
+            .unterschrift-leer { display: none !important; }
             .ba-container {
                 border: 5px solid #cc0000 !important;
                 padding: 0 !important;
@@ -255,7 +304,7 @@
 
     <div class="print-btn-container no-print">
         <div style="margin-bottom: 15px; color: #0056b3; font-weight: bold; font-family: Arial, sans-serif;">
-            <i class="fa-solid fa-lightbulb"></i> Tipp: Klicke auf einen Text, um ihn anzupassen. Maßnahmen, H-Sätze, Verhalten, Erste Hilfe und Entsorgung werden mit <strong>Speichern</strong> am Gefahrstoff hinterlegt; Stoffname, CAS und Arbeitsbereich kommen weiterhin live aus der Datenbank.
+            <i class="fa-solid fa-lightbulb"></i> Tipp: Klicke auf einen Text, um ihn anzupassen, und auf das Unterschriftfeld, um zu zeichnen oder einen Namen einzutragen. Nummer, Texte, Gebotszeichen und Unterschrift werden mit <strong>Speichern</strong> am Gefahrstoff hinterlegt; Stoffname, CAS und Arbeitsbereich kommen weiterhin live aus der Datenbank.
         </div>
         <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> Betriebsanweisung drucken / als PDF speichern</button>
         {% if current_user.can_write %}
@@ -280,9 +329,20 @@
                     <p>gemäß §14 GefStoffV</p>
                 </td>
                 <td style="width: 25%;">
-                    <strong>Nummer:</strong><br><br>
-                    <strong>(Prüfung jährlich)</strong><br><br>
+                    <strong>Nummer:</strong>
+                    <span contenteditable="true" data-ba-field="ba_nummer">{% if ba_texte.get('ba_nummer') %}{{ ba_texte['ba_nummer']|safe }}{% endif %}</span><br>
+                    <strong>(Prüfung jährlich)</strong><br>
                     <strong>Unterschrift:</strong>
+                    <div class="unterschrift-feld" id="unterschrift-feld" onclick="openUnterschriftModal(event)"
+                         title="Klicken, um zu zeichnen oder einen Namen einzutragen">
+                        <img id="unterschrift-bild" alt="Unterschrift"
+                             {% if unterschrift.get('typ') == 'bild' %}src="{{ unterschrift['wert'] }}"{% else %}style="display: none;"{% endif %}>
+                        <span id="unterschrift-name"{% if unterschrift.get('typ') != 'name' %} style="display: none;"{% endif %}>{% if unterschrift.get('typ') == 'name' %}gez. {{ unterschrift['wert'] }}{% endif %}</span>
+                        <span id="unterschrift-leer" class="unterschrift-leer"{% if unterschrift %} style="display: none;"{% endif %}>zeichnen oder Namen</span>
+                    </div>
+                    <button type="button" class="no-print unterschrift-btn" onclick="openUnterschriftModal(event)">
+                        <i class="fa-solid fa-signature"></i> Unterschrift
+                    </button>
                 </td>
             </tr>
             <tr>
@@ -493,9 +553,41 @@
         </div>
     </div>
 
+    <!-- Unterschrift: zeichnen oder Namen eintragen. Beides in einem Fenster,
+         damit die schmale Kopfzelle nur die Vorschau tragen muss. -->
+    <div id="unterschrift-modal" class="no-print" role="dialog" aria-modal="true" aria-labelledby="unterschrift-modal-titel"
+         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #fff; border-radius: 8px; padding: 20px; max-width: 600px; width: 92%; box-shadow: 0 5px 20px rgba(0,0,0,0.3); font-family: Arial, sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00539B; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 id="unterschrift-modal-titel" style="margin: 0; color: #00539B; font-size: 13pt;"><i class="fa-solid fa-signature"></i> Unterschrift</h3>
+                <button type="button" onclick="closeUnterschriftModal()" aria-label="Schließen" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+
+            <p style="font-size: 9pt; color: #555; margin: 0 0 6px 0;">Mit Maus oder Finger unterschreiben:</p>
+            <canvas id="unterschrift-canvas" width="1040" height="340"></canvas>
+            <div style="margin: 8px 0 16px 0;">
+                <button type="button" onclick="unterschriftLoeschen()" style="background: #6c757d; color: #fff; padding: 6px 14px; border: none; border-radius: 5px; cursor: pointer;">Zeichnung löschen</button>
+                <button type="button" onclick="unterschriftAusZeichnung()" style="background: #00539B; color: #fff; padding: 6px 14px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 6px;">Diese Zeichnung übernehmen</button>
+            </div>
+
+            <p style="font-size: 9pt; color: #555; margin: 0 0 6px 0;">… oder einen Namen eintragen:</p>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="unterschrift-name-input" maxlength="80" placeholder="z. B. M. Mustermann"
+                       style="flex: 1; padding: 7px 9px; border: 1px solid #ccc; border-radius: 5px; font-size: 10pt;">
+                <button type="button" onclick="unterschriftAusName()" style="background: #00539B; color: #fff; padding: 8px 14px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Namen übernehmen</button>
+            </div>
+
+            <div style="text-align: right; margin-top: 16px; border-top: 1px solid #eee; padding-top: 10px;">
+                <button type="button" onclick="unterschriftEntfernen()" style="background: none; border: none; color: #b00; cursor: pointer; text-decoration: underline;">Unterschrift entfernen</button>
+                <button type="button" onclick="closeUnterschriftModal()" style="background: #00539B; color: #fff; padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 12px;">Fertig</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const SYMBOLS_BASE = "{{ url_for('static', filename='symbols/') }}";
         const BA_MAX_GEBOTSZEICHEN = {{ ba_max_gebotszeichen }};
+        const BA_UNTERSCHRIFT_INITIAL = {{ unterschrift|tojson }};
         const gebotszeichenModal = document.getElementById('gebotszeichen-modal');
 
         function gewaehlteCodes() {
@@ -590,10 +682,161 @@
             document.body.removeChild(halter);
         }
 
+        // ── Unterschrift ────────────────────────────────────────────────────
+        // Zwei Formen: eine Zeichnung (wird als PNG gespeichert) oder ein Name.
+        // Der aktuelle Stand steht in baUnterschrift und wird beim Absenden als
+        // verstecktes Feld mitgeschickt - wie die Textfelder.
+        const unterschriftModal = document.getElementById('unterschrift-modal');
+        const unterschriftCanvas = document.getElementById('unterschrift-canvas');
+        const unterschriftNameFeld = document.getElementById('unterschrift-name-input');
+        let baUnterschrift = null;
+        let zeichnungVorhanden = false;
+        let zeichnetGerade = false;
+
+        function unterschriftAnzeigen() {
+            const bild = document.getElementById('unterschrift-bild');
+            const name = document.getElementById('unterschrift-name');
+            const leer = document.getElementById('unterschrift-leer');
+            bild.style.display = 'none';
+            name.style.display = 'none';
+            leer.style.display = 'none';
+            if (baUnterschrift && baUnterschrift.typ === 'bild') {
+                bild.src = baUnterschrift.wert;
+                bild.style.display = '';
+            } else if (baUnterschrift && baUnterschrift.typ === 'name') {
+                name.textContent = 'gez. ' + baUnterschrift.wert;
+                name.style.display = '';
+            } else {
+                leer.style.display = '';
+            }
+        }
+
+        function unterschriftUebernehmen(daten) {
+            baUnterschrift = daten;
+            unterschriftAnzeigen();
+        }
+
+        function zeichnungLoeschen() {
+            const ctx = unterschriftCanvas.getContext('2d');
+            ctx.clearRect(0, 0, unterschriftCanvas.width, unterschriftCanvas.height);
+            zeichnungVorhanden = false;
+        }
+
+        function zeichnungInCanvas(daten) {
+            zeichnungLoeschen();
+            if (!daten || daten.typ !== 'bild') return;
+            const bild = new Image();
+            bild.onload = function () {
+                const ctx = unterschriftCanvas.getContext('2d');
+                ctx.drawImage(bild, 0, 0, unterschriftCanvas.width, unterschriftCanvas.height);
+                zeichnungVorhanden = true;
+            };
+            bild.src = daten.wert;
+        }
+
+        // Die Canvas-Punkte liegen auf einer hoeheren Aufloesung als die Anzeige
+        // (scharfe Linien), deshalb muessen die Mauskoordinaten skaliert werden.
+        function canvasSkalierung() {
+            const rect = unterschriftCanvas.getBoundingClientRect();
+            return {
+                x: unterschriftCanvas.width / (rect.width || 1),
+                y: unterschriftCanvas.height / (rect.height || 1)
+            };
+        }
+
+        function zeichenStart(e) {
+            e.preventDefault();
+            unterschriftCanvas.setPointerCapture(e.pointerId);
+            zeichnetGerade = true;
+            const ctx = unterschriftCanvas.getContext('2d');
+            const s = canvasSkalierung();
+            const rect = unterschriftCanvas.getBoundingClientRect();
+            ctx.lineWidth = 2.5 * s.x;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#111111';
+            ctx.beginPath();
+            ctx.moveTo((e.clientX - rect.left) * s.x, (e.clientY - rect.top) * s.y);
+        }
+
+        function zeichenBewegen(e) {
+            if (!zeichnetGerade) return;
+            e.preventDefault();
+            const ctx = unterschriftCanvas.getContext('2d');
+            const s = canvasSkalierung();
+            const rect = unterschriftCanvas.getBoundingClientRect();
+            ctx.lineTo((e.clientX - rect.left) * s.x, (e.clientY - rect.top) * s.y);
+            ctx.stroke();
+            zeichnungVorhanden = true;
+        }
+
+        function zeichenEnde(e) {
+            if (!zeichnetGerade) return;
+            zeichnetGerade = false;
+            try { unterschriftCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+        }
+
+        unterschriftCanvas.addEventListener('pointerdown', zeichenStart);
+        unterschriftCanvas.addEventListener('pointermove', zeichenBewegen);
+        unterschriftCanvas.addEventListener('pointerup', zeichenEnde);
+        unterschriftCanvas.addEventListener('pointercancel', zeichenEnde);
+
+        function unterschriftLoeschen() {
+            zeichnungLoeschen();
+        }
+
+        function unterschriftAusZeichnung() {
+            if (!zeichnungVorhanden) {
+                alert('Bitte zuerst unterschreiben.');
+                return;
+            }
+            unterschriftUebernehmen({ typ: 'bild', wert: unterschriftCanvas.toDataURL('image/png') });
+            closeUnterschriftModal();
+        }
+
+        function unterschriftAusName() {
+            const wert = unterschriftNameFeld.value.trim().replace(/\s+/g, ' ');
+            if (!wert) {
+                alert('Bitte einen Namen eintragen.');
+                return;
+            }
+            unterschriftUebernehmen({ typ: 'name', wert: wert });
+            closeUnterschriftModal();
+        }
+
+        function unterschriftEntfernen() {
+            unterschriftUebernehmen(null);
+            zeichnungLoeschen();
+            unterschriftNameFeld.value = '';
+            closeUnterschriftModal();
+        }
+
+        function openUnterschriftModal(e) {
+            if (e) e.stopPropagation();
+            if (baUnterschrift && baUnterschrift.typ === 'name') {
+                unterschriftNameFeld.value = baUnterschrift.wert;
+            }
+            zeichnungInCanvas(baUnterschrift);
+            unterschriftModal.style.display = 'flex';
+        }
+
+        function closeUnterschriftModal() {
+            unterschriftModal.style.display = 'none';
+        }
+
+        window.addEventListener('click', function (e) {
+            if (e.target === unterschriftModal) {
+                closeUnterschriftModal();
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', function () {
             // Startzustand der Auswahl in Zähler und Kästchen übernehmen.
             syncCheckboxen();
             verteileAbschnitte();
+            baUnterschrift = BA_UNTERSCHRIFT_INITIAL && BA_UNTERSCHRIFT_INITIAL.typ
+                ? BA_UNTERSCHRIFT_INITIAL : null;
+            unterschriftAnzeigen();
         });
         // Unmittelbar vor dem Druck neu messen, falls das Fenster zwischendurch
         // anders groß war.
@@ -612,6 +855,15 @@
                 form.appendChild(input);
             });
             document.getElementById('ba-gebotszeichen-input').value = gewaehlteCodes().join(',');
+
+            // Unterschrift mitschicken. Ist keine gesetzt, wird ein leeres Feld
+            // gesendet - das entfernt eine früher gespeicherte Unterschrift.
+            const uInput = document.createElement('input');
+            uInput.type = 'hidden';
+            uInput.name = 'ba_unterschrift';
+            uInput.value = baUnterschrift ? JSON.stringify(baUnterschrift) : '';
+            uInput.setAttribute('data-ba-generated', '1');
+            form.appendChild(uInput);
         });
 
         // Schließen bei Klick außerhalb und mit Escape.
@@ -621,8 +873,12 @@
             }
         });
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && gebotszeichenModal.style.display === 'flex') {
+            if (e.key !== 'Escape') return;
+            if (gebotszeichenModal.style.display === 'flex') {
                 closeGebotszeichenModal();
+            }
+            if (unterschriftModal.style.display === 'flex') {
+                closeUnterschriftModal();
             }
         });
     </script>

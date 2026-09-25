@@ -37,7 +37,8 @@ def run_migrations():
             'last_inventur_user_id': 'INTEGER',
             'gefaehrdungsbeurteilung': 'VARCHAR(200)',
             'ba_texte': 'TEXT',
-            'ba_gebotszeichen': 'VARCHAR(100)'
+            'ba_gebotszeichen': 'VARCHAR(100)',
+            'ba_unterschrift': 'TEXT'
         }
         for col, col_type in columns_to_add.items():
             if col not in existing:

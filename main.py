@@ -254,10 +254,12 @@ class Gefahrstoff(db.Model):
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
     gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
-    # Individuell angepasste Betriebsanweisung: Texte als JSON ({feldname: html})
-    # und die gewählten ISO-7010-Gebotszeichen als kommaseparierte Codes ("M004,M009").
+    # Individuell angepasste Betriebsanweisung: Texte als JSON ({feldname: html}),
+    # die gewählten ISO-7010-Gebotszeichen als kommaseparierte Codes ("M004,M009")
+    # und die Unterschrift als JSON ({"typ": "bild"|"name", "wert": ...}).
     ba_texte            = db.Column(db.Text, nullable=True)
     ba_gebotszeichen    = db.Column(db.String(100), nullable=True)
+    ba_unterschrift     = db.Column(db.Text, nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
     is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
@@ -326,6 +328,7 @@ BA_MAX_FIELD_LEN = 20000
 # Die Zwischenüberschriften ("Verschütten:", "Brand:" ...) bleiben Teil des
 # Templates, damit nur echte Inhalte überschrieben werden.
 BA_TEXT_FIELDS = (
+    'ba_nummer',
     'ba_taetigkeit',
     'ba_h_saetze',
     'ba_schutzmassnahmen',
@@ -335,6 +338,13 @@ BA_TEXT_FIELDS = (
     'ba_erste_hilfe_kontakt',
     'ba_entsorgung',
 )
+
+# Unterschrift: entweder ein gezeichnetes PNG als Data-URL oder ein eingetippter
+# Name. Beides landet im Ausdruck (als <img src> bzw. als Text), deshalb wird hier
+# streng geprüft statt nur bereinigt.
+BA_SIGNATUR_BILD_PRAEFIX = 'data:image/png;base64,'
+BA_SIGNATUR_MAX_BILD = 300000      # Zeichen; ein Unterschrift-PNG liegt bei wenigen KB
+BA_SIGNATUR_MAX_NAME = 80
 
 # Auswählbare ISO-7010-Gebotszeichen als (Code, Bezeichnung). Die Codes müssen
 # als static/symbols/<CODE>.svg vorhanden sein. Diese Liste ist die einzige
@@ -431,6 +441,57 @@ def load_ba_gebotszeichen(stoff):
     """Liefert die gespeicherten Gebotszeichen-Codes in Reihenfolge der Auswahlliste."""
     gespeichert = [c.strip() for c in (stoff.ba_gebotszeichen or '').split(',')]
     return [c for c in BA_GEBOTSZEICHEN_CODES if c in gespeichert][:BA_MAX_GEBOTSZEICHEN]
+
+
+def sanitize_ba_unterschrift(raw):
+    """Prüft die Unterschrift und liefert JSON zum Speichern - oder None.
+
+    Erlaubt sind genau zwei Formen: ein PNG als Data-URL ("gezeichnet") oder ein
+    reiner Name. Alles andere wird verworfen. Der Wert landet im Ausdruck als
+    <img src> beziehungsweise als Text, hier darf also nichts Beliebiges durch.
+    """
+    if not raw:
+        return None
+    try:
+        daten = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(daten, dict):
+        return None
+
+    typ = daten.get('typ')
+    wert = daten.get('wert')
+    if not isinstance(wert, str):
+        return None
+
+    if typ == 'bild':
+        if not wert.startswith(BA_SIGNATUR_BILD_PRAEFIX):
+            return None
+        nutzlast = wert[len(BA_SIGNATUR_BILD_PRAEFIX):]
+        if not nutzlast or len(nutzlast) > BA_SIGNATUR_MAX_BILD:
+            return None
+        if not re.fullmatch(r'[A-Za-z0-9+/=\s]+', nutzlast):
+            return None
+        return json.dumps({'typ': 'bild', 'wert': wert}, ensure_ascii=False)
+
+    if typ == 'name':
+        name = ' '.join(wert.split())[:BA_SIGNATUR_MAX_NAME]
+        if not name:
+            return None
+        return json.dumps({'typ': 'name', 'wert': name}, ensure_ascii=False)
+
+    return None
+
+
+def load_ba_unterschrift(stoff):
+    """Liefert {'typ': ..., 'wert': ...} der gespeicherten Unterschrift oder {}."""
+    geprueft = sanitize_ba_unterschrift(stoff.ba_unterschrift)
+    if not geprueft:
+        return {}
+    try:
+        return json.loads(geprueft)
+    except (ValueError, TypeError):
+        return {}
 
 
 def get_accessible_bereiche():
@@ -958,6 +1019,7 @@ def betriebsanweisung_print(id):
                            gebotszeichen=load_ba_gebotszeichen(stoff),
                            gebotszeichen_auswahl=BA_GEBOTSZEICHEN,
                            ba_max_gebotszeichen=BA_MAX_GEBOTSZEICHEN,
+                           unterschrift=load_ba_unterschrift(stoff),
                            today=datetime.utcnow().date())
 
 
@@ -978,6 +1040,7 @@ def betriebsanweisung_speichern(id):
         if request.form.get('action') == 'reset':
             stoff.ba_texte = None
             stoff.ba_gebotszeichen = None
+            stoff.ba_unterschrift = None
             db.session.commit()
             log_audit_event('UPDATE', 'Gefahrstoff', id,
                             'Betriebsanweisung auf Standardwerte zurückgesetzt.')
@@ -1017,11 +1080,21 @@ def betriebsanweisung_speichern(id):
             stoff.ba_texte = json.dumps(texte, ensure_ascii=False) if texte else None
         if 'ba_gebotszeichen' in request.form:
             stoff.ba_gebotszeichen = ','.join(codes) if codes else None
+        if 'ba_unterschrift' in request.form:
+            stoff.ba_unterschrift = sanitize_ba_unterschrift(
+                request.form.get('ba_unterschrift', ''))
 
         db.session.commit()
+        # Der Inhalt der Unterschrift (Name oder Bild) gehört nicht ins Audit-Log,
+        # nur die Tatsache, dass eine gesetzt oder entfernt wurde.
+        unterschrift_hinweis = ''
+        if 'ba_unterschrift' in request.form:
+            unterschrift_hinweis = (', Unterschrift gesetzt' if stoff.ba_unterschrift
+                                    else ', Unterschrift entfernt')
         log_audit_event('UPDATE', 'Gefahrstoff', id,
                         f'Betriebsanweisung gespeichert '
-                        f'({len(texte)} Textfelder, {len(codes)} Gebotszeichen).')
+                        f'({len(texte)} Textfelder, {len(codes)} Gebotszeichen'
+                        f'{unterschrift_hinweis}).')
         flash('Betriebsanweisung gespeichert.', 'success')
     except Exception as e:
         db.session.rollback()

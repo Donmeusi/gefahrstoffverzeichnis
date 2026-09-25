@@ -21,8 +21,9 @@ os.environ.setdefault('FLASK_SECRET_KEY', 'test-key')
 
 from main import (  # noqa: E402
     app, db, User, Bereich, Unterbereich, Gefahrstoff, AuditLog,
-    sanitize_ba_html, BA_TEXT_FIELDS, BA_GEBOTSZEICHEN, BA_GEBOTSZEICHEN_CODES,
-    BA_MAX_GEBOTSZEICHEN,
+    sanitize_ba_html, sanitize_ba_unterschrift, BA_TEXT_FIELDS, BA_GEBOTSZEICHEN,
+    BA_GEBOTSZEICHEN_CODES, BA_MAX_GEBOTSZEICHEN,
+    BA_SIGNATUR_BILD_PRAEFIX, BA_SIGNATUR_MAX_BILD,
 )
 
 
@@ -195,12 +196,108 @@ class TestBetriebsanweisungSpeichern(unittest.TestCase):
         self.assertIsNone(stoff.ba_texte)
         self.assertIsNone(stoff.ba_gebotszeichen)
 
+    PNG = ('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+           'AAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==')
+
+    def _unterschrift(self, daten):
+        self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
+                         data={'action': 'save', 'ba_unterschrift': json.dumps(daten)},
+                         follow_redirects=True)
+
+    def test_nummer_wird_gespeichert_und_angezeigt(self):
+        self._speichern(ba_nummer='2026-014')
+        self.assertIn('2026-014', json.loads(self._stoff().ba_texte)['ba_nummer'])
+        html = self.client.get(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung').get_data(as_text=True)
+        self.assertIn('2026-014', html)
+
+    def test_gezeichnete_unterschrift_round_trip(self):
+        self._unterschrift({'typ': 'bild', 'wert': self.PNG})
+        stoff = self._stoff()
+        self.assertEqual(json.loads(stoff.ba_unterschrift)['typ'], 'bild')
+        html = self.client.get(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung').get_data(as_text=True)
+        self.assertIn('data:image/png;base64,', html)
+        self.assertIn(self.PNG, html)
+
+    def test_eingetippter_name_round_trip(self):
+        self._unterschrift({'typ': 'name', 'wert': 'M. Mustermann'})
+        html = self.client.get(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung').get_data(as_text=True)
+        self.assertIn('gez. M. Mustermann', html)
+
+    def test_name_mit_markup_wird_escaped_ausgegeben(self):
+        """Der Name wird als Text gespeichert und darf nicht als HTML wirken."""
+        self._unterschrift({'typ': 'name', 'wert': '<script>alert(1)</script>'})
+        html = self.client.get(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung').get_data(as_text=True)
+        self.assertNotIn('<script>alert(1)</script>', html)
+        self.assertIn('&lt;script&gt;', html)
+
+    def test_ungueltige_unterschrift_wird_nicht_gespeichert(self):
+        self._unterschrift({'typ': 'bild', 'wert': 'javascript:alert(1)'})
+        self.assertIsNone(self._stoff().ba_unterschrift)
+
+    def test_unterschrift_entfernen(self):
+        self._unterschrift({'typ': 'name', 'wert': 'M. Mustermann'})
+        self._unterschrift({})
+        self.assertIsNone(self._stoff().ba_unterschrift)
+
+    def test_unterschrift_landet_nicht_im_audit_log(self):
+        """Name und Bild sind personenbezogen - im Protokoll steht nur die Tatsache."""
+        self._unterschrift({'typ': 'name', 'wert': 'M. Mustermann'})
+        with app.app_context():
+            eintraege = AuditLog.query.filter_by(entity_type='Gefahrstoff').all()
+        self.assertTrue(eintraege)
+        for e in eintraege:
+            self.assertNotIn('Mustermann', e.details or '')
+        self.assertIn('Unterschrift gesetzt', eintraege[-1].details)
+
+    def test_zuruecksetzen_leert_auch_die_unterschrift(self):
+        self._unterschrift({'typ': 'name', 'wert': 'M. Mustermann'})
+        self.client.post(f'/gefahrstoff/{self.stoff_id}/betriebsanweisung/speichern',
+                         data={'action': 'reset'}, follow_redirects=True)
+        self.assertIsNone(self._stoff().ba_unterschrift)
+
     def test_audit_log_wird_geschrieben(self):
         self._speichern(ba_h_saetze='<ul><li>x</li></ul>')
         with app.app_context():
             eintraege = AuditLog.query.filter_by(entity_type='Gefahrstoff').all()
         self.assertTrue(eintraege)
         self.assertIn('Betriebsanweisung', eintraege[-1].details)
+
+
+class TestUnterschriftPruefung(unittest.TestCase):
+    """Die Unterschrift landet als <img src> bzw. als Text im Ausdruck."""
+
+    PNG = ('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+           'AAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==')
+
+    def test_zeichnung_wird_angenommen(self):
+        gespeichert = sanitize_ba_unterschrift(json.dumps({'typ': 'bild', 'wert': self.PNG}))
+        self.assertIsNotNone(gespeichert)
+        self.assertEqual(json.loads(gespeichert)['typ'], 'bild')
+
+    def test_name_wird_angenommen_und_normalisiert(self):
+        gespeichert = sanitize_ba_unterschrift(json.dumps({'typ': 'name', 'wert': '  M.   Mustermann '}))
+        self.assertEqual(json.loads(gespeichert)['wert'], 'M. Mustermann')
+
+    def test_kein_bild_format_wird_abgelehnt(self):
+        """Ein SVG-Data-URL koennte Skript enthalten - nur PNG ist erlaubt."""
+        svg = 'data:image/svg+xml;base64,PHN2Zz48c2NyaXB0PmFsZXJ0KDEpPC9zY3JpcHQ+PC9zdmc+'
+        self.assertIsNone(sanitize_ba_unterschrift(json.dumps({'typ': 'bild', 'wert': svg})))
+
+    def test_gefaehrliche_werte_werden_abgelehnt(self):
+        for wert in ('http://example.com/x.png', 'javascript:alert(1)', '<img src=x onerror=1>', ''):
+            with self.subTest(wert=wert):
+                self.assertIsNone(
+                    sanitize_ba_unterschrift(json.dumps({'typ': 'bild', 'wert': wert})))
+
+    def test_zu_grosses_bild_wird_abgelehnt(self):
+        zu_gross = BA_SIGNATUR_BILD_PRAEFIX + 'A' * (BA_SIGNATUR_MAX_BILD + 1)
+        self.assertIsNone(sanitize_ba_unterschrift(json.dumps({'typ': 'bild', 'wert': zu_gross})))
+
+    def test_unbekannter_typ_und_kaputtes_json(self):
+        for roh in ('', 'kein json', '[]', 'null', '{}',
+                    json.dumps({'typ': 'pdf', 'wert': 'x'}), json.dumps({'typ': 'name', 'wert': ''})):
+            with self.subTest(roh=roh):
+                self.assertIsNone(sanitize_ba_unterschrift(roh))
 
 
 class TestGebotszeichenBeschriftung(unittest.TestCase):
