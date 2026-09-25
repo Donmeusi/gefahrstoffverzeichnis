@@ -71,7 +71,11 @@ def handle_csrf_error(e):
     flash('Deine Sitzung oder das Sicherheits-Token ist abgelaufen. Bitte melde dich erneut an.', 'error')
     return redirect(url_for('login'))
 
-APP_VERSION = "2.0.1"
+# Wird im Fußbereich angezeigt UND als Cache-Buster für style.css verwendet
+# (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
+# Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
+# aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
+APP_VERSION = "2.0.2"
 
 @app.context_processor
 def inject_globals():

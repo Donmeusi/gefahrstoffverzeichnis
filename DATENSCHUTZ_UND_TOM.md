@@ -98,6 +98,18 @@ Die Anwendung wird im Intranet hinter einem **TLS/SSL-terminierenden Reverse Pro
 
 ### 3.3 Externe Datenabfragen (PubChem / GESTIS)
 * **PubChem / NIH API:** Beim Aufruf des optionalen *PubChem-Autofills* werden ausschließlich CAS-Nummern (rein anonyme Sachdaten) per verschlüsselter HTTPS-Anfrage an die offizielle Datenbank der U.S. National Library of Medicine geschickt. Es werden **keine** personenbezogenen Daten oder Firmen-IPs übermittelt.
+* **GESTIS-Stoffdatenbank (DGUV):** Die Anwendung verlinkt in Stoffansicht, Anlage und Bearbeitung auf `gestis.dguv.de`. Dies sind **reine Verweise** (`<a href>`), die **erst beim Klick** eine Verbindung aufbauen. Beim bloßen Aufruf einer Seite der Anwendung werden keine Daten an die DGUV übertragen. Beim Klick verlässt der Nutzer die Anwendung; dabei wird die IP-Adresse des aufrufenden Arbeitsplatzes an die DGUV übertragen. Das ist ein üblicher, vom Nutzer ausgelöster Vorgang, sollte dem DSB aber bekannt sein.
+
+### 3.4 Ausgelieferte Ressourcen (keine externen Aufrufe)
+
+Die Anwendung lädt beim Seitenaufruf **keine Ressourcen von Dritten**. Schriften und Symbole werden aus dem eigenen Verzeichnis `static/` ausgeliefert.
+
+* **Schrift:** Inter v20 als Variable Font (`static/fonts/`), Lizenz **SIL OFL 1.1**.
+* **Symbole der Oberfläche:** Font Awesome 6.4.0 Free (`static/vendor/font-awesome/`), Lizenzen **Icons CC BY 4.0, Fonts SIL OFL 1.1, Code MIT**. Die Lizenz verlangt Namensnennung; die mitgelieferte Lizenzdatei stellt jedoch klar, dass die ausgelieferten Dateien die erforderliche Attribution bereits eingebettet enthalten („*Downloaded Font Awesome Free files already contain embedded comments with sufficient attribution, so you shouldn't need to do anything additional when using these files normally.*"). Es ist daher **keine** Attributionsangabe in der Oberfläche oder im Ausdruck erforderlich.
+* **Herkunft und Prüfsummen:** pro Datei in `static/vendor/SOURCES.md` festgehalten (Quell-URL, Version, Lizenz, SHA-256).
+* **Symbole der Betriebsanweisung:** Die ISO-7010-Zeichen in `static/symbols/` sind gemeinfrei; Herkunft und Prüfsummen stehen in `static/symbols/SOURCES.md`.
+
+⚠️ **Dieser Abschnitt ist eine Korrektur.** Bis zum 25.09.2026 luden `base.html`, `ba_print.html`, `location_print.html` und `print_qr.html` Google Fonts und Font Awesome von `fonts.googleapis.com` und `cdnjs.cloudflare.com`. Die Zusicherung „Keine Anbindung an extern betriebene Cloud-Services" (Abschnitt 1.2) und „Kein Datenabfluss" (Abschnitt 6) traf damit **nicht zu**: bei jedem Seitenaufruf wurden IP-Adresse und Referer an Dritte übertragen. Das ist behoben; die Zusicherungen treffen jetzt zu.
 
 ---
 

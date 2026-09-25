@@ -44,11 +44,14 @@
                 <div style="display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;">
                     
                     <!-- Left: Big Touch Checkbox & Details -->
-                    <div style="display:flex; align-items:flex-start; gap:0.85rem; flex:1; min-width:240px;">
+                    <div style="display:flex; align-items:flex-start; gap:0.85rem; flex:1; min-width:0;">
                         <input type="checkbox" id="chk_{{ stoff.id }}" name="checked_{{ stoff.id }}" value="1"
                                style="width: 24px; height: 24px; cursor: pointer; margin-top: 2px; accent-color: var(--success);"
                                onchange="updateInventurCard({{ stoff.id }})">
-                        <div>
+                        {# min-width:0: als Flex-Kind konnte dieser Block nicht
+                           unter seine Mindestinhaltbreite schrumpfen und schob
+                           die Zeile 5 px über den Rand (bei 320 px Viewport). #}
+                        <div style="min-width:0;">
                             <label for="chk_{{ stoff.id }}" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; color: var(--text);">
                                 {{ stoff.name }}
                             </label>
@@ -77,7 +80,10 @@
                     </div>
 
                     <!-- Right: Quantity adjustment buttons -->
-                    <div style="display:flex; align-items:center; gap:0.4rem; background:var(--bg-subtle); padding:0.4rem 0.6rem; border-radius:8px; border:1px solid var(--border);">
+                    {# min-width:0 und flex-wrap: als Flex-Kind konnte die Leiste
+                       nicht schrumpfen; ihre Knöpfe brauchen rund 276 px und
+                       schoben die Zeile über den Rand. #}
+                    <div style="display:flex; align-items:center; gap:0.4rem; background:var(--bg-subtle); padding:0.4rem 0.6rem; border-radius:8px; border:1px solid var(--border); min-width:0; flex-wrap:wrap;">
                         <span style="font-size:0.8rem; color:var(--text-muted); margin-right:0.25rem;">Menge:</span>
                         <button type="button" class="btn btn-outline btn-sm" onclick="adjustMenge({{ stoff.id }}, -1)" style="padding:4px 10px; font-weight:bold;">–</button>
                         <input type="number" step="0.01" id="menge_{{ stoff.id }}" name="menge_{{ stoff.id }}"
@@ -99,7 +105,10 @@
             <strong style="font-size:0.95rem;"><i class="fa-solid fa-floppy-disk" style="color:var(--primary);"></i> Inventur speichern</strong>
             <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Geprüfte Stoffe erhalten das heutige Prüfdatum</p>
         </div>
-        <div style="display:flex; gap:0.5rem;">
+        {# flex-wrap: "Abbrechen" und "Inventur abschließen" passten in einer
+           Zeile nicht und schoben die Seite 5 px über den Rand (bei 320 px).
+           Die äußere Leiste hat bereits flex-wrap, diese innere nicht. #}
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
             <a href="{{ url_for('locations') }}" class="btn btn-outline">Abbrechen</a>
             <button type="submit" class="btn btn-primary">
                 <i class="fa-solid fa-check"></i> Inventur abschließen

@@ -2,9 +2,13 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Betriebsanweisung - {{ stoff.name }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Arial:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {# Schrift und Icons lokal. Der frühere Google-Fonts-Aufruf nach "Arial"
+       war wirkungslos: Arial gibt es dort nicht, die Seite nutzt ohnehin die
+       Systemschrift. Inter wird für die Bedienoberfläche referenziert. #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/inter.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}">
     <style>
         /* @page margin: 0 unterdrückt die Kopf- und Fußzeile des Browsers (URL,
            Datum, Seitenzahl) - er zeichnet sie nur, wenn ihm ein Seitenrand zur
@@ -35,6 +39,21 @@
         @media screen {
             body {
                 padding: 10mm;
+            }
+
+            /* Der Inhalt dieser Seite braucht rund 463 px (nachgemessen: bei
+               414 px Viewport lief die Seite 49 px über, bei 375 px 88 px).
+               Darunter wird der Container selbst scrollbar, statt die ganze
+               Seite zu verbreitern. Der rote Rahmen bleibt dabei so breit wie
+               das Fenster, der Inhalt scrollt in ihm - wie in einem
+               Dokumentenbetrachter.
+
+               Bewusst NICHT die A4-Breite festgenagelt: auf dem Bildschirm ist
+               .ba-container absichtlich fliessend (width: 100%), die A4-Breite
+               erzwingt nur der Druck. Nur der Bildschirm bekommt das Scrollen,
+               @media print bleibt unangetastet. */
+            .ba-container {
+                overflow-x: auto;
             }
         }
         .ba-container {

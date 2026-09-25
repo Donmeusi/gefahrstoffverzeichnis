@@ -14,7 +14,10 @@
         {% endif %}
     </div>
     {% if current_user.can_write %}
-    <div style="display:flex; gap:0.5rem;">
+    {# flex-wrap: ohne das blieben die Knöpfe und das Lösch-Formular in einer
+       Zeile; das Formular wurde dadurch über den rechten Rand geschoben
+       (gemessen: rechter Rand 429 px bei 320 px Viewport). #}
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
         <a href="{{ url_for('betriebsanweisung_print', id=stoff.id) }}" class="btn btn-warning btn-sm" target="_blank" style="color: black; font-weight: 600;">
             <i class="fa-solid fa-print"></i> Betriebsanweisung
         </a>

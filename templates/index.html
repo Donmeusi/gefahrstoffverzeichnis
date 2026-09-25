@@ -134,7 +134,11 @@
                     <option value="ghs08">GHS08 (Gesundheitsgefahr)</option>
                     <option value="ghs09">GHS09 (Umwelt)</option>
                 </select>
-                <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:200px; max-width:400px; position:relative;">
+                {# min-width:0 statt 200px: die feste Mindestbreite erzwang 200 px
+                   in einem 171 px breiten Elternelement und schob die Seite
+                   5 px über den Rand. max-width:400px hält die Breite weiter
+                   in Grenzen, flex:1 verteilt den Rest. #}
+                <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:0; max-width:400px; position:relative;">
                     <i class="fa-solid fa-search" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--text-light); pointer-events:none; z-index:10;"></i>
                     <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()" style="padding-left: 2.75rem !important;">
                 </div>

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gefahrstoffverzeichnis – {{ unterbereich.name }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {# Icons lokal; diese Seite nutzt die Systemschrift, braucht also kein Inter. #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}">
     <style>
         :root {
             --primary: #2563eb;
@@ -65,6 +66,30 @@
             border-bottom: 2px solid var(--primary);
             padding-bottom: 1rem;
             margin-bottom: 1.5rem;
+        }
+
+        /* Nur am Bildschirm: Diese Seite ist für A4 gebaut. Die Tabelle braucht
+           rund 470 px und der Kopfbereich Überschrift plus Knöpfe; auf schmalen
+           Bildschirmen bekamen sie einen eigenen waagerechten Scrollbereich,
+           statt die ganze Seite zu verbreitern (gemessen: +182 px bei 320 px
+           Viewport). Im Druck bleibt alles unverändert — dort greift keine
+           dieser Regeln. */
+        @media screen {
+            .print-table-scroll { overflow-x: auto; }
+            .print-header { flex-wrap: wrap; gap: 1rem; }
+            .print-header > * { min-width: 0; max-width: 100%; }
+            /* Die Knopfleiste (Drucken / Zurück) braucht neben der Überschrift
+               rund 233 px und schob die Seite über den Rand — gemessen: rechter
+               Rand 410 px bei 320 px Viewport. */
+            .no-print-bar { flex-wrap: wrap; gap: 0.5rem; }
+            .no-print-bar > * { min-width: 0; max-width: 100%; }
+            /* Diese Seite lädt style.css nicht und hat deshalb die globale
+               Umbruchregel für Überschriften nicht. "Gefahrstoffverzeichnis"
+               ist ein einziges Wort und bei 1.6rem rund 343 px breit — es lief
+               aus dem Kopfbereich heraus (gemessen: scrollWidth 343 statt 320).
+               Nur am Bildschirm nötig; auf A4 ist genug Platz, der Ausdruck
+               bleibt unverändert. */
+            .print-header h1 { overflow-wrap: anywhere; }
         }
         .header-title h1 {
             font-size: 1.6rem;
@@ -247,6 +272,7 @@
 
     <!-- Substance Table -->
     {% if stoffe %}
+    <div class="print-table-scroll">
     <table class="print-table">
         <thead>
             <tr>
@@ -295,6 +321,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <div style="padding: 2rem; text-align: center; border: 1px dashed var(--border); border-radius: 6px; margin-bottom: 1.5rem; color: var(--text-muted);">
         Derzeit sind keine Gefahrstoffe in diesem Schrank/Standort registriert.

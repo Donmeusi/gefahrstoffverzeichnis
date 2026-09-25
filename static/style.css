@@ -1,6 +1,10 @@
 /*
  * Gefahrstoff-App – Premium Design System v2.0
  * Dark Navy + Electric Indigo + Teal Accent
+ *
+ * Die Schriften liegen in static/fonts/inter.css, damit auch die
+ * eigenständigen Druckseiten (ba_print, print_qr) sie nutzen können, ohne
+ * diese Datei zu laden. Die Systemschrift-Kette in --font bleibt erhalten.
  */
 
 /* ============================================================
@@ -98,6 +102,19 @@ a {
     text-decoration: none;
     transition: color var(--transition);
 }
+
+/* Lange Zeichenketten in <code> (Repo-URLs, Kommandos in der Systemansicht)
+   haben keine Leerzeichen und sprengen sonst den Container — gemessen: 385 px
+   bei 320 px Viewport. */
+code { overflow-wrap: anywhere; }
+
+/* Lange deutsche Komposita in Überschriften sind ein einziges Wort und können
+   deshalb nicht umbrechen: "Betriebsanweisungen" ist bei 1.75rem rund 333 px
+   breit. In einem Flex-Kopfbereich gibt ein solches Element die Mindestbreite
+   vor und schiebt alles daneben über den Rand (gemessen auf drei Seiten).
+   `anywhere` greift nur, wenn das Wort wirklich nicht passt — normale
+   Überschriften brechen weiterhin an Leerzeichen und Bindestrichen. */
+h1, h2, h3, h4 { overflow-wrap: anywhere; }
 a:hover { color: var(--primary-hover); }
 
 img { display: block; max-width: 100%; }
@@ -182,6 +199,11 @@ h4 { font-size: 0.95rem; }
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* gap und min-width: 0 sind nötig, damit die Marke mitschrumpfen kann,
+       statt die Leiste über den Rand zu schieben (Flex-Kinder haben sonst
+       min-width: auto und können nicht unter ihre Mindestinhaltbreite). */
+    gap: 0.75rem;
+    min-width: 0;
 }
 
 .navbar-brand {
@@ -249,7 +271,26 @@ h4 { font-size: 0.95rem; }
     font-size: 1.25rem;
 }
 
-@media (max-width: 900px) {
+/* Zwischenbereich 1240–1500 px: Die vollständige Navigation braucht rund
+   1181 px (nachgemessen), verdichtet ~1207 px. Ohne Verdichtung lief sie
+   zwischen 901 und 1465 px über den Rand (+378 px bei 1000, +98 px bei 1280,
+   +18 px bei 1440) — das traf jede Seite und genau die üblichen
+   Laptop-Breiten. Das Hamburger-Menü greift deshalb unter 1240 px; auf
+   1280/1366/1440 bleibt die Navigation sichtbar. Der Wert 1240 ist gemessen,
+   nicht geschätzt: bei 1207 px lief die Leiste noch 7 px über, bei 1240 px
+   bleiben 33 px Luft. */
+@media (min-width: 1240px) and (max-width: 1500px) {
+    .navbar-brand { font-size: 1.05rem; }
+    .nav-links { gap: 0; }
+    .nav-links a {
+        padding: 0.4rem 0.45rem;
+        font-size: 0.8rem;
+    }
+    .nav-links a i { margin-right: 0.1rem; }
+    .nav-links .btn { margin-left: 0.1rem; }
+}
+
+@media (max-width: 1239px) {
     .nav-toggle { display: flex; align-items: center; }
     .nav-links {
         display: none;
@@ -366,6 +407,29 @@ h4 { font-size: 0.95rem; }
     flex-wrap: wrap;
     gap: 1rem;
 }
+/* Die Kinder dürfen schrumpfen, sonst schiebt eine lange Überschrift oder eine
+   Knopfreihe den Kopfbereich über den Rand (gemessen bei 320 px: h1 und div
+   bei 405 px, obwohl das Viewport 320 px breit war). */
+.page-header > *,
+.header-actions > * {
+    min-width: 0;
+    max-width: 100%;
+}
+.page-header h1,
+.header-actions h1 { overflow-wrap: anywhere; }
+
+/* .content-header ist die zweite Kopfbereichs-Klasse. Sie war nur als
+   Inline-Style gesetzt (display:flex; justify-content:space-between — ohne
+   flex-wrap), weshalb Überschrift und Suchfeld in einer Zeile blieben und
+   hinausliefen. flex-wrap steht nicht inline, diese Regel greift also. */
+.content-header {
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.content-header > * {
+    min-width: 0;
+    max-width: 100%;
+}
 
 /* ============================================================
    CARDS
@@ -400,6 +464,10 @@ h4 { font-size: 0.95rem; }
     gap: 2rem;
     align-items: start;
 }
+/* Ohne das können die Spalten nicht unter ihre Mindestinhaltbreite schrumpfen
+   (Grid-Kinder haben min-width: auto). Die Standort-Sidebar wurde dadurch bei
+   320 px Viewport 507 px breit und zog die ganze Seite mit. */
+.index-grid > * { min-width: 0; }
 
 .sidebar-locations {
     position: sticky;
@@ -439,7 +507,15 @@ h4 { font-size: 0.95rem; }
     font-weight: 500;
     font-size: 0.85rem;
     transition: all var(--transition);
+    /* Lange Standortnamen umbrechen, statt die Sidebar zu verbreitern.
+       break-word, NICHT anywhere: anywhere verändert zusätzlich die
+       Mindestbreite und brach "Chemikalienschrank" mitten im Wort, obwohl es
+       an der Leerstelle sauber gepasst hätte. Das Schrumpfen erledigt
+       min-width: 0; hier geht es nur um Wörter, die wirklich zu lang sind. */
+    overflow-wrap: break-word;
+    min-width: 0;
 }
+.location-link i { flex: 0 0 auto; }
 .location-link:hover { background: var(--primary-light); color: var(--primary); }
 .location-link.active {
     background: var(--primary-light);
@@ -1189,6 +1265,12 @@ footer i { color: var(--primary); }
 @media (max-width: 600px) {
     main { padding: 1.5rem 1rem; }
     .index-grid { grid-template-columns: 1fr; }
+
+    /* Knöpfe haben white-space: nowrap. Eine lange Beschriftung wird dadurch
+       breiter als das Viewport und schob die Seite über den Rand (gemessen:
+       395 px Knopf bei 320 px Viewport). Auf schmalen Bildschirmen dürfen sie
+       umbrechen und schrumpfen. */
+    .btn { white-space: normal; max-width: 100%; }
     .d-none-mobile { display: none !important; }
     .hp-list { max-height: 50vh; }
     

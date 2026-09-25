@@ -9,13 +9,18 @@
         </div>
         Sicherheitsdatenblätter
     </h1>
-    <div style="position:relative; width:300px;">
+    {# width:100% + max-width statt fester 300px: eine feste Breite schob den
+       Kopfbereich auf schmalen Bildschirmen über den Rand. #}
+    <div style="position:relative; width:100%; max-width:300px;">
         <i class="fa-solid fa-search" style="position:absolute; left:12px; top:10px; color:#94a3b8;"></i>
         <input type="text" id="searchInput" placeholder="Nach Stoff suchen..." style="width:100%; padding:0.5rem 1rem 0.5rem 2.5rem; border:1px solid #cbd5e1; border-radius:8px; outline:none;" onkeyup="filterTable()">
     </div>
 </div>
 
+{# table-responsive: waagerechter Scrollbereich für die Tabelle auf schmalen
+   Bildschirmen, siehe style.css. #}
 <div class="content-card" style="padding:0; overflow:hidden;">
+    <div class="table-responsive">
     <table class="data-table" id="sdbTable" style="margin:0;">
         <thead>
             <tr>
@@ -78,6 +83,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 <script>

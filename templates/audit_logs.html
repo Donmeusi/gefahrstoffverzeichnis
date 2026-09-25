@@ -11,7 +11,11 @@
     </h1>
 </div>
 
+{# table-responsive: gibt der Tabelle auf schmalen Bildschirmen einen
+   eigenen waagerechten Scrollbereich, statt die ganze Seite zu verbreitern.
+   Muster und Klasse stammen aus style.css (.table-responsive). #}
 <div class="content-card" style="padding:0; overflow:hidden;">
+    <div class="table-responsive">
     <table class="data-table" style="margin:0;">
         <thead>
             <tr>
@@ -66,5 +70,6 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 {% endblock %}
