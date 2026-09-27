@@ -1,6 +1,6 @@
 # 📘 Benutzerhandbuch: Gefahrstoffverzeichnis
 
-**Version 3.19 · Stand 27. September 2026**
+**Version 3.20 · Stand 27. September 2026**
 
 Willkommen im Gefahrstoffverzeichnis. Diese Anwendung verwaltet Gefahrstoffe,
 ihre Lagerorte, Sicherheitsdatenblätter und Betriebsanweisungen — und sie
@@ -576,8 +576,9 @@ Diese Anwendung wird laufend weiterentwickelt. Die vollständige Änderungsliste
 steht in `CHANGELOG.md`; die Datenschutz-Dokumentation in
 `DATENSCHUTZ_UND_TOM.md`.
 
-**Die wichtigsten Schritte bis Version 3.19:**
+**Die wichtigsten Schritte bis Version 3.20:**
 
+* **v3.20** — *Betrieb, nicht Bedienung:* Anwendungsserver auf Waitress umgestellt, interaktiver Debugger standardmäßig aus
 * **v3.19** — Substitutionsprüfung als Frist (Feld „Zuletzt geprüft am")
 * **v3.18** — Fristenseite als Arbeitsliste; Kennzahlen und Listen aus einer Regel
 * **v3.17** — Audit-Einträge gelöschter Benutzer bleiben zuordenbar
