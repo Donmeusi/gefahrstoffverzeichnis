@@ -87,5 +87,12 @@ Administratoren haben die uneingeschränkte Kontrolle über das System. *(Der al
 - **Benutzerverwaltung:** Kann Rollen zuweisen, Benutzer sperren/löschen und Bereichs-Zuweisungen vornehmen.
 - **System-Rechte:** Hat exklusiven Zugriff auf das Audit-Log (Systemhistorie) und die In-App-Update-Funktion.
 
+### 👁️ 4. Der Leser ("Lesen")
+Die schreibgeschützte Rolle für reine Betrachter, etwa für Prüfer oder Aushilfen.
+- **Sichtbarkeit:** Sieht ausschließlich die ihm zugewiesenen Bereiche.
+- **Rechte:** Darf Datensätze ansehen und die Übersichten öffnen.
+- **Nicht erlaubt:** Anlegen, Bearbeiten, Löschen, Archivieren, Schnell-Inventur, Excel-/PDF-Export, Herunterladen von Dokumenten, Betriebsanweisung bearbeiten, Standortverwaltung und Benutzerverwaltung. Die Navigation blendet diese Punkte aus, zusätzlich prüft der Server jede Route.
+- **Bei LDAP:** Ist `LDAP_DEFAULT_ROLE=lesen` gesetzt (die Vorbelegung), erhält jeder neue Verzeichnisbenutzer beim ersten Login diese Rolle.
+
 ---
 *Ende des Dokuments.*

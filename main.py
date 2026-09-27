@@ -603,6 +603,21 @@ def can_manage_bereich(bereich):
         return bereich.owner_id == current_user.id or bereich in current_user.assigned_bereiche.all()
     return False
 
+
+def is_last_admin(user):
+    """True, wenn 'user' Administrator ist und kein weiterer Administrator existiert.
+
+    Die Benutzerverwaltung schützte den "Haupt-Admin" bisher nur über den
+    Benutzernamen 'admin'. Das greift zu kurz: der erste Administrator entsteht
+    über /register mit frei gewähltem Namen, und /register ist danach
+    deaktiviert (`User.query.count() > 0`). Wird der letzte Administrator
+    degradiert oder gelöscht, kommt ohne Eingriff in die Datenbank niemand mehr
+    in die Verwaltung. Diese Prüfung hängt deshalb an der Rolle, nicht am Namen.
+    """
+    if user.role != 'admin':
+        return False
+    return User.query.filter(User.role == 'admin', User.id != user.id).count() == 0
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -777,7 +792,7 @@ def sicherheitsdatenblaetter_list():
 @app.route('/locations', methods=['GET', 'POST'])
 @login_required
 def locations():
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung für die Standortverwaltung.', 'error')
         return redirect(url_for('index'))
 
@@ -1868,6 +1883,18 @@ def set_role(id):
         flash('Ungültige Rolle.', 'error')
         return redirect(url_for('users'))
 
+    # Ein Moderator darf keinen Administrator anfassen. Erreichbar ist das,
+    # weil ein Administrator einen vom Moderator angelegten Benutzer später zum
+    # Administrator machen kann - über created_by bleibt der Moderator dann
+    # "Eigentümer" eines Kontos, das er nicht mehr verwalten dürfen soll.
+    if not current_user.is_admin and user.role == 'admin':
+        flash('Administratoren können nur von Administratoren geändert werden.', 'error')
+        return redirect(url_for('users'))
+
+    if new_role != 'admin' and is_last_admin(user):
+        flash('Der letzte Administrator kann nicht degradiert werden.', 'error')
+        return redirect(url_for('users'))
+
     user.role = new_role
     db.session.commit()
     flash(f'Rolle von "{user.username}" auf "{new_role}" gesetzt.', 'success')
@@ -1924,6 +1951,10 @@ def edit_user(id):
         flash('Keine Berechtigung, diesen Benutzer zu bearbeiten.', 'error')
         return redirect(url_for('users'))
 
+    if not current_user.is_admin and user.role == 'admin':
+        flash('Administratoren können nur von Administratoren bearbeitet werden.', 'error')
+        return redirect(url_for('users'))
+
     allowed_roles = ['admin', 'moderator', 'benutzer', 'lesen'] if current_user.is_admin else ['benutzer', 'lesen']
     accessible = get_accessible_bereiche()
 
@@ -1948,6 +1979,9 @@ def edit_user(id):
 
         user.username = username
         if user.username != 'admin':
+            if role != 'admin' and is_last_admin(user):
+                flash('Der letzte Administrator kann nicht degradiert werden.', 'error')
+                return redirect(url_for('edit_user', id=id))
             user.role = role
             
         if password:
@@ -1979,7 +2013,7 @@ def edit_user(id):
 @app.route('/users/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_user(id):
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
@@ -1995,6 +2029,18 @@ def delete_user(id):
         return redirect(url_for('users'))
     if current_user.role == 'moderator' and user.created_by != current_user.id:
         flash('Keine Berechtigung.', 'error')
+        return redirect(url_for('users'))
+
+    if not current_user.is_admin and user.role == 'admin':
+        flash('Administratoren können nur von Administratoren gelöscht werden.', 'error')
+        return redirect(url_for('users'))
+
+    # Doppelt abgesichert: nach der Rollenprüfung oben kann hier nur noch ein
+    # Administrator stehen, der einen anderen Administrator löscht - dann gibt es
+    # aber mindestens zwei. Die Zeile greift, falls die Prüfung oben später
+    # einmal verändert wird.
+    if is_last_admin(user):
+        flash('Der letzte Administrator kann nicht gelöscht werden.', 'error')
         return redirect(url_for('users'))
 
     db.session.delete(user)
