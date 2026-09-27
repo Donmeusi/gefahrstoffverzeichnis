@@ -1,0 +1,16 @@
+/* Fußzeile für das TOM-PDF.
+   Wird NACH handbuch-druck.css geladen und überschreibt nur den Titel in der
+   Fußzeile — die übrige Typografie (A4, Seitenzahlen im Inhaltsverzeichnis,
+   Tabellen ohne Seitenumbruch) kommt aus der gemeinsamen Vorlage:
+
+     pandoc TOM.md -o <ziel>.pdf --pdf-engine=weasyprint \
+            --css=handbuch-druck.css --css=tom-druck.css --toc --toc-depth=2
+*/
+
+@page {
+    @bottom-center {
+        content: "Gefahrstoffverzeichnis · TOM nach Art. 32 DSGVO · Seite " counter(page) " von " counter(pages);
+        font-size: 8pt;
+        color: #64748b;
+    }
+}

@@ -3,8 +3,10 @@
 
 > **Dokumententyp:** Technische Systemdokumentation & Technisch-Organisatorische Maßnahmen (TOM) gemäß Art. 32 DSGVO  
 > **Zielgruppe:** Datenschutzbeauftragte (DSB), IT-Administrator:innen, Informationssicherheitsbeauftragte (ISB)  
-> **Stand:** 2026 Edition  
-> **Betriebsmodus:** Intranet / On-Premises (Self-Hosted)
+> **Stand:** Fassung vom 27.09.2026  
+> **Betriebsmodus:** Intranet / On-Premises (Self-Hosted). Die Anwendung ist dafür ausgelegt; **die tatsächliche Erreichbarkeit einer Installation ist festzustellen und zu dokumentieren** (siehe `TOM.md`, Risiko R-1).
+
+> **Ergänzendes Dokument:** Das vollständige Maßnahmenverzeichnis nach Art. 32 DSGVO führt **`TOM.md`**.
 
 ---
 
@@ -16,10 +18,10 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 ### 1.2 Systemarchitektur & Deployment
 * **Architektur:** 3-Schichten-Webanwendung (Frontend, Backend, Datenbank).
 * **Backend Framework:** Python 3.11, Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF.
-* **Produktions-Webserver (WSGI):** Waitress (Multi-Threaded WSGI HTTP Server).
+* **Anwendungsserver:** Das mitgelieferte Container-Image startet die Anwendung mit `flask run` — dem **Entwicklungsserver** von Flask. Der für den Dauerbetrieb vorgesehene Waitress-Server liegt mit `run_prod.py` bereit, wird vom Startskript (`docker-entrypoint.sh`) aber **nicht** aufgerufen. ⚠️ Siehe `TOM.md`, Risiko **R-4**.
 * **Datenbank:** SQLite 3 (`gefahrstoffe.db`).
 * **Deployment:** Native Ausführung auf Linux/Windows-Servern oder containerisiert via Docker (`docker-compose`).
-* **Netzwerkeinbindung:** Ausschließlicher Betrieb im internen Firmennetzwerk (Intranet). Keine Anbindung an extern betriebene Cloud-Services.
+* **Netzwerkeinbindung:** Die Anwendung setzt **keine** extern betriebenen Cloud-Dienste voraus und ist für den Betrieb im internen Firmennetzwerk ausgelegt. **Ob eine konkrete Installation ausschließlich intern erreichbar ist, ist installationsabhängig festzustellen und zu dokumentieren** (siehe `TOM.md`, Risiko **R-1**).
 
 ---
 
@@ -30,7 +32,7 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 | Datenkategorie | Konkrete Datenfelder | Verarbeitungszweck | Speicherort & Schutz |
 | :--- | :--- | :--- | :--- |
 | **Benutzer-Stammdaten** | Benutzername, Ersteller-ID | Authentifizierung, Zuordnung von Datenbesitz | SQLite DB (`user`-Tabelle) |
-| **Authentifizierungsdaten** | Passwort-Hash (PBKDF2:SHA256 via `Werkzeug`) | Autorisierung beim Systemzugang | Verschlüsselt gehasht, Passwörter werden **niemals** im Klartext gespeichert |
+| **Authentifizierungsdaten** | Passwort-Hash (`scrypt:32768:8:1` über `werkzeug.security`, geprüft am 27.09.2026 mit Werkzeug 3.1.8) | Autorisierung beim Systemzugang | Einweg-Hash, Passwörter werden **niemals** im Klartext gespeichert |
 | **Rollen & Rechte** | Systemrolle (`admin`, `moderator`, `benutzer`, `lesen`), Bereichszuweisungen | Zugriffsbeschränkung gemäß Minimalprinzip (Need-to-know) | SQLite DB (`user`-Tabelle & `user_bereiche`) |
 | **Audit- & Protokolldaten** | User-ID, Aktions-Typ (`CREATE`, `UPDATE`, `DELETE`, `APPROVE`, `REJECT`, `LOGIN`), Datum/Uhrzeit (UTC), Details | Nachvollziehbarkeit & Rechenschaftspflicht (Art. 5 Abs. 2 DSGVO) | SQLite DB (`audit_log`-Tabelle) |
 | **Session & Sicherheit** | Session-Cookie (`session`), CSRF-Token | Sitzungssteuerung & Schutz vor Cross-Site Request Forgery | In-Memory Session / Browser-Cookie (`HTTPOnly`, `SameSite=Lax`, `Secure`) |
@@ -63,7 +65,9 @@ Dieser Punkt ist gesondert zu betrachten, weil er sich von allen übrigen Datenk
 ## 3. Netzwerkeinbindung, HTTPS & Sicherheitsarchitektur
 
 ### 3.1 HTTPS & Reverse Proxy Architektur
-Die Anwendung wird im Intranet hinter einem **TLS/SSL-terminierenden Reverse Proxy** (z. B. Nginx, Apache HTTP Server, Traefik oder Nginx Proxy Manager) betrieben.
+Die Anwendung ist für den Betrieb hinter einem **TLS/SSL-terminierenden Reverse Proxy** (z. B. Nginx, Apache HTTP Server, Traefik, Pangolin oder Nginx Proxy Manager) ausgelegt. Das folgende Schema zeigt diese Referenzkonfiguration.
+
+**Ob eine Installation über den Proxy hinaus aus dem Internet erreichbar ist, ist installationsabhängig festzustellen und zu dokumentieren** — die Angaben zur Netzwerkeinbindung in Abschnitt 1.2 und das Fazit in Abschnitt 6 gehen vom reinen Intranetbetrieb aus. Siehe `TOM.md`, Risiko **R-1**.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -121,7 +125,7 @@ Die Anwendung lädt beim Seitenaufruf **keine Ressourcen von Dritten**. Schrifte
 * Der Anwendungsserver steht im gesicherten Rechenzentrum / Serverraum des Unternehmens mit physikalischer Zutrittsbeschränkung (Schließsystem / Chipkarten).
 
 #### Zugangskontrolle (Authentifizierung)
-* **Passwort-Policy:** Passwort-Speicherung erfolgt ausschließlich mit starken Einweg-Hashfunktionen (`werkzeug.security.generate_password_hash` mit PBKDF2:SHA256).
+* **Passwort-Policy:** Passwort-Speicherung erfolgt ausschließlich mit starken Einweg-Hashfunktionen (`werkzeug.security.generate_password_hash`, Verfahren `scrypt:32768:8:1` — geprüft am 27.09.2026 mit Werkzeug 3.1.8).
 * **LDAPs-Integration (LDAP over SSL/TLS):** Optionale Anbindung an das zentrale Unternehmens-Directory (Active Directory / OpenLDAP) über Port 636 oder StartTLS. Dadurch entfallen lokale Zweit-Passwörter.
 * **Registrierungssperre:** Die freie Benutzerregistrierung ist nach der Erstanlegung des ersten Administrators deaktiviert. Neue Konten können nur durch Berechtigte angelegt werden.
 
@@ -173,7 +177,7 @@ Die Anwendung erzwingt ein striktes **Rollen- und Rechte-Modell (RBAC)** auf Dat
 ## 5. Lösch- & Aufbewahrungskonzept
 
 * **Betriebsdaten / Gefahrstoffe:** Aufbewahrung während des aktiven Betriebs der Betriebsstätte gemäß GefStoffV. Nach Außerdienststellung eines Stoffes erfolgt die Soft-Delete Archivierung zur Einhaltung von Nachweispflichten bei Gewerbeaufsichts- und Berufsgenossenschaftsprüfungen.
-* **Benutzerkonten:** Beim Ausscheiden von Mitarbeiter:innen können deren Konten durch den Administrator gelöscht werden. Bereits getätigte Audit-Log-Einträge bleiben zur Einhaltung der Rechenschaftspflicht **pseudonymisiert** erhalten: Der Name wird nicht aufbewahrt, der Eintrag nennt in der Oberfläche nur noch „Benutzer #<ID> (gelöscht)". Die technische Umsetzung ist eine bewusste Entscheidung gegen das Mitschreiben des Namens in die Historie — bis v3.17 setzte das Löschen die Benutzer-ID auf `NULL`, wodurch die Einträge eines ausgeschiedenen Kontos gar nicht mehr zuzuordnen waren (sie erschienen als „System / Unbekannt"). Mit der erhaltenen ID bleiben sie einander zuordenbar, ohne dass ein Personenbezug bestehen bleibt.
+* **Benutzerkonten:** Beim Ausscheiden von Mitarbeiter:innen können deren Konten durch den Administrator gelöscht werden. Bereits getätigte Audit-Log-Einträge bleiben zur Einhaltung der Rechenschaftspflicht **pseudonymisiert** erhalten: Der Name wird nicht aufbewahrt, der Eintrag nennt in der Oberfläche nur noch „Benutzer #<ID> (gelöscht)". Die technische Umsetzung ist eine bewusste Entscheidung gegen das Mitschreiben des Namens in die Historie: Die Benutzer-ID bleibt erhalten, damit die Einträge eines Kontos einander zuordenbar bleiben; der Name wird nicht aufbewahrt, sodass kein Personenbezug bestehen bleibt.
   * **Einschränkung, die dokumentiert sein sollte:** Der Vorgang des Löschens selbst nennt den Namen im Klartext (`Benutzer "max.mustermann" (Rolle: benutzer) gelöscht.`), damit nachvollziehbar bleibt, wer gelöscht wurde. Ohne diese Angabe wäre eine Löschung nicht überprüfbar. Damit bleibt der Name in genau einem Eintrag erhalten; die Pseudonymisierung betrifft die übrigen Einträge des Kontos.
 * **Unterschriften:** Das Feld `ba_unterschrift` wird beim Leeren bzw. über „Zurücksetzen“ auf `NULL` gesetzt. Beim Soft-Delete eines Gefahrstoffs bleibt die Unterschrift zunächst erhalten; die Aufbewahrungsdauer folgt damit der des Gefahrstoffs und ist nicht eigenständig begrenzt. Siehe die offenen Punkte in Abschnitt 2.3.
 
@@ -181,9 +185,9 @@ Die Anwendung erzwingt ein striktes **Rollen- und Rechte-Modell (RBAC)** auf Dat
 
 ## 6. Fazit für den Datenschutzbeauftragten (DSB)
 
-Die Gefahrstoff-App erfüllt alle Anforderungen an den **Datenschutz durch Technikgestaltung (Privacy by Design)** und **datenschutzfreundliche Voreinstellungen (Privacy by Default)** gemäß Art. 25 DSGVO:
+Die Gefahrstoff-App erfüllt die Anforderungen an den **Datenschutz durch Technikgestaltung (Privacy by Design)** und **datenschutzfreundliche Voreinstellungen (Privacy by Default)** gemäß Art. 25 DSGVO in den umgesetzten Maßnahmen. **Die offenen Punkte — insbesondere die Frage der Erreichbarkeit (R-1) — stehen in `TOM.md`, Abschnitt 9**; sie sind vor einem Produktivbetrieb mit echten Beschäftigtendaten zu klären.
 
-1. **Kein Datenabfluss:** Alle Daten verbleiben zu 100 % lokal auf der Intranet-Infrastruktur Ihres Unternehmens.
+1. **Kein Datenabfluss an Dritte:** Beim Seitenaufruf lädt die Anwendung keine externen Ressourcen — nachgeprüft, siehe Abschnitt 3.4. Alle Daten verbleiben auf der Infrastruktur des Betreibers. Die einzige ausgehende Verbindung ist das vom Nutzer ausgelöste PubChem-Autofill (Abschnitt 3.3). Ob die Instanz ausschließlich intern erreichbar ist, ist installationsabhängig festzustellen (`TOM.md`, Risiko R-1).
 2. **Minimalprinzip:** Es werden nur technisch und gesetzlich zwingend erforderliche Daten erhoben.
 3. **Schutz der Integrität:** Passwörter werden nie im Klartext gespeichert; Schreib- und Export-Rechte sind durch das neue Rollenmodell `Lesen` feingranular steuerbar.
 4. **Vollständige Transparenz:** Ein integriertes Audit-Log garantiert die lückenlose Revisionsfähigkeit aller Aktionen.
