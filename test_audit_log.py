@@ -272,6 +272,81 @@ class TestAuditLog(unittest.TestCase):
             self.assertIn('2 Unterbereich', eintrag.details)
             self.assertIn('1 Gefahrstoff', eintrag.details)
 
+    # ── Standorte anlegen ────────────────────────────────────────────────────
+
+    def test_bereich_anlegen_wird_protokolliert(self):
+        # Bis v3.15 war nur das Löschen eines Standorts protokolliert, das
+        # Anlegen nicht.
+        self._login_admin()
+
+        self.client.post('/locations',
+                         data={'action': 'add_bereich', 'bereich_name': 'Neues Labor'},
+                         follow_redirects=True)
+
+        with app.app_context():
+            bereich = Bereich.query.filter_by(name='Neues Labor').first()
+            self.assertIsNotNone(bereich, 'Der Bereich sollte angelegt sein')
+            eintrag = AuditLog.query.filter_by(action='CREATE',
+                                               entity_type='Bereich').first()
+            self.assertIsNotNone(eintrag, 'Das Anlegen muss protokolliert werden')
+            self.assertEqual(eintrag.entity_id, bereich.id)
+            self.assertIn('Neues Labor', eintrag.details)
+            self.assertEqual(eintrag.user.username, 'chef_audit')
+
+    def test_unterbereich_anlegen_haelt_den_pfad_fest(self):
+        self._login_admin()
+        with app.app_context():
+            admin = User.query.filter_by(role='admin').first()
+            bereich = Bereich(name='Labor A', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+            bid = bereich.id
+
+        self.client.post('/locations',
+                         data={'action': 'add_unterbereich',
+                               'unterbereich_name': 'Schrank 1',
+                               'parent_selection': f'B_{bid}'},
+                         follow_redirects=True)
+
+        with app.app_context():
+            unter = Unterbereich.query.filter_by(name='Schrank 1').first()
+            self.assertIsNotNone(unter, 'Der Unterbereich sollte angelegt sein')
+            eintrag = AuditLog.query.filter_by(action='CREATE',
+                                               entity_type='Unterbereich').first()
+            self.assertIsNotNone(eintrag, 'Das Anlegen muss protokolliert werden')
+            self.assertEqual(eintrag.entity_id, unter.id)
+            # Der Bereich gehört in den Eintrag, nicht nur der Name
+            self.assertIn('Labor A / Schrank 1', eintrag.details)
+
+    def test_verschachtelter_unterbereich_erscheint_mit_elternkette(self):
+        # Ein Unterbereich kann unter einem anderen hängen. Ohne die Elternkette
+        # hiessen zwei gleichnamige Schränke in verschiedenen Regalen im Log
+        # identisch - der Eintrag wäre nicht eindeutig.
+        self._login_admin()
+        with app.app_context():
+            admin = User.query.filter_by(role='admin').first()
+            bereich = Bereich(name='Labor A', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+            regal = Unterbereich(name='Regal 1', bereich_id=bereich.id)
+            db.session.add(regal)
+            db.session.commit()
+            regal_id = regal.id
+
+        self.client.post('/locations',
+                         data={'action': 'add_unterbereich',
+                               'unterbereich_name': 'Schrank 1',
+                               'parent_selection': f'U_{regal_id}'},
+                         follow_redirects=True)
+
+        with app.app_context():
+            unter = Unterbereich.query.filter_by(name='Schrank 1').first()
+            self.assertIsNotNone(unter, 'Der verschachtelte Unterbereich sollte angelegt sein')
+            self.assertEqual(unter.parent_id, regal_id)
+            eintrag = AuditLog.query.filter_by(action='CREATE',
+                                               entity_type='Unterbereich').first()
+            self.assertIn('Labor A / Regal 1 / Schrank 1', eintrag.details)
+
     # ── Anzeige ──────────────────────────────────────────────────────────────
 
     def test_historie_rendert_und_uebersetzt_die_aktionen(self):

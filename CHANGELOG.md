@@ -2,6 +2,22 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.15 – Anlegen von Standorten wird protokolliert (September 2026)
+
+* **Die letzte Asymmetrie in der Standortverwaltung ist weg.** v3.12 hatte das **Löschen** eines Bereichs und eines Unterbereichs erfasst, das **Anlegen** aber nicht — in der Historie stand damit, wer einen Standort entfernt hatte, nicht aber, wer ihn angelegt hatte. Beide Zweige von `/locations` (`action=add_bereich` und `action=add_unterbereich`) schreiben jetzt einen Eintrag: `CREATE` mit `entity_type` `Bereich` bzw. `Unterbereich`.
+* **Einträge aus einem Testlauf:**
+  ```
+  [CREATE] Bereich      #1  Bereich "Labor A" angelegt.
+  [CREATE] Unterbereich #1  Unterbereich angelegt: Labor A / Regal 1.
+  [CREATE] Unterbereich #2  Unterbereich angelegt: Labor A / Regal 1 / Schrank 1.
+  [CREATE] Unterbereich #3  Unterbereich angelegt: Labor A / Regal 2.
+  [CREATE] Unterbereich #4  Unterbereich angelegt: Labor A / Regal 2 / Schrank 1.
+  ```
+* **`standort_text()` nennt jetzt die vollständige Elternkette.** Ein Unterbereich kann unter einem anderen Unterbereich hängen; ohne die Kette hießen zwei gleichnamige Schränke in verschiedenen Regalen im Log identisch — im Beispiel oben wären `#2` und `#4` beide „Labor A / Schrank 1". Die Funktion benennt verschachtelte Standorte deshalb wie `Unterbereich.get_full_path()`, nur als Klartext statt mit HTML-Entities. Das verbessert zugleich die Einträge aus v3.12: ein verschobener Gefahrstoff in einem verschachtelten Unterbereich wird dort jetzt eindeutig benannt.
+* **Die Schleife über die Eltern ist begrenzt** (auf 20 Ebenen), damit ein Zyklus in den Daten nicht in einer Endlosschleife endet. `get_full_path()` im Modell hat diesen Schutz nicht — dort ist er nicht nachgerüstet, weil die Funktion an vielen Templates hängt und der Fall bisher nicht aufgetreten ist.
+* **Drei neue Tests** in `test_audit_log.py` (jetzt 16): Bereich anlegen, Unterbereich anlegen mit Pfad im Eintrag, und ein verschachtelter Unterbereich, dessen Eintrag die Elternkette enthält — der letzte Test ist der eigentliche Nachweis für die Änderung an `standort_text()`. Gesamtstand: **79 Tests (38 + 9 + 16 + 16), alle grün.**
+* **Der Stand der Protokollierung:** erfasst sind Gefahrstoffe (anlegen, ändern, verschieben, kopieren, löschen, freigeben, ablehnen, Inventur), Betriebsanweisungen, Benutzer (anlegen, ändern, Rolle, Bereiche, löschen) und Standorte (anlegen, löschen). **Weiterhin nicht protokolliert:** die Passwortänderung im eigenen Profil, die Wartungsaktionen `/admin/system/update_repo` und `/admin/system/do_update`, und der lokale Login (der LDAP-Login wird erfasst). Das Handbuch beschreibt den erreichten Stand bereits korrekt und brauchte keine Änderung.
+
 ### v3.14 – Anlegen und Bearbeiten prüfen den Ziel-Standort vollständig (September 2026)
 
 * **`/add` und `/edit` benutzen jetzt dieselbe Prüfung wie `/move` und `/copy`.** Alle vier Routen teilen sich `ziel_standort_pruefen()`; die dreifach bzw. vierfach inline geschriebene Prüfung ist damit an einer Stelle. Die bisherige Fassung in `/add` und `/edit` war unvollständig, in zwei Punkten:

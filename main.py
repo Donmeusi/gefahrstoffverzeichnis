@@ -632,6 +632,9 @@ def standort_text(unterbereich_id):
 
     Bewusst nicht Unterbereich.get_full_path(): das liefert HTML-Entities
     (&rsaquo;) und ist für die Anzeige im Template gedacht, nicht für ein Log.
+    Verschachtelte Unterbereiche werden wie dort über die Elternkette benannt
+    ("Labor A / Regal 1 / Schrank 2"), sonst wäre ein Eintrag nicht eindeutig.
+
     Die Funktion verträgt auch None und IDs, zu denen es keinen Unterbereich
     mehr gibt - beim Protokollieren ist das der Normalfall.
     """
@@ -640,7 +643,15 @@ def standort_text(unterbereich_id):
     unterbereich = db.session.get(Unterbereich, unterbereich_id)
     if not unterbereich:
         return f'Unbekannter Standort (ID {unterbereich_id})'
-    return f'{unterbereich.bereich.name} / {unterbereich.name}'
+
+    teile = [unterbereich.name]
+    eltern = unterbereich.parent
+    # Die Schleife ist begrenzt, damit ein Zyklus in den Daten nicht in einer
+    # Endlosschleife endet. get_full_path() im Modell hat diesen Schutz nicht.
+    while eltern is not None and len(teile) < 20:
+        teile.insert(0, eltern.name)
+        eltern = eltern.parent
+    return f'{unterbereich.bereich.name} / {" / ".join(teile)}'
 
 
 def ziel_standort_pruefen(raw_wert, bereiche):
@@ -866,6 +877,10 @@ def locations():
                 neuer_bereich = Bereich(name=name, owner_id=current_user.id)
                 db.session.add(neuer_bereich)
                 db.session.commit()
+                # Bis hierher war nur das Löschen eines Standorts protokolliert,
+                # das Anlegen nicht. Beides gehört in die Historie.
+                log_audit_event('CREATE', 'Bereich', neuer_bereich.id,
+                                f'Bereich "{neuer_bereich.name}" angelegt.')
                 flash(f'Bereich "{name}" erfolgreich hinzugefügt.', 'success')
 
         elif action == 'add_unterbereich':
@@ -889,6 +904,11 @@ def locations():
                         neuer = Unterbereich(name=name, bereich_id=bereich_id, parent_id=parent_id)
                         db.session.add(neuer)
                         db.session.commit()
+                        # Der volle Pfad, weil ein Unterbereich unter einem
+                        # anderen Unterbereich hängen kann und der blosse Name
+                        # dann nicht eindeutig wäre.
+                        log_audit_event('CREATE', 'Unterbereich', neuer.id,
+                                        f'Unterbereich angelegt: {standort_text(neuer.id)}.')
                         flash(f'Unterbereich "{name}" erfolgreich hinzugefügt.', 'success')
                     else:
                         flash('Keine Berechtigung für diesen Bereich.', 'error')
