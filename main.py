@@ -296,9 +296,17 @@ class Gefahrstoff(db.Model):
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
-def log_audit_event(action, entity_type, entity_id, details=""):
+def log_audit_event(action, entity_type, entity_id, details="", user_id=None):
+    """Schreibt einen Eintrag in die Systemhistorie.
+
+    'user_id' überschreibt den handelnden Benutzer. Das ist für Ereignisse
+    nötig, die vor dem Login passieren (Registrierung des ersten Admins): dort
+    ist current_user anonym, und der Eintrag stünde sonst als
+    "System / Unbekannt" in der Historie, obwohl der Zusammenhang bekannt ist.
+    """
     try:
-        user_id = current_user.id if current_user.is_authenticated else None
+        if user_id is None:
+            user_id = current_user.id if current_user.is_authenticated else None
         log_entry = AuditLog(
             user_id=user_id,
             action=action,
@@ -643,7 +651,14 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        log_audit_event(user.id, "USER_CREATE", "Erster Admin-Benutzer bei Systemstart angelegt.")
+        # Argumente standen hier in falscher Reihenfolge und Zahl: der Aufruf
+        # lautete log_audit_event(user.id, "USER_CREATE", "<Satz>") und schrieb
+        # damit eine Zahl als Aktion und den Satz in die Integer-Spalte
+        # entity_id. Die Zuordnung des ersten Admins ist über user_id belegt,
+        # weil current_user zu diesem Zeitpunkt noch anonym ist.
+        log_audit_event('USER_CREATE', 'User', user.id,
+                        'Erster Admin-Benutzer bei Systemstart angelegt (Rolle: admin).',
+                        user_id=user.id)
         flash('Erster Admin-Benutzer erfolgreich erstellt! Bitte einloggen.', 'success')
         return redirect(url_for('login'))
         
@@ -1852,6 +1867,8 @@ def create_user():
 
         try:
             db.session.commit()
+            log_audit_event('USER_CREATE', 'User', new_user.id,
+                            f'Benutzer "{username}" angelegt (Rolle: {role}).')
             flash(f'Benutzer "{username}" erfolgreich angelegt!', 'success')
             return redirect(url_for('users'))
         except Exception as e:
@@ -1895,8 +1912,11 @@ def set_role(id):
         flash('Der letzte Administrator kann nicht degradiert werden.', 'error')
         return redirect(url_for('users'))
 
+    alte_rolle = user.role
     user.role = new_role
     db.session.commit()
+    log_audit_event('USER_ROLE', 'User', user.id,
+                    f'Rolle von "{user.username}" von "{alte_rolle}" auf "{new_role}" geändert.')
     flash(f'Rolle von "{user.username}" auf "{new_role}" gesetzt.', 'success')
     return redirect(url_for('users'))
 
@@ -1918,6 +1938,7 @@ def assign_bereiche(id):
     accessible_ids = {b.id for b in accessible}
 
     # Bestehende Zuweisungen in zugänglichen Bereichen entfernen, dann neu setzen
+    vorher = {b.name for b in user.assigned_bereiche.all()}
     current_assignments = user.assigned_bereiche.all()
     for b in current_assignments:
         if b.id in accessible_ids:
@@ -1930,6 +1951,11 @@ def assign_bereiche(id):
                 user.assigned_bereiche.append(b)
 
     db.session.commit()
+    nachher = {b.name for b in user.assigned_bereiche.all()}
+    log_audit_event('USER_BEREICHE', 'User', user.id,
+                    f'Bereichszuweisung für "{user.username}": '
+                    f'{", ".join(sorted(vorher)) or "keine"} -> '
+                    f'{", ".join(sorted(nachher)) or "keine"}.')
     flash(f'Bereichszuweisung für "{user.username}" aktualisiert.', 'success')
     return redirect(url_for('users'))
 
@@ -1977,6 +2003,13 @@ def edit_user(id):
             flash('Dieser Benutzername ist bereits vergeben.', 'error')
             return redirect(url_for('edit_user', id=id))
 
+        # Ausgangszustand für die Systemhistorie festhalten, bevor die Felder
+        # überschrieben werden. Das Passwort wird dort nur als Ereignis vermerkt,
+        # nie im Klartext - es ist wie die Unterschrift ein personenbezogenes
+        # Datum und gehört nicht in die Historie.
+        alte_werte = (user.username, user.role)
+        vorher_bereiche = {b.name for b in user.assigned_bereiche.all()}
+
         user.username = username
         if user.username != 'admin':
             if role != 'admin' and is_last_admin(user):
@@ -2002,6 +2035,20 @@ def edit_user(id):
 
         try:
             db.session.commit()
+            aenderungen = []
+            if alte_werte[0] != user.username:
+                aenderungen.append(f'Benutzername "{alte_werte[0]}" -> "{user.username}"')
+            if alte_werte[1] != user.role:
+                aenderungen.append(f'Rolle "{alte_werte[1]}" -> "{user.role}"')
+            if password:
+                aenderungen.append('Passwort neu gesetzt')
+            nachher_bereiche = {b.name for b in user.assigned_bereiche.all()}
+            if vorher_bereiche != nachher_bereiche:
+                aenderungen.append(
+                    f'Bereiche: {", ".join(sorted(vorher_bereiche)) or "keine"} -> '
+                    f'{", ".join(sorted(nachher_bereiche)) or "keine"}')
+            log_audit_event('USER_UPDATE', 'User', user.id,
+                            '; '.join(aenderungen) if aenderungen else 'Ohne inhaltliche Änderung.')
             flash(f'Benutzer "{username}" erfolgreich aktualisiert!', 'success')
             return redirect(url_for('users'))
         except Exception as e:
@@ -2043,9 +2090,18 @@ def delete_user(id):
         flash('Der letzte Administrator kann nicht gelöscht werden.', 'error')
         return redirect(url_for('users'))
 
+    # Name und Rolle vor dem Löschen sichern: die Meldung und der Eintrag in der
+    # Systemhistorie sollen nicht von einem bereits gelöschten Objekt abhängen.
+    # Der Name steht mit im Eintrag, weil die Zeile selbst danach verschwindet.
+    geloeschter_name = user.username
+    geloeschte_rolle = user.role
+    geloeschte_id     = user.id
+
     db.session.delete(user)
     db.session.commit()
-    flash(f'Benutzer "{user.username}" wurde gelöscht.', 'info')
+    log_audit_event('USER_DELETE', 'User', geloeschte_id,
+                    f'Benutzer "{geloeschter_name}" (Rolle: {geloeschte_rolle}) gelöscht.')
+    flash(f'Benutzer "{geloeschter_name}" wurde gelöscht.', 'info')
     return redirect(url_for('users'))
 
 # ─── Datenbank-Init & Migration ──────────────────────────────────────────────

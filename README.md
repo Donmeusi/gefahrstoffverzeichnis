@@ -18,7 +18,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 *   **PubChem CAS-Autofill**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze) automatisch aus der offiziellen NIH/PubChem Datenbank herunter.
 *   **QR-Code Generator**: Erzeugen Sie mit einem Klick lokale, datenschutzkonforme QR-Codes für Ihre Lagerorte und Schränke, um per Smartphone-Scan direkt auf den gefilterten Schrank-Inhalt zuzugreifen.
 *   **Dokumenten-Zentralen**: Globale Menüpunkte listen alle hochgeladenen Betriebsanweisungen und Sicherheitsdatenblätter aus allen Bereichen alphabetisch sortiert auf. Inklusive Live-Suche – zugänglich für alle Nutzer.
-*   **Umfassende Sicherheit (CSRF & Audit)**: Die App ist systemweit gegen Cross-Site Request Forgery (CSRF) geschützt. Administratoren können zudem eine detaillierte **System-Historie (Audit Log)** einsehen, die jeden Datensatz (Erstellen, Ändern, Löschen, Freigeben) manipulationssicher protokolliert.
+*   **Umfassende Sicherheit (CSRF & Audit)**: Die App ist systemweit gegen Cross-Site Request Forgery (CSRF) geschützt. Administratoren können zudem eine detaillierte **System-Historie (Audit Log)** einsehen, die jeden Datensatz (Erstellen, Ändern, Löschen, Freigeben) protokolliert — einschließlich der Vorgänge der Benutzerverwaltung (Anlegen, Rollenwechsel, Bearbeiten, Bereichszuweisung, Löschen). Passwörter werden nur als Ereignis vermerkt, nie im Klartext.
 *   **Archivierung (Soft-Delete)**: Gefahrstoffe werden beim "Löschen" nicht mehr unwiderruflich aus der Datenbank entfernt, sondern sicher archiviert (`is_deleted=True`), um versehentlichen Datenverlust zu verhindern.
 
 ## ⚙️ Kernfunktionen

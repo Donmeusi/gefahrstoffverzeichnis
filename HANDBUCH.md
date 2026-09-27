@@ -56,7 +56,8 @@ Die Lagerorte sind hierarchisch aufgebaut:
 Für jeden Unterbereich lässt sich mit einem Klick auf das QR-Code-Symbol eine druckbare Ansicht erzeugen. Wenn Sie diesen Code ausdrucken und am Schrank anbringen, müssen Mitarbeiter ihn nur noch mit der Smartphone-Kamera abscannen und landen direkt in einer exakt auf diesen Schrank gefilterten Inventarliste. Die QR-Code-Erzeugung geschieht 100% lokal und datenschutzkonform.
 
 ### 1.8 Administrator-Werkzeuge
-- **Audit Log (System-Historie):** Eine manipulationssichere Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, gelöscht oder freigegeben hat.
+- **Audit Log (System-Historie):** Eine Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, gelöscht oder freigegeben hat.
+- **Auch die Rechteverwaltung wird protokolliert:** Benutzer anlegen, Rolle ändern, Benutzer bearbeiten, Bereichszuweisung ändern und Benutzer löschen erzeugen jeweils einen Eintrag — beim Rollenwechsel stehen die alte und die neue Rolle darin. Passwörter werden dabei **nie** im Klartext erfasst, sondern nur als Ereignis („Passwort neu gesetzt").
 - **System & Updates:** Ein integrierter In-App-Updater (`/admin/system`), mit dem das System per Knopfdruck (`git pull`) auf die neueste Version aktualisiert werden kann.
 - **Benutzerverwaltung (`/users`):** Administratoren können neue Benutzer anlegen, bestehende bearbeiten, Rollen ändern, Bereichs-Zugriffe vergeben oder Konten sperren.
 
