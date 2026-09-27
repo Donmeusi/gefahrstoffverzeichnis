@@ -642,6 +642,34 @@ def standort_text(unterbereich_id):
         return f'Unbekannter Standort (ID {unterbereich_id})'
     return f'{unterbereich.bereich.name} / {unterbereich.name}'
 
+
+def ziel_standort_pruefen(raw_wert, bereiche):
+    """Prüft einen Ziel-Standort aus einem Formular.
+
+    Rückgabe: (ziel_id, fehlermeldung). 'ziel_id' ist None, wenn kein Standort
+    gewählt wurde - das bedeutet "ohne Standort" und ist zulässig.
+    'fehlermeldung' ist gesetzt, wenn das Ziel abgelehnt wird.
+
+    Gebraucht von /move und /copy. /add und /edit prüfen dieselbe Sache inline,
+    aber unvollständig: sie lassen ein Ziel durch, zu dem es keinen
+    Unterbereich gibt. Weil SQLite die Fremdschlüssel nicht erzwingt, bliebe ein
+    solcher Wert als toter Verweis in der Datenbank stehen.
+    """
+    if not raw_wert or not str(raw_wert).strip():
+        return None, None
+
+    try:
+        ziel_id = int(raw_wert)
+    except (ValueError, TypeError):
+        return None, 'Ungültiger Ziel-Standort.'
+
+    ziel = db.session.get(Unterbereich, ziel_id)
+    if not ziel:
+        return None, 'Der gewählte Ziel-Standort existiert nicht.'
+    if ziel.bereich.id not in [b.id for b in bereiche]:
+        return None, 'Kein Zugriff auf diesen Ziel-Standort.'
+    return ziel_id, None
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -1481,9 +1509,17 @@ def move_stoff(id):
         return redirect(url_for('index'))
     bereiche = get_accessible_bereiche()
     if request.method == 'POST':
-        unterbereich_id = request.form.get('unterbereich_id')
+        # Das Ziel wird geprüft, bevor es gespeichert wird. /add und /edit prüfen
+        # an derselben Stelle gegen die zugänglichen Bereiche - /move war die
+        # einzige Ausnahme, sodass sich ein Gefahrstoff mit einem selbst gebauten
+        # Request in einen fremden Bereich schieben ließ.
+        ziel_id, fehler = ziel_standort_pruefen(request.form.get('unterbereich_id'), bereiche)
+        if fehler:
+            flash(fehler, 'error')
+            return redirect(url_for('move_stoff', id=id))
+
         alter_standort = standort_text(stoff.unterbereich_id)
-        stoff.unterbereich_id = unterbereich_id if unterbereich_id else None
+        stoff.unterbereich_id = ziel_id
         try:
             db.session.commit()
             log_audit_event('MOVE', 'Gefahrstoff', stoff.id,
@@ -1506,12 +1542,19 @@ def copy_stoff(id):
         return redirect(url_for('index'))
     bereiche = get_accessible_bereiche()
     if request.method == 'POST':
-        unterbereich_id = request.form.get('unterbereich_id')
+        # Wie bei /move: die Kopie darf nicht in einem fremden Bereich landen.
+        ziel_id, fehler = ziel_standort_pruefen(request.form.get('unterbereich_id'), bereiche)
+        if fehler:
+            flash(fehler, 'error')
+            return redirect(url_for('copy_stoff', id=id))
+
         neuer_stoff = Gefahrstoff(
             name=stoff.name, cas_nummer=stoff.cas_nummer, eg_nummer=stoff.eg_nummer,
             signalwort=stoff.signalwort, piktogramme=stoff.piktogramme,
             h_saetze=stoff.h_saetze, p_saetze=stoff.p_saetze,
-            lagerort=stoff.lagerort, menge=stoff.menge, mengeneinheit=stoff.mengeneinheit,
+            gefahrenkategorien=stoff.gefahrenkategorien,
+            lagerort=stoff.lagerort, lagerklasse=stoff.lagerklasse,
+            menge=stoff.menge, mengeneinheit=stoff.mengeneinheit,
             sdb_datum=stoff.sdb_datum,
             substitutionspruefung=stoff.substitutionspruefung,
             ersatzstoff=stoff.ersatzstoff,
@@ -1519,8 +1562,13 @@ def copy_stoff(id):
             sicherheitsdatenblatt=stoff.sicherheitsdatenblatt,
             betriebsanweisung=stoff.betriebsanweisung,
             gefaehrdungsbeurteilung=stoff.gefaehrdungsbeurteilung,
-            unterbereich_id=unterbereich_id if unterbereich_id else None,
-            user_id=current_user.id
+            unterbereich_id=ziel_id,
+            user_id=current_user.id,
+            # Dieselbe Regel wie in /add. Ohne diese Zeile bekam die Kopie den
+            # Spaltenstandard True und war damit sofort sichtbar - auch bei einem
+            # CMR-Stoff, dessen Original auf Freigabe wartet. Damit ließ sich die
+            # Freigabe umgehen, indem man den Stoff direkt kopierte.
+            is_approved=not is_cmr_stoff(stoff.h_saetze)
         )
         try:
             db.session.add(neuer_stoff)
@@ -1528,7 +1576,12 @@ def copy_stoff(id):
             log_audit_event('COPY', 'Gefahrstoff', neuer_stoff.id,
                             f'"{neuer_stoff.name}" aus Gefahrstoff #{stoff.id} kopiert, '
                             f'Standort: {standort_text(neuer_stoff.unterbereich_id)}.')
-            flash(f'Gefahrstoff "{stoff.name}" erfolgreich kopiert!', 'success')
+            if not neuer_stoff.is_approved:
+                flash(f'Gefahrstoff "{stoff.name}" kopiert. Hinweis: Da es sich um einen '
+                      f'CMR-Stoff handelt, muss die Kopie vor der Sichtbarkeit von einem '
+                      f'Moderator/Admin freigegeben werden.', 'warning')
+            else:
+                flash(f'Gefahrstoff "{stoff.name}" erfolgreich kopiert!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
