@@ -52,11 +52,13 @@ Die Lagerorte sind hierarchisch aufgebaut:
 - **Bereiche:** Hauptstandorte (z.B. Gebäude, Fakultät, Abteilung). Diesen Bereichen kann ein "Besitzer" (Moderator) zugewiesen werden.
 - **Unterbereiche:** Spezifische Lagerorte innerhalb eines Bereichs (z.B. Raum 101, Chemikalienschrank A).
 
+> **⚠️ Was beim Löschen eines Standorts passiert:** Die enthaltenen **Gefahrstoffe werden nicht gelöscht**, sie verlieren nur ihren Standort. Das hat eine Folge, die man kennen sollte: Ohne Standort sieht ein Gefahrstoff nur noch sein **Ersteller** und die Administratoren. Andere Benutzer, die vorher über den Bereich Zugriff hatten, sehen ihn danach nicht mehr. Beim Löschen eines Bereichs verschwinden alle Unterbereiche mit. Die Systemhistorie hält fest, wie viele Unterbereiche und Gefahrstoffe betroffen waren.
+
 **🖨️ QR-Code Generierung:** 
 Für jeden Unterbereich lässt sich mit einem Klick auf das QR-Code-Symbol eine druckbare Ansicht erzeugen. Wenn Sie diesen Code ausdrucken und am Schrank anbringen, müssen Mitarbeiter ihn nur noch mit der Smartphone-Kamera abscannen und landen direkt in einer exakt auf diesen Schrank gefilterten Inventarliste. Die QR-Code-Erzeugung geschieht 100% lokal und datenschutzkonform.
 
 ### 1.8 Administrator-Werkzeuge
-- **Audit Log (System-Historie):** Eine Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, gelöscht oder freigegeben hat.
+- **Audit Log (System-Historie):** Eine Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, verschoben, kopiert, gelöscht oder freigegeben hat — einschließlich der Standortverwaltung. Beim Verschieben stehen alter und neuer Standort im Eintrag, beim Löschen eines Standorts die Zahl der betroffenen Unterbereiche und Gefahrstoffe.
 - **Auch die Rechteverwaltung wird protokolliert:** Benutzer anlegen, Rolle ändern, Benutzer bearbeiten, Bereichszuweisung ändern und Benutzer löschen erzeugen jeweils einen Eintrag — beim Rollenwechsel stehen die alte und die neue Rolle darin. Passwörter werden dabei **nie** im Klartext erfasst, sondern nur als Ereignis („Passwort neu gesetzt").
 - **System & Updates:** Ein integrierter In-App-Updater (`/admin/system`), mit dem das System per Knopfdruck (`git pull`) auf die neueste Version aktualisiert werden kann.
 - **Benutzerverwaltung (`/users`):** Administratoren können neue Benutzer anlegen, bestehende bearbeiten, Rollen ändern, Bereichs-Zugriffe vergeben oder Konten sperren.

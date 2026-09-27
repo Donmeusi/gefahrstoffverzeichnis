@@ -626,6 +626,22 @@ def is_last_admin(user):
         return False
     return User.query.filter(User.role == 'admin', User.id != user.id).count() == 0
 
+
+def standort_text(unterbereich_id):
+    """Standort als Klartext für die Systemhistorie: "Bereich / Unterbereich".
+
+    Bewusst nicht Unterbereich.get_full_path(): das liefert HTML-Entities
+    (&rsaquo;) und ist für die Anzeige im Template gedacht, nicht für ein Log.
+    Die Funktion verträgt auch None und IDs, zu denen es keinen Unterbereich
+    mehr gibt - beim Protokollieren ist das der Normalfall.
+    """
+    if not unterbereich_id:
+        return 'ohne Standort'
+    unterbereich = db.session.get(Unterbereich, unterbereich_id)
+    if not unterbereich:
+        return f'Unbekannter Standort (ID {unterbereich_id})'
+    return f'{unterbereich.bereich.name} / {unterbereich.name}'
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -988,10 +1004,24 @@ def delete_bereich(id):
     if not can_manage_bereich(bereich):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('locations'))
+
+    # Vor dem Löschen festhalten: die Unterbereiche verschwinden per Kaskade,
+    # und ihre Gefahrstoffe verlieren dabei den Standort, ohne gelöscht zu
+    # werden (nachgemessen). Das gehört in die Systemhistorie, sonst sieht man
+    # später nur einen Bereich verschwinden und weiß nicht, was daran hing.
+    bereich_name      = bereich.name
+    bereich_id        = bereich.id
+    anzahl_unterbereiche = len(bereich.unterbereiche)
+    anzahl_stoffe     = sum(len(u.gefahrstoffe) for u in bereich.unterbereiche)
+
     try:
         db.session.delete(bereich)
         db.session.commit()
-        flash(f'Bereich "{bereich.name}" gelöscht.', 'info')
+        log_audit_event('DELETE', 'Bereich', bereich_id,
+                        f'Bereich "{bereich_name}" gelöscht '
+                        f'({anzahl_unterbereiche} Unterbereich(e) mitgelöscht, '
+                        f'{anzahl_stoffe} Gefahrstoff(e) dadurch ohne Standort).')
+        flash(f'Bereich "{bereich_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'Fehler beim Löschen: {str(e)}', 'error')
@@ -1005,12 +1035,23 @@ def delete_unterbereich(id):
     if not can_manage_bereich(unterbereich.bereich):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('locations'))
+
+    # Die Gefahrstoffe bleiben erhalten und verlieren nur den Standort. Anzahl
+    # und Name vorher sichern - nach dem Commit ist das Objekt weg.
+    unterbereich_id   = unterbereich.id
+    anzeige_name      = unterbereich.name
+    unterbereich_name = f'{unterbereich.bereich.name} / {unterbereich.name}'
+    anzahl_stoffe     = len(unterbereich.gefahrstoffe)
+
     try:
         for stoff in unterbereich.gefahrstoffe:
             stoff.unterbereich_id = None
         db.session.delete(unterbereich)
         db.session.commit()
-        flash(f'Unterbereich "{unterbereich.name}" gelöscht.', 'info')
+        log_audit_event('DELETE', 'Unterbereich', unterbereich_id,
+                        f'Unterbereich "{unterbereich_name}" gelöscht '
+                        f'({anzahl_stoffe} Gefahrstoff(e) dadurch ohne Standort).')
+        flash(f'Unterbereich "{anzeige_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'Fehler beim Löschen: {str(e)}', 'error')
@@ -1441,9 +1482,13 @@ def move_stoff(id):
     bereiche = get_accessible_bereiche()
     if request.method == 'POST':
         unterbereich_id = request.form.get('unterbereich_id')
+        alter_standort = standort_text(stoff.unterbereich_id)
         stoff.unterbereich_id = unterbereich_id if unterbereich_id else None
         try:
             db.session.commit()
+            log_audit_event('MOVE', 'Gefahrstoff', stoff.id,
+                            f'"{stoff.name}" verschoben: {alter_standort} -> '
+                            f'{standort_text(stoff.unterbereich_id)}.')
             flash(f'Gefahrstoff "{stoff.name}" erfolgreich verschoben!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
@@ -1480,6 +1525,9 @@ def copy_stoff(id):
         try:
             db.session.add(neuer_stoff)
             db.session.commit()
+            log_audit_event('COPY', 'Gefahrstoff', neuer_stoff.id,
+                            f'"{neuer_stoff.name}" aus Gefahrstoff #{stoff.id} kopiert, '
+                            f'Standort: {standort_text(neuer_stoff.unterbereich_id)}.')
             flash(f'Gefahrstoff "{stoff.name}" erfolgreich kopiert!', 'success')
             return redirect(url_for('index'))
         except Exception as e:

@@ -45,6 +45,10 @@
                         <span class="badge" style="background:#fef9c3; color:#854d0e; border:1px solid #fef08a;"><i class="fa-solid fa-pen" style="margin-right:4px;"></i> Geändert</span>
                     {% elif log.action == 'DELETE' %}
                         <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;"><i class="fa-solid fa-trash" style="margin-right:4px;"></i> Gelöscht</span>
+                    {% elif log.action == 'MOVE' %}
+                        <span class="badge" style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd;"><i class="fa-solid fa-arrow-right-arrow-left" style="margin-right:4px;"></i> Verschoben</span>
+                    {% elif log.action == 'COPY' %}
+                        <span class="badge" style="background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;"><i class="fa-solid fa-clone" style="margin-right:4px;"></i> Kopiert</span>
                     {# Benutzerverwaltung. Die Aktionen der Benutzerverwaltung waren
                        bis v3.10 gar nicht protokolliert und hätten hier sonst als
                        roher englischer Code gestanden. #}

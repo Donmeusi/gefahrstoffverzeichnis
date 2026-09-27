@@ -2,6 +2,32 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.12 – Verschieben, Kopieren und Standort-Löschungen protokolliert (September 2026)
+
+* **Die vier benannten Lücken in der Systemhistorie sind geschlossen.** `move_stoff`, `copy_stoff`, `delete_bereich` und `delete_unterbereich` schrieben bisher nichts — wer einen Gefahrstoff verschob, kopierte oder einen ganzen Standort entfernte, hinterließ keine Spur.
+* **Nicht vollständig — was weiterhin nicht protokolliert wird** (jeweils geprüft, nicht vermutet): das **Anlegen** eines Bereichs oder Unterbereichs über `/locations` (das Löschen ist jetzt erfasst, das Anlegen nicht — die verbleibende Asymmetrie), die Passwortänderung im eigenen Profil (`/profile`), die Wartungsaktionen `/admin/system/update_repo` und `/admin/system/do_update`, und der **lokale** Login (der LDAP-Login wird protokolliert, der lokale nicht).
+* **Zwei neue Aktionen** `MOVE` und `COPY`, dazu `DELETE` mit `entity_type` `Bereich` bzw. `Unterbereich`. Beim Verschieben steht der **alte und der neue** Standort im Eintrag („Labor A / Schrank 1 -> Labor A / Schrank 2"), beim Kopieren die Quelle („aus Gefahrstoff #1").
+* **Beim Löschen eines Standorts stehen die Folgen im Eintrag**, nicht nur der Name: „Bereich \"Labor A\" gelöscht (1 Unterbereich(e) mitgelöscht, 1 Gefahrstoff(e) dadurch ohne Standort)". Ohne diese Zahlen sieht man in der Historie später nur einen Namen verschwinden und weiß nicht, was daran hing. Nachgemessene Beispiele aus einem Testlauf:
+  ```
+  [DELETE] Bereich #1     Bereich "Labor A" gelöscht (1 Unterbereich(e) mitgelöscht, 1 Gefahrstoff(e) dadurch ohne Standort).
+  [DELETE] Unterbereich #1 Unterbereich "Labor A / Schrank 1" gelöscht (1 Gefahrstoff(e) dadurch ohne Standort).
+  [COPY  ] Gefahrstoff #2  "Aceton" aus Gefahrstoff #1 kopiert, Standort: Labor A / Schrank 1.
+  [MOVE  ] Gefahrstoff #1  "Aceton" verschoben: Labor A / Schrank 1 -> Labor A / Schrank 2.
+  ```
+* **Neue Hilfsfunktion `standort_text()`** für Standorte als Klartext in Logs. Bewusst nicht `Unterbereich.get_full_path()`: das liefert HTML-Entities (`&rsaquo;`) und ist für die Anzeige im Template gedacht. Die Funktion verträgt `None` und IDs ohne zugehörigen Unterbereich — beim Protokollieren ist beides der Normalfall.
+* **Namen werden vor dem Löschen gesichert** (`delete_bereich`, `delete_unterbereich`, `delete_user`): Meldung und Historieneintrag hängen nicht mehr von einem bereits gelöschten Objekt ab.
+* **Nachgemessen, was das Löschen eines Standorts wirklich bewirkt** — die Kaskade war nicht dokumentiert und ist nicht intuitiv:
+  * Es wird **kein Gefahrstoff gelöscht**. 4 Gefahrstoffe in 2 Unterbereichen eines Bereichs sind nach dem Löschen des Bereichs weiterhin 4.
+  * Alle verlieren aber ihren Standort. Beim Löschen des Bereichs gehen zugleich **alle** Unterbereiche mit (aus 2 werden 0).
+  * **Folge, die man kennen muss:** Ein Gefahrstoff ohne Standort ist nur noch für seinen **Ersteller** und für Administratoren sichtbar. Nachgestellt mit zwei Benutzern, die beide Zugriff auf den Bereich hatten: `chef=True, anna=True, bert=True` vorher — `chef=True, anna=True, bert=False` nachher. Für alle anderen verschwindet der Stoff also aus der Ansicht, obwohl er in der Datenbank steht.
+  * Diese Folge steht jetzt als Hinweis im Handbuch bei der Standortverwaltung.
+* **Anzeige:** `MOVE` und `COPY` bekommen deutsche Beschriftungen und Symbole („Verschoben", „Kopiert") in `audit_logs.html`.
+* **Vier neue Tests** in `test_audit_log.py` (jetzt 13): Verschieben mit altem und neuem Standort, Kopieren mit Quelle, Löschen eines Unterbereichs und eines Bereichs — jeweils mit der Prüfung, dass der Gefahrstoff **überlebt** und nur den Standort verliert. Der Rendering-Test deckt die neuen Beschriftungen mit ab. Gesamtstand: **60 Tests (38 + 9 + 13), alle grün.**
+* **Offen geblieben, hier nur festgestellt:**
+  * **`copy_stoff` kopiert `lagerklasse` und `gefahrenkategorien` nicht.** Eine Kopie verliert damit die Lagerklasse — und die ist die Grundlage der TRGS-510-Zusammenlagerungsprüfung. Die Kopie erscheint also ohne die Warnungen, die das Original hat. Ebenfalls nicht mitkopiert werden `ba_texte`, `ba_gebotszeichen` und `ba_unterschrift`; bei der Unterschrift ist das Nichtmitkopieren richtig (sie ist personenbezogen), bei den Texten eine Frage der Erwartung.
+  * **`move_stoff` prüft das Ziel nicht.** Der Wert aus dem Formular geht ungeprüft in die Datenbank; im Unterschied zu `/add`, das gegen die zugänglichen Bereiche prüft. Ein Gefahrstoff lässt sich damit in einen fremden Bereich schieben.
+  * **Beim Löschen eines Benutzers verlieren dessen bisherige Einträge die Zuordnung** (siehe v3.11) — unverändert offen, braucht eine Schemaänderung.
+
 ### v3.11 – Benutzerverwaltung wird protokolliert (September 2026)
 
 * **⚠️ Die Benutzerverwaltung schrieb bis hierher überhaupt keine Einträge in die Systemhistorie.** Anlegen, Rollenwechsel, Bearbeiten, Bereichszuweisung und Löschen von Benutzern liefen vollständig unprotokolliert — im Audit Log standen ausschließlich Vorgänge an Gefahrstoffen. Wer ein Konto anlegte, eine Rolle hochstufte oder einen Benutzer entfernte, war im Nachhinein nicht feststellbar. Zusammen mit der in v3.10 behobenen Rechteprüfung war das die unangenehme Kombination: die Lücke war ausnutzbar **und** eine Ausnutzung hätte keine Spur hinterlassen.

@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from main import app, db, User, Bereich, AuditLog
+from main import app, db, User, Bereich, Unterbereich, Gefahrstoff, AuditLog
 
 
 class TestAuditLog(unittest.TestCase):
@@ -51,6 +51,23 @@ class TestAuditLog(unittest.TestCase):
             db.session.add(user)
             db.session.commit()
             return user.id
+
+    def _standort_und_stoff(self, admin_id, stoff_name='Teststoff'):
+        """Bereich mit zwei Unterbereichen und einem Gefahrstoff darin."""
+        with app.app_context():
+            bereich = Bereich(name='Audit-Labor', owner_id=admin_id)
+            db.session.add(bereich)
+            db.session.commit()
+            schrank1 = Unterbereich(name='Schrank 1', bereich_id=bereich.id)
+            schrank2 = Unterbereich(name='Schrank 2', bereich_id=bereich.id)
+            db.session.add_all([schrank1, schrank2])
+            db.session.commit()
+            stoff = Gefahrstoff(name=stoff_name, unterbereich_id=schrank1.id,
+                                user_id=admin_id, lagerklasse='3',
+                                menge=1.0, mengeneinheit='L')
+            db.session.add(stoff)
+            db.session.commit()
+            return stoff.id, schrank1.id, schrank2.id, bereich.id
 
     # ── Anlegen ──────────────────────────────────────────────────────────────
 
@@ -179,16 +196,98 @@ class TestAuditLog(unittest.TestCase):
             # vorher -> nachher
             self.assertIn('keine', eintrag.details)
 
+    # ── Gefahrstoffe: Verschieben und Kopieren ───────────────────────────────
+
+    def test_verschieben_haelt_alten_und_neuen_standort_fest(self):
+        admin_id = self._login_admin()
+        stoff_id, schrank1_id, schrank2_id, _ = self._standort_und_stoff(admin_id)
+
+        self.client.post(f'/move/{stoff_id}', data={'unterbereich_id': str(schrank2_id)},
+                         follow_redirects=True)
+
+        with app.app_context():
+            self.assertEqual(Gefahrstoff.query.get(stoff_id).unterbereich_id, schrank2_id)
+            eintrag = AuditLog.query.filter_by(action='MOVE').first()
+            self.assertIsNotNone(eintrag, 'Das Verschieben muss protokolliert werden')
+            self.assertEqual(eintrag.entity_id, stoff_id)
+            # Beide Standorte: ohne den alten ist die Verschiebung nicht nachvollziehbar
+            self.assertIn('Schrank 1', eintrag.details)
+            self.assertIn('Schrank 2', eintrag.details)
+            self.assertIn('Audit-Labor', eintrag.details)
+
+    def test_kopieren_wird_protokolliert(self):
+        admin_id = self._login_admin()
+        stoff_id, _, schrank2_id, _ = self._standort_und_stoff(admin_id)
+
+        self.client.post(f'/copy/{stoff_id}', data={'unterbereich_id': str(schrank2_id)},
+                         follow_redirects=True)
+
+        with app.app_context():
+            self.assertEqual(Gefahrstoff.query.count(), 2, 'Die Kopie sollte existieren')
+            eintrag = AuditLog.query.filter_by(action='COPY').first()
+            self.assertIsNotNone(eintrag, 'Das Kopieren muss protokolliert werden')
+            # Der Eintrag beschreibt die Kopie und nennt die Quelle
+            kopie = Gefahrstoff.query.filter(Gefahrstoff.id != stoff_id).first()
+            self.assertEqual(eintrag.entity_id, kopie.id)
+            self.assertIn(f'#{stoff_id}', eintrag.details)
+            self.assertIn('Schrank 2', eintrag.details)
+
+    # ── Standorte löschen ────────────────────────────────────────────────────
+
+    def test_unterbereich_loeschen_wird_protokolliert(self):
+        admin_id = self._login_admin()
+        stoff_id, schrank1_id, _, _ = self._standort_und_stoff(admin_id)
+
+        self.client.post(f'/location/delete_unterbereich/{schrank1_id}', follow_redirects=True)
+
+        with app.app_context():
+            self.assertIsNone(Unterbereich.query.get(schrank1_id))
+            # Der Gefahrstoff bleibt erhalten, verliert aber den Standort
+            stoff = Gefahrstoff.query.get(stoff_id)
+            self.assertIsNotNone(stoff, 'Der Gefahrstoff darf nicht mitgelöscht werden')
+            self.assertIsNone(stoff.unterbereich_id)
+            eintrag = AuditLog.query.filter_by(action='DELETE',
+                                               entity_type='Unterbereich').first()
+            self.assertIsNotNone(eintrag, 'Das Löschen muss protokolliert werden')
+            self.assertIn('Schrank 1', eintrag.details)
+            self.assertIn('1 Gefahrstoff', eintrag.details)
+
+    def test_bereich_loeschen_protokolliert_die_folgen(self):
+        admin_id = self._login_admin()
+        stoff_id, _, _, bereich_id = self._standort_und_stoff(admin_id)
+
+        self.client.post(f'/location/delete_bereich/{bereich_id}', follow_redirects=True)
+
+        with app.app_context():
+            self.assertIsNone(Bereich.query.get(bereich_id))
+            self.assertEqual(Unterbereich.query.count(), 0, 'Die Unterbereiche gehen mit')
+            # Wichtig: die Gefahrstoffe überleben, verlieren aber den Standort
+            stoff = Gefahrstoff.query.get(stoff_id)
+            self.assertIsNotNone(stoff, 'Gefahrstoffe dürfen nicht mitgelöscht werden')
+            self.assertIsNone(stoff.unterbereich_id)
+            eintrag = AuditLog.query.filter_by(action='DELETE', entity_type='Bereich').first()
+            self.assertIsNotNone(eintrag, 'Das Löschen muss protokolliert werden')
+            self.assertIn('Audit-Labor', eintrag.details)
+            # Die Folgen stehen im Eintrag, sonst sieht man nur einen Namen verschwinden
+            self.assertIn('2 Unterbereich', eintrag.details)
+            self.assertIn('1 Gefahrstoff', eintrag.details)
+
     # ── Anzeige ──────────────────────────────────────────────────────────────
 
     def test_historie_rendert_und_uebersetzt_die_aktionen(self):
         # Prüft zugleich, dass das Template fehlerfrei rendert - ein Jinja-Fehler
         # in audit_logs.html würde sonst erst im Betrieb auffallen.
-        self._login_admin()
+        admin_id = self._login_admin()
         zid = self._benutzer_anlegen('beschriftung', role='benutzer')
         self.client.post(f'/users/set_role/{zid}', data={'role': 'lesen'},
                          follow_redirects=True)
         self.client.post(f'/users/delete/{zid}', follow_redirects=True)
+
+        stoff_id, _, schrank2_id, _ = self._standort_und_stoff(admin_id)
+        self.client.post(f'/move/{stoff_id}', data={'unterbereich_id': str(schrank2_id)},
+                         follow_redirects=True)
+        self.client.post(f'/copy/{stoff_id}', data={'unterbereich_id': str(schrank2_id)},
+                         follow_redirects=True)
 
         res = self.client.get('/audit_logs')
         self.assertEqual(res.status_code, 200)
@@ -196,9 +295,12 @@ class TestAuditLog(unittest.TestCase):
         # Die Aktionen erscheinen auf Deutsch, nicht als roher Code
         self.assertIn('Rolle geändert', html)
         self.assertIn('Benutzer gelöscht', html)
+        self.assertIn('Verschoben', html)
+        self.assertIn('Kopiert', html)
         self.assertNotIn('USER_ROLE', html)
         self.assertNotIn('USER_DELETE', html)
-
+        self.assertNotIn('MOVE', html)
+        self.assertNotIn('COPY', html)
     # ── Keine Geheimnisse in der Historie ────────────────────────────────────
 
     def test_passwort_steht_nicht_in_der_historie(self):
