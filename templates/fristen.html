@@ -39,6 +39,23 @@
     </div>
     <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <div style="display:flex; align-items:center; gap:0.6rem;">
+            <i class="fa-solid fa-flask-vial" style="color:#6b21a8;"></i>
+            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.substitution }}</span>
+            <span class="text-muted" style="font-size:0.875rem;">Substitutionsprüfung</span>
+        </div>
+        {# "noch nie geprüft" wird bewusst nicht als Zeile geführt (das wäre bei
+           einem gewachsenen Verzeichnis jeder Stoff). Als Zahl bleibt die Lücke
+           trotzdem sichtbar - und sie zählt nicht in die Kachelzahl hinein,
+           damit diese weiterhin zur Liste passt. #}
+        {% if uebersicht.subst_ungeprueft %}
+        <div style="margin-top:0.4rem; font-size:0.78rem; color:#94a3b8;">
+            <i class="fa-solid fa-circle-info" style="margin-right:3px;"></i>
+            {{ uebersicht.subst_ungeprueft }} noch nie geprüft
+        </div>
+        {% endif %}
+    </div>
+    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
             <i class="fa-solid fa-clipboard-check" style="color:#0284c7;"></i>
             <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.inventur }}</span>
             <span class="text-muted" style="font-size:0.875rem;">Inventur fällig</span>
@@ -67,16 +84,28 @@
                     </a>
                 </td>
                 <td style="padding:1rem 1.5rem;">
-                    {# Die Stufe kommt aus sdb_status() bzw. fristen_liste(); hier
-                       stehen nur Beschriftung und Farbe. #}
-                    {% if e.stufe == 'fehlt' %}
-                        <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">Kein SDB hinterlegt</span>
-                    {% elif e.stufe == 'dringend' %}
-                        <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">SDB dringend aktualisieren</span>
-                    {% elif e.stufe == 'ohne_datum' %}
-                        <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">SDB-Datum fehlt</span>
-                    {% elif e.stufe == 'pruefen' %}
-                        <span class="badge" style="background:#fef08a; color:#854d0e; border:1px solid #eab308;">SDB prüfen</span>
+                    {# Die Stufe kommt aus sdb_status(), substitution_status() bzw.
+                       fristen_liste(); hier stehen nur Beschriftung und Farbe.
+                       Nach Kategorie unterschieden, weil "fehlt" bei SDB etwas
+                       anderes heißt als bei der Substitutionsprüfung. #}
+                    {% if e.kategorie == 'SDB' %}
+                        {% if e.stufe == 'fehlt' %}
+                            <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">Kein SDB hinterlegt</span>
+                        {% elif e.stufe == 'dringend' %}
+                            <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">SDB dringend aktualisieren</span>
+                        {% elif e.stufe == 'ohne_datum' %}
+                            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">SDB-Datum fehlt</span>
+                        {% else %}
+                            <span class="badge" style="background:#fef08a; color:#854d0e; border:1px solid #eab308;">SDB prüfen</span>
+                        {% endif %}
+                    {% elif e.kategorie == 'Substitution' %}
+                        {% if e.stufe == 'fehlt' %}
+                            <span class="badge" style="background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;">Substitutionsprüfung fehlt</span>
+                        {% elif e.stufe == 'ohne_datum' %}
+                            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">Prüfdatum fehlt</span>
+                        {% else %}
+                            <span class="badge" style="background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;">Prüfung wiederholen</span>
+                        {% endif %}
                     {% else %}
                         <span class="badge" style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd;">Inventur fällig</span>
                     {% endif %}

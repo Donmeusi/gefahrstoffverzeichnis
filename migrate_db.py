@@ -57,7 +57,8 @@ def run_migrations():
             'gefaehrdungsbeurteilung': 'VARCHAR(200)',
             'ba_texte': 'TEXT',
             'ba_gebotszeichen': 'VARCHAR(100)',
-            'ba_unterschrift': 'TEXT'
+            'ba_unterschrift': 'TEXT',
+            'substitution_geprueft_am': 'DATE'
         }
         for col, col_type in columns_to_add.items():
             if col not in existing:

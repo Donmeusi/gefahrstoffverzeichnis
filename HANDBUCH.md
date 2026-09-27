@@ -20,6 +20,7 @@ Das Dashboard ist Ihre Zentrale für alle Gefahrstoffe, auf die Sie Zugriff habe
 
 ### 1.3 Gefahrstoff-Verwaltung (CRUD)
 - **Erfassung (`/add`):** Legen Sie neue Gefahrstoffe an. Erfassen Sie neben Standarddaten auch Lagerklassen, Mengen, GHS-Einstufungen, H/P-Sätze sowie Substitutionsprüfungen.
+- **Substitutionsprüfung:** Neben der Auswahl „Ja (Ersatzstoff vorhanden)" / „Nein (kein Ersatzstoff)" gehört das Feld **„Zuletzt geprüft am"** dazu. Das Datum ist die Grundlage dafür, dass der Stoff in der Fristenliste erscheint — ohne Datum gilt die Prüfung als nicht datiert, ohne Auswahl als nie durchgeführt. Details unter 1.8.
 - **Dateianhänge:** Hängen Sie dem Datensatz Sicherheitsdatenblätter (SDB), Betriebsanweisungen (BA) und Gefährdungsbeurteilungen (GB) als PDF an.
 - **Ansicht & Bearbeitung:** Rufen Sie Detailansichten auf oder ändern Sie bestehende Einträge.
 - **Kopieren / Duplizieren:** Erstellen Sie exakte Kopien eines bestehenden Gefahrstoffs (z.B. für einen anderen Standort), um sich Tipparbeit zu sparen.
@@ -68,11 +69,17 @@ Die Seite listet die offenen Aufgaben, die sich aus Ihren Gefahrstoffen ergeben 
 | Sicherheitsdatenblatt | Datum älter als 5 Jahre (dringend) | ebenso |
 | Kein Sicherheitsdatenblatt hinterlegt | immer fällig | das Dokument am Gefahrstoff hinterlegen |
 | Dokument vorhanden, aber ohne Datum | immer fällig | das Datum nachtragen |
+| Substitutionsprüfung | keine Prüfung dokumentiert | **keine Zeile** — erscheint als Zahl unter der Substitutions-Kachel im Kopfbereich. Zu tun: im Gefahrstoff das Feld „Substitutionsprüfung" ausfüllen **und** „Zuletzt geprüft am" eintragen |
+| Substitutionsprüfung | Prüfung vermerkt, aber ohne Datum | das Datum nachtragen |
+| Substitutionsprüfung | letzte Prüfung älter als 24 Monate | Datum der erneuten Prüfung eintragen |
 | Inventur | jüngste Inventur des Standorts älter als 12 Monate — oder dort wurde noch nie inventarisiert | „Inventur starten" öffnet die Schnell-Inventur; sie setzt das Datum |
+
+> **Zum Intervall der Substitutionsprüfung:** 24 Monate sind eine **interne Konvention dieses Betriebs, keine Vorschrift.** §7 GefStoffV verlangt die Prüfung und ihre Dokumentation, TRGS 600 beschreibt das Vorgehen; wiederholt wird sie bei neuen Erkenntnissen, nicht nach festen Jahren. Der Wert steht als `SUBSTITUTION_FRIST_MONATE` in `main.py` und lässt sich dort ändern. Unabhängig davon wird immer ausgewiesen, wenn eine Prüfung **gar nicht** dokumentiert ist — als Zahl, siehe unten.
 
 - **Sichtbarkeit:** Es erscheinen nur Stoffe und Standorte aus Ihren Bereichen — wie überall in der Anwendung.
 - **Die Rolle „Lesen"** sieht die Liste, aber keine Aktionsknöpfe.
-- **Die Kachel „Veraltete SDBs"** auf dem Dashboard zählt nur die veralteten Sicherheitsdatenblätter (die Stufen „prüfen" und „dringend") und ist der Einstieg in diese Seite. Oben auf der Seite steht zusätzlich, wie viele Dokumente fehlen und wie viele Inventuren fällig sind — damit die Zahl auf der Kachel und die Liste vergleichbar bleiben.
+- **Nicht dokumentierte Prüfungen stehen als Zahl, nicht als Zeile.** Wäre jeder Stoff ohne Prüfung eine eigene Zeile, würde die Liste bei einem gewachsenen Verzeichnis unbrauchbar. Die Zahl steht unter der Substitutions-Kachel („12 noch nie geprüft") und zählt **nicht** in die Kachelzahl hinein — diese bleibt die Zahl der Zeilen, damit Kachel und Liste übereinstimmen.
+- **Die Kachel „Veraltete SDBs"** auf dem Dashboard zählt nur die veralteten Sicherheitsdatenblätter (die Stufen „prüfen" und „dringend") und ist der Einstieg in diese Seite. Oben auf der Seite stehen zusätzlich die fehlenden Dokumente, die offenen Substitutionsprüfungen und die fälligen Inventuren — damit die Zahl auf der Kachel und die Liste vergleichbar bleiben.
 
 ### 1.9 Administrator-Werkzeuge
 - **Audit Log (System-Historie):** Eine Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, verschoben, kopiert, gelöscht oder freigegeben hat — einschließlich der Standortverwaltung. Beim Verschieben stehen alter und neuer Standort im Eintrag, beim Löschen eines Standorts die Zahl der betroffenen Unterbereiche und Gefahrstoffe.

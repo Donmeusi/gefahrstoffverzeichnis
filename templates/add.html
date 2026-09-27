@@ -255,6 +255,14 @@
                             <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
                             <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da..."></textarea>
                         </div>
+
+                        {# Grundlage für die Frist in /fristen. Ohne Datum gilt die
+                           Prüfung als nicht dokumentiert. #}
+                        <div style="margin-top: 10px;">
+                            <label for="substitution_geprueft_am">Zuletzt geprüft am</label>
+                            <input type="date" id="substitution_geprueft_am" name="substitution_geprueft_am">
+                            <small class="form-text">Wird für die Fristenliste ausgewertet.</small>
+                        </div>
                     </div>
                 </div>
             </div>

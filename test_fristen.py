@@ -24,7 +24,8 @@ import testkonfiguration  # noqa: F401,E402
 
 from main import (
     app, db, User, Bereich, Unterbereich, Gefahrstoff,
-    sdb_status, SDB_FRIST_JAHRE, SDB_DRINGEND_JAHRE,
+    sdb_status, substitution_status, SDB_FRIST_JAHRE, SDB_DRINGEND_JAHRE,
+    SUBSTITUTION_FRIST_MONATE,
 )
 
 HEUTE = date(2026, 9, 27)
@@ -39,6 +40,12 @@ def stoff_attrappe(sdb_datum=None, hat_sdb=True):
     """Nur die zwei Felder, die sdb_status() liest — kein Datenbankeintrag."""
     return SimpleNamespace(sdb_datum=sdb_datum,
                            sicherheitsdatenblatt='blatt.pdf' if hat_sdb else None)
+
+
+def subst_attrappe(pruefung=None, geprueft_am=None):
+    """Nur die zwei Felder, die substitution_status() liest."""
+    return SimpleNamespace(substitutionspruefung=pruefung,
+                           substitution_geprueft_am=geprueft_am)
 
 
 class TestSdbStatus(unittest.TestCase):
@@ -82,6 +89,44 @@ class TestSdbStatus(unittest.TestCase):
         self.assertEqual(faellig, date(2023, 2, 28))
 
 
+class TestSubstitutionStatus(unittest.TestCase):
+    """Die Frist der Substitutionsprüfung — reine Funktion, ohne Datenbank."""
+
+    def test_nie_geprueft(self):
+        stufe, faellig = substitution_status(subst_attrappe(None, None), HEUTE)
+        self.assertEqual(stufe, 'fehlt')
+        self.assertIsNone(faellig)
+
+    def test_geprueft_ohne_datum(self):
+        # Die Prüfung ist dokumentiert ('ja'/'nein'), nur das Datum fehlt -
+        # das ist etwas anderes als eine Prüfung, die nie stattfand.
+        stufe, faellig = substitution_status(subst_attrappe('nein', None), HEUTE)
+        self.assertEqual(stufe, 'ohne_datum')
+        self.assertIsNone(faellig)
+
+    def test_innerhalb_der_frist(self):
+        self.assertEqual(
+            substitution_status(subst_attrappe('nein', vor_jahren(1)), HEUTE)[0], 'ok')
+
+    def test_ueberfaellig(self):
+        stufe, faellig = substitution_status(subst_attrappe('ja', vor_jahren(3)), HEUTE)
+        self.assertEqual(stufe, 'faellig')
+        self.assertLessEqual(faellig, HEUTE)
+
+    def test_grenze_genau_erreicht(self):
+        # Genau SUBSTITUTION_FRIST_MONATE nach der Prüfung: fällig.
+        grenze = date(HEUTE.year, HEUTE.month, HEUTE.day)
+        for _ in range(SUBSTITUTION_FRIST_MONATE):
+            grenze = date(grenze.year - (1 if grenze.month == 1 else 0),
+                          12 if grenze.month == 1 else grenze.month - 1,
+                          grenze.day)
+        self.assertEqual(substitution_status(subst_attrappe('ja', grenze), HEUTE)[0], 'faellig')
+
+    def test_ein_tag_vor_der_frist_ist_ok(self):
+        selbst_geprueft = date(HEUTE.year - 2, HEUTE.month, HEUTE.day) + timedelta(days=1)
+        self.assertEqual(substitution_status(subst_attrappe('ja', selbst_geprueft), HEUTE)[0], 'ok')
+
+
 class TestFristenliste(unittest.TestCase):
     """Liste und Seite — mit Datenbank."""
 
@@ -121,6 +166,15 @@ class TestFristenliste(unittest.TestCase):
             juengstes = date(heute.year - 2, heute.month, heute.day)   # aktuell
             mittel    = date(heute.year - 4, heute.month, heute.day)   # prüfen
             alt       = date(heute.year - 6, heute.month, heute.day)   # dringend
+
+            # Die Substitutionsprüfung wird hier als dokumentiert und frisch
+            # gesetzt: diese Stoffe sollen ausschließlich über ihre SDB-Daten in
+            # der Liste erscheinen. Ohne das käme zu jedem Stoff ein zweiter
+            # Eintrag ("Substitutionsprüfung fehlt"), und die Tests unten würden
+            # nicht mehr das prüfen, was sie prüfen sollen. Die Substitutionsfrist
+            # hat eigene Tests.
+            subst_frisch = date(heute.year - 1, heute.month, heute.day)
+
             for name, datum, hat_sdb in [
                 ('Frischstoff', juengstes, True),
                 ('Mittelaltstoff', mittel, True),
@@ -131,6 +185,8 @@ class TestFristenliste(unittest.TestCase):
                     name=name, unterbereich_id=unterbereich.id, user_id=admin.id,
                     sicherheitsdatenblatt='blatt.pdf' if hat_sdb else None,
                     sdb_datum=datum,
+                    substitutionspruefung='nein',
+                    substitution_geprueft_am=subst_frisch,
                 ))
             db.session.commit()
 
@@ -176,6 +232,10 @@ class TestFristenliste(unittest.TestCase):
                 user_id=1, sicherheitsdatenblatt='blatt.pdf',
                 sdb_datum=datetime.utcnow().date(),
                 last_inventur_datum=datetime.utcnow(),
+                # Auch hier eine dokumentierte Prüfung, damit dieser Stoff
+                # ausschließlich über die Inventur in der Liste erscheint.
+                substitutionspruefung='nein',
+                substitution_geprueft_am=datetime.utcnow().date(),
             ))
             db.session.commit()
 
@@ -273,6 +333,170 @@ class TestFristenliste(unittest.TestCase):
         self.assertIn('Dringend aktualisieren', html)   # Altstoff
         self.assertIn('Aktualisierung prüfen', html)    # Mittelaltstoff
         self.assertIn('Aktuell', html)                  # Frischstoff
+
+    def _zahl(self, html, label):
+        """Zahl aus einer Aufschlüsselungs-Kachel im Kopfbereich."""
+        treffer = re.search(r'>(\d+)</span>\s*<span class="text-muted"[^>]*>'
+                            + re.escape(label), html)
+        return int(treffer.group(1)) if treffer else None
+
+    def _ohne_pruefung(self, *namen):
+        """Setzt die Substitutionsprüfung der genannten Stoffe auf 'nie geprüft'."""
+        with app.app_context():
+            for name in namen:
+                stoff = Gefahrstoff.query.filter_by(name=name).first()
+                stoff.substitutionspruefung = None
+                stoff.substitution_geprueft_am = None
+            db.session.commit()
+
+    # ── Substitutionsprüfung ─────────────────────────────────────────────────
+
+    def _nie_geprueft(self, html):
+        """Zahl aus dem Zusatz unter der Substitutions-Kachel."""
+        treffer = re.search(r'(\d+) noch nie geprüft', html)
+        return int(treffer.group(1)) if treffer else 0
+
+    def test_aufschluesselung_zaehlt_nach_kategorie(self):
+        """Die Testumgebung ist bei der Substitutionsprüfung bewusst sauber."""
+        html = None
+        self._umgebung()
+        html = self._seite()
+        self.assertEqual(self._zahl(html, 'SDB veraltet'), 2)
+        self.assertEqual(self._zahl(html, 'SDB fehlt oder ohne Datum'), 1)
+        self.assertEqual(self._zahl(html, 'Substitutionsprüfung'), 0)
+        self.assertEqual(self._zahl(html, 'Inventur fällig'), 1)
+        self.assertEqual(self._nie_geprueft(html), 0)
+
+    def test_nie_geprueft_ist_eine_zahl_und_keine_zeile(self):
+        """Nie geprüfte Stoffe erscheinen nicht als Zeile, aber als Zahl.
+
+        Bei einem gewachsenen Verzeichnis wäre das jeder Stoff auf einmal und
+        die Liste damit als Arbeitsliste unbrauchbar. Unsichtbar darf die
+        Lücke trotzdem nicht sein.
+        """
+        self._umgebung()
+        self._ohne_pruefung('Frischstoff')
+        html = self._seite()
+        self.assertEqual(self._nie_geprueft(html), 1)
+        self.assertNotIn('Substitutionsprüfung fehlt', html)
+        # Frischstoff hat ein aktuelles SDB und keine dokumentierte Prüfung -
+        # er steht in gar keiner Zeile mehr.
+        self.assertNotIn('Frischstoff', html)
+        # Und die Kachelzahl bleibt die Zahl der Zeilen
+        self.assertEqual(self._zahl(html, 'Substitutionsprüfung'), 0)
+
+    def test_nie_geprueft_zaehlt_nicht_zu_den_sdb(self):
+        """'fehlt' heißt bei SDB etwas anderes als bei der Substitutionsprüfung."""
+        self._umgebung()
+        self._ohne_pruefung('Frischstoff', 'Mittelaltstoff')
+        html = self._seite()
+        self.assertEqual(self._nie_geprueft(html), 2)
+        # Die SDB-Zahlen dürfen sich dadurch nicht verändern
+        self.assertEqual(self._zahl(html, 'SDB veraltet'), 2)
+        self.assertEqual(self._zahl(html, 'SDB fehlt oder ohne Datum'), 1)
+
+    def test_veraltete_pruefung_bleibt_eine_zeile(self):
+        """Konkreter Handlungsbedarf bleibt in der Liste."""
+        self._umgebung()
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Frischstoff').first()
+            stoff.substitution_geprueft_am = date(2019, 5, 4)
+            db.session.commit()
+        html = self._seite()
+        self.assertIn('Prüfung wiederholen', html)
+        self.assertEqual(self._zahl(html, 'Substitutionsprüfung'), 1)
+        self.assertEqual(self._nie_geprueft(html), 0)
+
+    def test_substitution_steht_hinter_den_sdb_fristen(self):
+        """Ein fehlendes Sicherheitsdatenblatt wiegt schwerer als eine
+        überfällige Prüfung."""
+        self._umgebung()
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Frischstoff').first()
+            stoff.substitution_geprueft_am = date(2019, 5, 4)
+            db.session.commit()
+        html = self._seite()
+        self.assertNotEqual(html.find('Kein SDB hinterlegt'), -1)
+        self.assertNotEqual(html.find('Prüfung wiederholen'), -1)
+        self.assertLess(html.find('Kein SDB hinterlegt'),
+                        html.find('Prüfung wiederholen'))
+
+    def test_veraltete_pruefung_wird_als_wiederholung_angezeigt(self):
+        self._umgebung()
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Frischstoff').first()
+            stoff.substitution_geprueft_am = date(2019, 5, 4)
+            db.session.commit()
+        html = self._seite()
+        self.assertIn('Prüfung wiederholen', html)
+        self.assertNotIn('Substitutionsprüfung fehlt', html)
+
+    def test_pruefung_ohne_datum_wird_unterschieden(self):
+        # Geprüft, aber ohne Datum - das ist nicht dasselbe wie "nie geprüft".
+        self._umgebung()
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Frischstoff').first()
+            stoff.substitution_geprueft_am = None
+            db.session.commit()
+        html = self._seite()
+        self.assertIn('Prüfdatum fehlt', html)
+        self.assertNotIn('Substitutionsprüfung fehlt', html)
+
+    def test_pruefdatum_wird_beim_anlegen_gespeichert(self):
+        self._umgebung()
+        self.client.post('/add',
+                         data={'name': 'Neustoff', 'menge': '1', 'mengeneinheit': 'L',
+                               'substitutionspruefung': 'ja',
+                               'substitution_geprueft_am': '2026-02-01'},
+                         follow_redirects=True)
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Neustoff').first()
+            self.assertIsNotNone(stoff, 'Der Stoff sollte angelegt sein')
+            self.assertEqual(stoff.substitution_geprueft_am, date(2026, 2, 1))
+        # Frisch geprüft -> kein Substitutions-Eintrag. Der Stoff steht aber
+        # trotzdem in der Liste, weil zu ihm noch kein SDB hinterlegt ist - das
+        # ist eine andere Frist.
+        self.assertEqual(self._zahl(self._seite(), 'Substitutionsprüfung'), 0)
+
+    def test_pruefdatum_wird_beim_bearbeiten_gespeichert(self):
+        self._umgebung()
+        self._ohne_pruefung('Frischstoff')
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Frischstoff').first()
+            sid, sdb_datum = stoff.id, stoff.sdb_datum
+        self.assertEqual(self._nie_geprueft(self._seite()), 1)
+
+        self.client.post(f'/edit/{sid}',
+                         data={'name': 'Frischstoff',
+                               'sdb_datum': sdb_datum.strftime('%Y-%m-%d'),
+                               'substitutionspruefung': 'nein',
+                               'substitution_geprueft_am': '2019-05-04',
+                               'menge': '1'},
+                         follow_redirects=True)
+
+        with app.app_context():
+            self.assertEqual(Gefahrstoff.query.get(sid).substitution_geprueft_am,
+                             date(2019, 5, 4))
+        html = self._seite()
+        # Aus "nie geprüft" ist ein konkreter Fall geworden: Zeile statt Zahl
+        self.assertIn('Prüfung wiederholen', html)
+        self.assertEqual(self._nie_geprueft(html), 0)
+
+    def test_unsinniges_pruefdatum_wird_abgelehnt(self):
+        self._umgebung()
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Frischstoff').first()
+            sid, vorher = stoff.id, stoff.substitution_geprueft_am
+        self.assertIsNotNone(vorher, 'Die Testumgebung setzt ein Prüfdatum')
+
+        res = self.client.post(f'/edit/{sid}',
+                               data={'name': 'Frischstoff', 'menge': '1',
+                                     'substitution_geprueft_am': 'kein-datum'},
+                               follow_redirects=True)
+        self.assertIn('Ungültiges Datum', res.get_data(as_text=True))
+        with app.app_context():
+            # Der unlesbare Wert darf das vorhandene Datum nicht überschreiben.
+            self.assertEqual(Gefahrstoff.query.get(sid).substitution_geprueft_am, vorher)
 
     def test_zaehler_in_der_navigation(self):
         self._umgebung()

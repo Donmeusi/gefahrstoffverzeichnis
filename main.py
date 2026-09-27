@@ -266,6 +266,11 @@ class Gefahrstoff(db.Model):
     substitutionspruefung = db.Column(db.String(10), nullable=True)
     ersatzstoff         = db.Column(db.String(200), nullable=True)
     begruendung         = db.Column(db.String(500), nullable=True)
+    # Wann die Substitutionsprüfung nach §7 GefStoffV zuletzt durchgeführt
+    # wurde. Grundlage für die Frist in fristen_liste(). Ein gesetzliches
+    # Wiederholungsintervall gibt es dafür nicht - siehe
+    # SUBSTITUTION_FRIST_MONATE.
+    substitution_geprueft_am = db.Column(db.Date, nullable=True)
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
     gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
@@ -712,8 +717,41 @@ SDB_FRIST_JAHRE       = 3   # ab hier: SDB aktualisieren
 SDB_DRINGEND_JAHRE    = 5   # ab hier: dringend
 INVENTUR_FRIST_MONATE = 12
 
-# Reihenfolge in der Liste: kleiner = dringlicher
-FRISTEN_RANG = {'fehlt': 0, 'dringend': 1, 'ohne_datum': 2, 'pruefen': 3, 'inventur': 4}
+# Für die Substitutionsprüfung nach §7 GefStoffV gibt es KEIN gesetzliches
+# Wiederholungsintervall. Die Vorschrift verlangt die Prüfung und ihre
+# Dokumentation, TRGS 600 beschreibt das Vorgehen; wiederholt wird sie bei
+# neuen Erkenntnissen, nicht nach festen Jahren. Dieser Wert ist deshalb eine
+# interne Konvention des Betriebs und keine Vorschrift - hier in einer Zeile
+# änderbar. Der Fall "nie geprüft" wird unabhängig davon immer ausgewiesen.
+SUBSTITUTION_FRIST_MONATE = 24
+
+# Reihenfolge in der Liste: kleiner = dringlicher. Der Schlüssel ist
+# (Kategorie, Stufe), nicht die Stufe allein - "fehlt" bedeutet bei SDB etwas
+# anderes als bei der Substitutionsprüfung, und ein fehlendes
+# Sicherheitsdatenblatt wiegt schwerer als eine nicht dokumentierte Prüfung.
+FRISTEN_RANG = {
+    ('SDB', 'fehlt'):               0,
+    ('SDB', 'dringend'):            1,
+    ('SDB', 'ohne_datum'):          2,
+    ('SDB', 'pruefen'):             3,
+    ('Substitution', 'fehlt'):      4,
+    ('Substitution', 'ohne_datum'): 5,
+    ('Substitution', 'faellig'):    6,
+    ('Inventur', 'inventur'):       7,
+}
+
+
+def _datum_aus_formular(wert):
+    """Datum aus einem Formularfeld ('YYYY-MM-DD') oder None.
+
+    Wirft ValueError bei einem nicht leeren, aber unlesbaren Wert. Ein Browser
+    liefert bei type="date" nichts anderes - die Prüfung ist für selbst gebaute
+    Requests. Ein stillschweigend verworfenes Datum wäre schlimmer als eine
+    Meldung, deshalb entscheidet der Aufrufer, ob er den Fehler anzeigt.
+    """
+    if not wert:
+        return None
+    return datetime.strptime(wert, '%Y-%m-%d').date()
 
 
 def _plus_jahre(datum, jahre):
@@ -762,6 +800,32 @@ def sdb_status(stoff, heute):
     return 'pruefen', frist
 
 
+def substitution_status(stoff, heute):
+    """Friststatus der Substitutionsprüfung nach §7 GefStoffV.
+
+    Rückgabe: (stufe, faellig_seit) mit stufe aus
+      'fehlt'      - keine Prüfung dokumentiert
+      'ohne_datum' - Prüfung vermerkt, aber kein Datum erfasst
+      'faellig'    - letzte Prüfung älter als SUBSTITUTION_FRIST_MONATE
+      'ok'         - innerhalb der Frist
+
+    'fehlt' und 'ohne_datum' sind bewusst getrennt: ob eine Prüfung
+    stattgefunden hat, sagt das Feld substitutionspruefung ('ja'/'nein'),
+    wann sie war, sagt das Datum. Fehlt nur das Datum, ist die Prüfung
+    dokumentiert und es fehlt eine Angabe - das ist etwas anderes als eine
+    Prüfung, die nie stattgefunden hat.
+    """
+    if not stoff.substitutionspruefung:
+        return 'fehlt', None
+    if not stoff.substitution_geprueft_am:
+        return 'ohne_datum', None
+
+    frist = _plus_monate(stoff.substitution_geprueft_am, SUBSTITUTION_FRIST_MONATE)
+    if heute < frist:
+        return 'ok', None
+    return 'faellig', frist
+
+
 def fristen_liste(heute=None):
     """Alle offenen Fristen im Zugriffsbereich des angemeldeten Benutzers.
 
@@ -789,6 +853,32 @@ def fristen_liste(heute=None):
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
             'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
             'aktion_text': 'SDB-Datum eintragen',
+        })
+
+    # Substitutionsprüfung (§7 GefStoffV). Getrennt von der SDB-Schleife, weil
+    # beide unabhängige Fristen am selben Stoff sind - ein Stoff kann ein
+    # aktuelles Sicherheitsdatenblatt haben und trotzdem nie geprüft sein.
+    #
+    # "fehlt" (noch nie geprüft) erscheint bewusst NICHT als Zeile: bei einem
+    # gewachsenen Verzeichnis wäre das jeder Stoff auf einmal und die Liste
+    # damit als Arbeitsliste unbrauchbar. Der Zustand wird im Kopfbereich als
+    # Zahl ausgewiesen (substitution_ohne_pruefung), damit die Lücke sichtbar
+    # bleibt. Die Zustände mit konkretem Handlungsbedarf - Prüfdatum fehlt,
+    # Prüfung überfällig - bleiben Zeilen.
+    for stoff in stoffe:
+        stufe, faellig_seit = substitution_status(stoff, heute)
+        if stufe in ('ok', 'fehlt'):
+            continue
+        eintraege.append({
+            'kategorie': 'Substitution',
+            'stufe': stufe,
+            'objekt': stoff.name,
+            'objekt_link': url_for('view_stoff', id=stoff.id),
+            'ort': standort_text(stoff.unterbereich_id),
+            'faellig_seit': faellig_seit,
+            'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
+            'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
+            'aktion_text': 'Prüfung dokumentieren',
         })
 
     # Inventur: das Datum hängt am Stoff, nicht am Standort. Ein Standort gilt
@@ -823,12 +913,26 @@ def fristen_liste(heute=None):
     # noch nie inventarisiert) stehen innerhalb ihrer Gruppe vorn - dort ist am
     # wenigsten bekannt, also am ehesten etwas zu tun.
     eintraege.sort(key=lambda e: (
-        FRISTEN_RANG.get(e['stufe'], 9),
+        FRISTEN_RANG.get((e['kategorie'], e['stufe']), 9),
         0 if e['tage_ueberfaellig'] is None else 1,
         -(e['tage_ueberfaellig'] or 0),
         e['objekt'],
     ))
     return eintraege
+
+
+def substitution_ohne_pruefung(heute=None):
+    """Anzahl der Gefahrstoffe ohne dokumentierte Substitutionsprüfung.
+
+    Diese Stoffe erscheinen nicht als Zeilen in der Fristenliste (siehe
+    fristen_liste), die Zahl steht aber im Kopfbereich von /fristen. Ohne sie
+    wäre die Lücke unsichtbar - §7 GefStoffV verlangt die Prüfung für jeden
+    Gefahrstoff, nicht nur für die, deren Prüfung veraltet ist.
+    """
+    if heute is None:
+        heute = datetime.utcnow().date()
+    return sum(1 for stoff in get_gefahrstoff_query().all()
+               if substitution_status(stoff, heute)[0] == 'fehlt')
 
 
 def fristen_alle():
@@ -1041,14 +1145,19 @@ def fristen():
     eintraege = fristen_alle()
     heute = datetime.utcnow().date()
 
-    # Aufschlüsselung für den Kopfbereich: die Kachel auf der Startseite zählt
-    # nur die veralteten SDBs, diese Seite zeigt zusätzlich fehlende Dokumente
-    # und fällige Inventuren. Ohne die Aufschlüsselung wären die beiden Zahlen
-    # nicht vergleichbar.
+    # Aufschlüsselung für den Kopfbereich. Nach Kategorie gefiltert, weil
+    # dieselbe Stufe in mehreren Kategorien vorkommt ("fehlt" heißt bei SDB
+    # "kein Dokument", bei der Substitutionsprüfung "nie geprüft").
     uebersicht = {
-        'sdb_faellig':  sum(1 for e in eintraege if e['stufe'] in ('dringend', 'pruefen')),
-        'sdb_fehlend':  sum(1 for e in eintraege if e['stufe'] in ('fehlt', 'ohne_datum')),
-        'inventur':     sum(1 for e in eintraege if e['stufe'] == 'inventur'),
+        'sdb_faellig':  sum(1 for e in eintraege
+                            if e['kategorie'] == 'SDB'
+                            and e['stufe'] in ('dringend', 'pruefen')),
+        'sdb_fehlend':  sum(1 for e in eintraege
+                            if e['kategorie'] == 'SDB'
+                            and e['stufe'] in ('fehlt', 'ohne_datum')),
+        'substitution': sum(1 for e in eintraege if e['kategorie'] == 'Substitution'),
+        'subst_ungeprueft': substitution_ohne_pruefung(heute),
+        'inventur':     sum(1 for e in eintraege if e['kategorie'] == 'Inventur'),
     }
     return render_template('fristen.html', eintraege=eintraege, uebersicht=uebersicht,
                            heute=heute)
@@ -1502,6 +1611,14 @@ def add():
             ersatzstoff = request.form.get('ersatzstoff') if substitutionspruefung == 'ja' else None
             begruendung = request.form.get('begruendung') if substitutionspruefung == 'nein' else None
 
+            try:
+                substitution_geprueft_am = _datum_aus_formular(
+                    request.form.get('substitution_geprueft_am'))
+            except ValueError:
+                flash('Ungültiges Datum bei "Substitutionsprüfung zuletzt geprüft am".',
+                      'error')
+                return redirect(url_for('add'))
+
             menge = None
             if menge_str:
                 try:
@@ -1544,6 +1661,7 @@ def add():
                 substitutionspruefung=substitutionspruefung,
                 ersatzstoff=ersatzstoff,
                 begruendung=begruendung,
+                substitution_geprueft_am=substitution_geprueft_am,
                 sicherheitsdatenblatt=sdb_filename, betriebsanweisung=ba_filename,
                 gefaehrdungsbeurteilung=gb_filename,
                 unterbereich_id=unterbereich_id,
@@ -1618,6 +1736,13 @@ def edit_stoff(id):
         stoff.substitutionspruefung = request.form.get('substitutionspruefung')
         stoff.ersatzstoff = request.form.get('ersatzstoff') if stoff.substitutionspruefung == 'ja' else None
         stoff.begruendung = request.form.get('begruendung') if stoff.substitutionspruefung == 'nein' else None
+
+        try:
+            stoff.substitution_geprueft_am = _datum_aus_formular(
+                request.form.get('substitution_geprueft_am'))
+        except ValueError:
+            flash('Ungültiges Datum bei "Substitutionsprüfung zuletzt geprüft am".', 'error')
+            return redirect(url_for('edit_stoff', id=id))
 
         menge_str = request.form.get('menge')
         if menge_str:
@@ -1775,6 +1900,7 @@ def copy_stoff(id):
             substitutionspruefung=stoff.substitutionspruefung,
             ersatzstoff=stoff.ersatzstoff,
             begruendung=stoff.begruendung,
+            substitution_geprueft_am=stoff.substitution_geprueft_am,
             sicherheitsdatenblatt=stoff.sicherheitsdatenblatt,
             betriebsanweisung=stoff.betriebsanweisung,
             gefaehrdungsbeurteilung=stoff.gefaehrdungsbeurteilung,

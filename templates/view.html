@@ -118,6 +118,15 @@
                     {% else %}
                         –
                     {% endif %}
+                    {% if stoff.substitution_geprueft_am %}
+                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.2rem;">
+                            Zuletzt geprüft am {{ stoff.substitution_geprueft_am.strftime('%d.%m.%Y') }}
+                        </div>
+                    {% elif stoff.substitutionspruefung %}
+                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.2rem;">
+                            Kein Prüfdatum erfasst
+                        </div>
+                    {% endif %}
                 </dd>
             </dl>
 
