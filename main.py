@@ -650,10 +650,12 @@ def ziel_standort_pruefen(raw_wert, bereiche):
     gewählt wurde - das bedeutet "ohne Standort" und ist zulässig.
     'fehlermeldung' ist gesetzt, wenn das Ziel abgelehnt wird.
 
-    Gebraucht von /move und /copy. /add und /edit prüfen dieselbe Sache inline,
-    aber unvollständig: sie lassen ein Ziel durch, zu dem es keinen
-    Unterbereich gibt. Weil SQLite die Fremdschlüssel nicht erzwingt, bliebe ein
-    solcher Wert als toter Verweis in der Datenbank stehen.
+    Gebraucht von /add, /edit, /move und /copy. Geprüft wird dreierlei: der Wert
+    muss eine Zahl sein, es muss einen Unterbereich dazu geben, und dessen
+    Bereich muss für den Benutzer zugänglich sein. Der dritte Punkt war schon
+    vorher überall vorhanden, die ersten beiden fehlten - eine ID ohne
+    zugehörigen Unterbereich wurde übernommen (SQLite erzwingt die
+    Fremdschlüssel nicht), ein nicht numerischer Wert still verworfen.
     """
     if not raw_wert or not str(raw_wert).strip():
         return None, None
@@ -1250,18 +1252,18 @@ def add():
             cas_nummer   = request.form.get('cas_nummer')
             eg_nummer    = request.form.get('eg_nummer')
             signalwort   = request.form.get('signalwort')
-            unterbereich_id_raw = request.form.get('unterbereich_id')
 
-            unterbereich_id = None
-            if unterbereich_id_raw and str(unterbereich_id_raw).strip():
-                try:
-                    unterbereich_id = int(unterbereich_id_raw)
-                    unter = Unterbereich.query.get(unterbereich_id)
-                    if unter and unter.bereich.id not in [b.id for b in bereiche]:
-                        flash('Kein Zugriff auf diesen Standort.', 'error')
-                        return redirect(url_for('add'))
-                except (ValueError, TypeError):
-                    unterbereich_id = None
+            # Ziel-Standort prüfen. Die frühere Fassung war unvollständig: eine
+            # ID ohne zugehörigen Unterbereich wurde übernommen (SQLite erzwingt
+            # die Fremdschlüssel nicht, sie blieb als toter Verweis stehen), und
+            # ein nicht numerischer Wert wurde stillschweigend verworfen, sodass
+            # der Stoff ohne Standort entstand. Jetzt melden beide Fälle einen
+            # Fehler - wie /move und /copy.
+            unterbereich_id, fehler = ziel_standort_pruefen(
+                request.form.get('unterbereich_id'), bereiche)
+            if fehler:
+                flash(fehler, 'error')
+                return redirect(url_for('add'))
 
             piktogramme_list = request.form.getlist('piktogramme')
             piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
@@ -1372,13 +1374,13 @@ def edit_stoff(id):
         signalwort       = request.form.get('signalwort')
         stoff.signalwort = signalwort if signalwort else None
 
-        unterbereich_id = request.form.get('unterbereich_id')
-        if unterbereich_id:
-            unter = Unterbereich.query.get(unterbereich_id)
-            if unter and unter.bereich.id not in [b.id for b in bereiche]:
-                flash('Kein Zugriff auf diesen Standort.', 'error')
-                return redirect(url_for('edit_stoff', id=id))
-        stoff.unterbereich_id = unterbereich_id if unterbereich_id else None
+        # Ziel-Standort prüfen - dieselbe Prüfung wie in /add, /move und /copy.
+        unterbereich_id, fehler = ziel_standort_pruefen(
+            request.form.get('unterbereich_id'), bereiche)
+        if fehler:
+            flash(fehler, 'error')
+            return redirect(url_for('edit_stoff', id=id))
+        stoff.unterbereich_id = unterbereich_id
 
         piktogramme_list = request.form.getlist('piktogramme')
         stoff.piktogramme = ",".join(piktogramme_list) if piktogramme_list else None

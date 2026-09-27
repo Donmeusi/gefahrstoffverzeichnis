@@ -2,6 +2,19 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.14 – Anlegen und Bearbeiten prüfen den Ziel-Standort vollständig (September 2026)
+
+* **`/add` und `/edit` benutzen jetzt dieselbe Prüfung wie `/move` und `/copy`.** Alle vier Routen teilen sich `ziel_standort_pruefen()`; die dreifach bzw. vierfach inline geschriebene Prüfung ist damit an einer Stelle. Die bisherige Fassung in `/add` und `/edit` war unvollständig, in zwei Punkten:
+  * **Eine ID ohne zugehörigen Unterbereich wurde übernommen.** Geprüft wurde nur `if unter and unter.bereich.id not in …` — war `unter` None, lief die Prüfung durch. Weil SQLite die Fremdschlüssel nicht erzwingt, blieb der Wert als **toter Verweis** in der Datenbank stehen: der Gefahrstoff hing an einem Standort, den es nicht gab. Nachgemessen, jetzt abgelehnt:
+    ```
+    /add  ID ohne Unterbereich   -> angelegt: False, Meldung: Der gewählte Ziel-Standort existiert nicht.
+    /edit ID ohne Unterbereich   -> Standort unveraendert: True, Meldung: Der gewählte Ziel-Standort existiert nicht.
+    ```
+  * **Ein nicht numerischer Wert wurde stillschweigend verworfen.** Der `except (ValueError, TypeError)`-Zweig setzte `unterbereich_id = None` — ohne Meldung. Der Stoff entstand dann ohne Standort, und der Nutzer erfuhr nicht, dass seine Auswahl verloren gegangen war. Jetzt: `Ungültiger Ziel-Standort.`
+* **Das ist eine Verhaltensänderung**, und zwar die einzige: Ein unsinniger Wert führt nicht mehr dazu, dass der Datensatz ohne Standort angelegt wird, sondern zu einer Fehlermeldung und keiner Anlage. Die regulären Formulare sind nicht betroffen — ihre Auswahlfelder sind pflichtig und enthalten nur existierende Unterbereiche, was ein Rauchtest über `/add`, `/edit`, `/view`, `/`, Betriebsanweisung, `/locations`, `/audit_logs` und `/export/excel` bestätigt.
+* **Sechs neue Tests** in `test_gefahrstoff_operationen.py` (jetzt 16): `/add` und `/edit` lehnen je einen unbekannten, einen fremden und einen unsinnigen Standort ab, ohne etwas anzulegen bzw. ohne den Standort zu verändern — dazu die Gegenprobe, dass beide Routen mit gültigem Standort weiterhin funktionieren. Gesamtstand: **76 Tests (38 + 9 + 13 + 16), alle grün.**
+* **Damit ist die Zielprüfung in allen vier Routen identisch.** Die verbleibenden Vorkommen von „Kein Zugriff auf diesen Standort" (`location_qr`, `location_print`, `location_inventur`, `get_filtered_gefahrstoff_query_for_request`) prüfen etwas anderes — nicht die Auswahl eines Zielorts, sondern den Zugriff auf einen Ort aus der URL. Dort ist der Wert durch den Routen-Konverter bereits eine Zahl und die Existenz durch `get_or_404` geklärt; diese Stellen waren nie betroffen.
+
 ### v3.13 – Kopieren verliert keine Daten mehr, Verschieben prüft das Ziel (September 2026)
 
 * **⚠️ Die Kopie umging die CMR-Freigabe.** `copy_stoff` setzte `is_approved` nicht, wodurch die Kopie den Spaltenstandard `True` bekam und sofort sichtbar war. Ein CMR-Stoff wartet nach `/add` auf Freigabe und ist bis dahin unsichtbar — die Kopie umging das. Nachgemessen mit `H350`: nach `/add` ist `is_approved=False` und der Stoff erscheint nicht in der Liste, die Kopie war dagegen mit `is_approved=True` sofort da. Erreichbar über einen direkten Request auf `/copy/<id>`; die Oberfläche verlinkt den Stoff nicht, weil er unsichtbar ist. Die Kopie übernimmt jetzt **dieselbe Regel wie `/add`** (`is_approved = not is_cmr_stoff(h_saetze)`) und meldet im Fall eines CMR-Stoffs, dass sie freigegeben werden muss — sonst würde sie genauso stillschweigend verschwinden wie das Original.

@@ -223,6 +223,96 @@ class TestGefahrstoffOperationen(unittest.TestCase):
             kopie = Gefahrstoff.query.filter(Gefahrstoff.id != stoff_id).first()
             self.assertTrue(kopie.is_approved)
 
+    # ── Anlegen und Bearbeiten: Zielprüfung ──────────────────────────────────
+
+    def test_add_lehnt_unbekannten_standort_ab(self):
+        # Vorher wurde eine ID ohne zugehörigen Unterbereich übernommen - SQLite
+        # erzwingt die Fremdschlüssel nicht, der Gefahrstoff hing dann an einem
+        # toten Verweis.
+        stoff_id, _, _, _ = self._umgebung()
+        self._als_anna()
+
+        res = self.client.post('/add', data={'name': 'Neu', 'unterbereich_id': '99999'},
+                               follow_redirects=True)
+        self.assertIn('existiert nicht', res.get_data(as_text=True))
+
+        with app.app_context():
+            self.assertIsNone(Gefahrstoff.query.filter_by(name='Neu').first())
+            self.assertEqual(Gefahrstoff.query.count(), 1)
+
+    def test_add_lehnt_fremden_standort_ab(self):
+        _, _, _, b1_id = self._umgebung()
+        self._als_anna()
+
+        res = self.client.post('/add', data={'name': 'Neu', 'unterbereich_id': str(b1_id)},
+                               follow_redirects=True)
+        self.assertIn('Kein Zugriff auf diesen Ziel-Standort', res.get_data(as_text=True))
+
+        with app.app_context():
+            self.assertIsNone(Gefahrstoff.query.filter_by(name='Neu').first())
+
+    def test_add_lehnt_unsinnigen_standort_ab(self):
+        # Vorher wurde ein nicht numerischer Wert stillschweigend verworfen und
+        # der Stoff entstand ohne Standort - ohne dass der Nutzer das merkte.
+        self._umgebung()
+        self._als_anna()
+
+        res = self.client.post('/add', data={'name': 'Neu', 'unterbereich_id': 'keine-zahl'},
+                               follow_redirects=True)
+        self.assertIn('Ungültiger Ziel-Standort', res.get_data(as_text=True))
+
+        with app.app_context():
+            self.assertIsNone(Gefahrstoff.query.filter_by(name='Neu').first())
+
+    def test_edit_lehnt_unbekannten_standort_ab(self):
+        stoff_id, a1_id, _, _ = self._umgebung()
+        self._als_anna()
+
+        res = self.client.post(f'/edit/{stoff_id}',
+                               data={'name': 'Aceton', 'unterbereich_id': '99999',
+                                     'menge': '5'},
+                               follow_redirects=True)
+        self.assertIn('existiert nicht', res.get_data(as_text=True))
+
+        with app.app_context():
+            self.assertEqual(Gefahrstoff.query.get(stoff_id).unterbereich_id, a1_id)
+
+    def test_edit_lehnt_fremden_standort_ab(self):
+        stoff_id, a1_id, _, b1_id = self._umgebung()
+        self._als_anna()
+
+        res = self.client.post(f'/edit/{stoff_id}',
+                               data={'name': 'Aceton', 'unterbereich_id': str(b1_id),
+                                     'menge': '5'},
+                               follow_redirects=True)
+        self.assertIn('Kein Zugriff auf diesen Ziel-Standort', res.get_data(as_text=True))
+
+        with app.app_context():
+            self.assertEqual(Gefahrstoff.query.get(stoff_id).unterbereich_id, a1_id)
+
+    def test_add_und_edit_mit_gueltigem_standort_funktionieren(self):
+        # Gegenprobe: die strengere Prüfung darf den normalen Weg nicht sperren.
+        stoff_id, _, a2_id, _ = self._umgebung()
+        self._als_anna()
+
+        with app.app_context():
+            a1_id = Gefahrstoff.query.get(stoff_id).unterbereich_id
+
+        self.client.post('/add', data={'name': 'Neu', 'unterbereich_id': str(a1_id),
+                                       'menge': '1', 'mengeneinheit': 'L'},
+                         follow_redirects=True)
+        with app.app_context():
+            neuer = Gefahrstoff.query.filter_by(name='Neu').first()
+            self.assertIsNotNone(neuer, 'Anlegen mit gültigem Standort muss gehen')
+            self.assertEqual(neuer.unterbereich_id, a1_id)
+
+        self.client.post(f'/edit/{stoff_id}',
+                         data={'name': 'Aceton', 'unterbereich_id': str(a2_id),
+                               'menge': '5', 'mengeneinheit': 'L'},
+                         follow_redirects=True)
+        with app.app_context():
+            self.assertEqual(Gefahrstoff.query.get(stoff_id).unterbereich_id, a2_id)
+
 
 if __name__ == '__main__':
     unittest.main()
