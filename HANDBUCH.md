@@ -57,7 +57,24 @@ Die Lagerorte sind hierarchisch aufgebaut:
 **🖨️ QR-Code Generierung:** 
 Für jeden Unterbereich lässt sich mit einem Klick auf das QR-Code-Symbol eine druckbare Ansicht erzeugen. Wenn Sie diesen Code ausdrucken und am Schrank anbringen, müssen Mitarbeiter ihn nur noch mit der Smartphone-Kamera abscannen und landen direkt in einer exakt auf diesen Schrank gefilterten Inventarliste. Die QR-Code-Erzeugung geschieht 100% lokal und datenschutzkonform.
 
-### 1.8 Administrator-Werkzeuge
+### 1.8 Fristen (`/fristen`)
+Die Seite listet die offenen Aufgaben, die sich aus Ihren Gefahrstoffen ergeben — dringlichste zuerst, jeweils mit einem Knopf direkt zur erledigenden Aktion. Der Eintrag in der Navigation zeigt die Anzahl.
+
+**Wann etwas als fällig gilt:**
+
+| Prüfung | Frist | Was zu tun ist |
+|---|---|---|
+| Sicherheitsdatenblatt | Datum älter als 3 Jahre | „SDB-Datum eintragen" öffnet die Bearbeitungsmaske — ein neues Datum setzt die Frist zurück |
+| Sicherheitsdatenblatt | Datum älter als 5 Jahre (dringend) | ebenso |
+| Kein Sicherheitsdatenblatt hinterlegt | immer fällig | das Dokument am Gefahrstoff hinterlegen |
+| Dokument vorhanden, aber ohne Datum | immer fällig | das Datum nachtragen |
+| Inventur | jüngste Inventur des Standorts älter als 12 Monate — oder dort wurde noch nie inventarisiert | „Inventur starten" öffnet die Schnell-Inventur; sie setzt das Datum |
+
+- **Sichtbarkeit:** Es erscheinen nur Stoffe und Standorte aus Ihren Bereichen — wie überall in der Anwendung.
+- **Die Rolle „Lesen"** sieht die Liste, aber keine Aktionsknöpfe.
+- **Die Kachel „Veraltete SDBs"** auf dem Dashboard zählt nur die veralteten Sicherheitsdatenblätter (die Stufen „prüfen" und „dringend") und ist der Einstieg in diese Seite. Oben auf der Seite steht zusätzlich, wie viele Dokumente fehlen und wie viele Inventuren fällig sind — damit die Zahl auf der Kachel und die Liste vergleichbar bleiben.
+
+### 1.9 Administrator-Werkzeuge
 - **Audit Log (System-Historie):** Eine Tabelle (`/audit_logs`), die aufzeichnet, wer wann welchen Datensatz erstellt, geändert, verschoben, kopiert, gelöscht oder freigegeben hat — einschließlich der Standortverwaltung. Beim Verschieben stehen alter und neuer Standort im Eintrag, beim Löschen eines Standorts die Zahl der betroffenen Unterbereiche und Gefahrstoffe.
 - **Auch die Rechteverwaltung wird protokolliert:** Benutzer anlegen, Rolle ändern, Benutzer bearbeiten, Bereichszuweisung ändern und Benutzer löschen erzeugen jeweils einen Eintrag — beim Rollenwechsel stehen die alte und die neue Rolle darin. Passwörter werden dabei **nie** im Klartext erfasst, sondern nur als Ereignis („Passwort neu gesetzt").
 - **Wird ein Benutzerkonto gelöscht**, bleiben seine bisherigen Einträge erhalten, verlieren aber den Namen — sie erscheinen dann als „Benutzer #<ID> (gelöscht)". Die ID bleibt bewusst stehen, damit erkennbar bleibt, dass mehrere Einträge zur selben Person gehören. Der Name bleibt nur im Eintrag über die Löschung selbst stehen, sonst wäre nicht nachvollziehbar, wer gelöscht wurde. Hintergrund: Abschnitt 5 in `DATENSCHUTZ_UND_TOM.md`.

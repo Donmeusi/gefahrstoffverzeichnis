@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Fristen – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="content-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; margin-top:1.5rem; flex-wrap:wrap; gap:1rem;">
+    <h1 style="margin:0; font-size:1.75rem; color:#0f172a; display:flex; align-items:center; gap:0.5rem;">
+        <div style="background:#fef3c7; color:#b45309; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        Fristen
+    </h1>
+    {# width:100% + max-width statt fester Breite, damit der Kopfbereich auf
+       schmalen Bildschirmen nicht über den Rand läuft (Muster aus
+       sicherheitsdatenblaetter.html). #}
+    <div style="position:relative; width:100%; max-width:300px;">
+        <i class="fa-solid fa-search" style="position:absolute; left:12px; top:10px; color:#94a3b8;"></i>
+        <input type="text" id="searchInput" placeholder="Nach Stoff oder Ort suchen..." style="width:100%; padding:0.5rem 1rem 0.5rem 2.5rem; border:1px solid #cbd5e1; border-radius:8px; outline:none;" onkeyup="filterTable()">
+    </div>
+</div>
+
+{# Aufschlüsselung: die Kachel auf der Startseite zählt nur die veralteten
+   Sicherheitsdatenblätter, hier stehen zusätzlich fehlende Dokumente und
+   fällige Inventuren. Ohne diese Zeile wären die beiden Zahlen nicht
+   vergleichbar. #}
+<div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+            <i class="fa-solid fa-file-pdf" style="color:#dc2626;"></i>
+            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.sdb_faellig }}</span>
+            <span class="text-muted" style="font-size:0.875rem;">SDB veraltet</span>
+        </div>
+    </div>
+    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#dc2626;"></i>
+            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.sdb_fehlend }}</span>
+            <span class="text-muted" style="font-size:0.875rem;">SDB fehlt oder ohne Datum</span>
+        </div>
+    </div>
+    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+            <i class="fa-solid fa-clipboard-check" style="color:#0284c7;"></i>
+            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.inventur }}</span>
+            <span class="text-muted" style="font-size:0.875rem;">Inventur fällig</span>
+        </div>
+    </div>
+</div>
+
+<div class="content-card" style="padding:0; overflow:hidden;">
+    <div class="table-responsive">
+    <table class="data-table" id="fristenTable" style="margin:0;">
+        <thead>
+            <tr>
+                <th style="padding:1rem 1.5rem;">Objekt</th>
+                <th style="padding:1rem 1.5rem;">Kategorie</th>
+                <th style="padding:1rem 1.5rem;">Fällig seit</th>
+                <th style="padding:1rem 1.5rem;">Ort</th>
+                <th style="width:220px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in eintraege %}
+            <tr class="frist-row">
+                <td style="padding:1rem 1.5rem;">
+                    <a href="{{ e.objekt_link }}" class="frist-objekt" style="color:#0f172a; font-weight:600; font-size:1.05rem; text-decoration:none;">
+                        {{ e.objekt }}
+                    </a>
+                </td>
+                <td style="padding:1rem 1.5rem;">
+                    {# Die Stufe kommt aus sdb_status() bzw. fristen_liste(); hier
+                       stehen nur Beschriftung und Farbe. #}
+                    {% if e.stufe == 'fehlt' %}
+                        <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">Kein SDB hinterlegt</span>
+                    {% elif e.stufe == 'dringend' %}
+                        <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">SDB dringend aktualisieren</span>
+                    {% elif e.stufe == 'ohne_datum' %}
+                        <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">SDB-Datum fehlt</span>
+                    {% elif e.stufe == 'pruefen' %}
+                        <span class="badge" style="background:#fef08a; color:#854d0e; border:1px solid #eab308;">SDB prüfen</span>
+                    {% else %}
+                        <span class="badge" style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd;">Inventur fällig</span>
+                    {% endif %}
+                </td>
+                <td style="padding:1rem 1.5rem; white-space:nowrap;">
+                    {% if e.faellig_seit %}
+                        <span style="color:#475569;">{{ e.faellig_seit.strftime('%d.%m.%Y') }}</span>
+                        {% if e.tage_ueberfaellig is not none %}
+                            <br><span style="font-size:0.8rem; color:#94a3b8;">vor {{ e.tage_ueberfaellig }} Tagen</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted" style="font-size:0.875rem;">noch nie erfasst</span>
+                    {% endif %}
+                </td>
+                <td style="padding:1rem 1.5rem;">
+                    <span class="text-muted" style="font-size:0.875rem;">{{ e.ort }}</span>
+                </td>
+                <td style="text-align:right; padding:1rem 1.5rem;">
+                    {# aktion_link ist nur für schreibberechtigte Rollen gesetzt -
+                       die Rolle "lesen" sieht hier bewusst keinen Knopf. #}
+                    {% if e.aktion_link %}
+                        <a href="{{ e.aktion_link }}" class="btn btn-primary btn-sm">
+                            <i class="fa-solid fa-arrow-right"></i> {{ e.aktion_text }}
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align:center; padding: 4rem 2rem; color:#64748b;">
+                    <div style="background:#f0fdf4; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
+                        <i class="fa-solid fa-circle-check" style="font-size:2.5rem; color:#16a34a;"></i>
+                    </div>
+                    <h3 style="color:#334155; margin-bottom:0.5rem;">Keine offenen Fristen</h3>
+                    <p style="margin:0;">Alle Sicherheitsdatenblätter sind aktuell und die Inventuren sind durchgeführt.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<script>
+function filterTable() {
+    const input = document.getElementById('searchInput');
+    const filter = input.value.toLowerCase();
+    const rows = document.getElementsByClassName('frist-row');
+
+    for (let i = 0; i < rows.length; i++) {
+        const txt = rows[i].textContent || rows[i].innerText;
+        rows[i].style.display = txt.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+    }
+}
+</script>
+{% endblock %}

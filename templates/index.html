@@ -93,15 +93,19 @@
                 </div>
             </div>
 
-            <div class="kpi-card">
+            {# Die Kachel war eine Sackgasse: sie nannte eine Zahl, aber man
+               konnte nicht sehen, welche Stoffe betroffen sind. Sie ist jetzt
+               der Einstieg in die Fristenliste. #}
+            <a class="kpi-card" href="{{ url_for('fristen') }}" title="Offene Fristen ansehen"
+               style="text-decoration:none;">
                 <div class="kpi-icon {% if stats_expired_sdb > 0 %}danger{% else %}primary{% endif %}">
                     <i class="fa-solid fa-file-pdf"></i>
                 </div>
                 <div class="kpi-content">
                     <span class="kpi-value">{{ stats_expired_sdb }}</span>
-                    <span class="kpi-label">Veraltete SDBs</span>
+                    <span class="kpi-label">Veraltete SDBs <i class="fa-solid fa-arrow-right" style="font-size:0.7em;"></i></span>
                 </div>
-            </div>
+            </a>
         </div>
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem;">
             <!-- View Controls -->

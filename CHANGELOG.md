@@ -2,6 +2,29 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.18 – Fristen: aus der toten Kennzahl wird eine Arbeitsliste (September 2026)
+
+* **Die App kannte Fristen, aber niemand erfuhr davon.** `index()` zählte Sicherheitsdatenblätter ab 3 Jahren und zeigte die Zahl als rote Kachel „Veraltete SDBs" — ohne Link und ohne Möglichkeit zu sehen, welche Stoffe betroffen waren.
+* **⚠️ Dieselbe Frist stand zweimal mit unterschiedlichen Zahlen im Code.** `index()` zählte alles ab 3 Jahren, `templates/sicherheitsdatenblaetter.html` rechnete für dieselbe Aussage mit zwei Schwellen (ab 5 rot, ab 3 gelb) und tat das im Template. Die Entscheidung fällt jetzt in **`sdb_status()`** in `main.py`; Template und Kachel lesen nur noch das Ergebnis. Damit können Kachel und Liste nicht mehr auseinanderlaufen — genau das war der Ausgangsfehler.
+* **Neue Seite `/fristen`** als Arbeitsliste, dringlichste zuerst, mit Sprung direkt zur erledigenden Aktion: bei SDB-Datum auf `/edit/<id>`, bei Inventur auf `/location/<id>/inventur`. Die Kachel „Veraltete SDBs" ist jetzt der Einstieg dorthin.
+* **Zwei Zustände sind neu, weil sie vorher durch beide Prüfungen fielen:** `fehlt` (kein Sicherheitsdatenblatt hinterlegt) und `ohne_datum` (Dokument vorhanden, aber kein Datum erfasst). Die SDB-Seite filtert auf `sicherheitsdatenblatt.isnot(None)` und konnte den ersten Fall deshalb gar nicht anzeigen — ein Stoff ohne SDB ist aber genau der Fall, der eine Frist auslöst.
+* **Zweite Quelle: Inventur.** Ein Standort gilt als fällig, wenn sein jüngstes `last_inventur_datum` älter als 12 Monate ist oder dort noch nie inventarisiert wurde. Das Datum hängt am Stoff, nicht am Standort — die Standortfrist wird deshalb über das Maximum gebildet.
+* **Ohne neue Tabelle und ohne Migration.** Für beide Quellen ist die Frist aus vorhandenen Daten ableitbar, und „erledigt" ist jeweils eine vorhandene Aktion. Das weicht bewusst von meinem ersten Vorschlag („Tabelle mit Objekt, Fälligkeit, erledigt am/von") ab: Die wird erst gebraucht, wenn Quellen dazukommen, deren Ereignis nirgends steht — Substitutionsprüfung und Unterweisung. Bis dahin wäre sie ein zweiter Ort für dieselbe Wahrheit.
+* **Anknüpfen statt Neubauen:** Navigationseintrag „Fristen" mit Zähler-Badge (Vorbild: der vorhandene Freigabe-Zähler), Kachel als Link, und die SDB-Seite nutzt dieselben Stufen wie vorher. Die Schwellen sind Konstanten (`SDB_FRIST_JAHRE`, `SDB_DRINGEND_JAHRE`, `INVENTUR_FRIST_MONATE`).
+* **⚠️ Der Navigationseintrag hat die Schwellen des responsiven Layouts verschoben — nachgemessen, nicht geschätzt.** In v3.9 wurde der Zwischenbereich auf 1240–1500 px festgelegt, weil `ul.nav-links` damals 1207 px brauchte (bei 1240 px genau 0 px Überlauf). Ein zusätzlicher Eintrag kostet gemessen **110 px verdichtet bzw. 128 px unverdichtet** — der Balken hatte dafür keine Luft. Neue Messung mit einer echten Seite in Chrome:
+  ```
+  Breite | Nav verdichtet | Nav unverdichtet | Überlauf
+    1240 |           1307 |                — |      +67   (vorher 0)
+    1340 |           1307 |                — |        0
+    1520 |              — |             1507 |     +107
+    1751 |              — |             1507 |        0
+  ```
+  Die Schwellen sind deshalb auf **1340 px** (Hamburger) und **1750 px** (Ende der Verdichtung) gewandert. Geprüft mit einer Schleife von 320 bis 2560 px: **0 px Überlauf auf allen Breiten.**
+  * **Folge, die man kennen sollte:** Unter 1340 px zeigt die Seite jetzt das Hamburger-Menü, also auch bei **1280 px** — in v3.9 war ausdrücklich festgehalten, dass die Navigation dort sichtbar bleibt. Wer das zurückhaben will, muss den Balken an anderer Stelle entlasten: das längste Element ist „Sicherheitsdatenblätter" mit rund 150 px, eine Kürzung würde den Eintrag fast vollständig bezahlen. Die Alternative ist, auf den Navigationseintrag zu verzichten und die Seite nur über die Kachel zu erreichen. Beides ist eine Entscheidung, keine technische Notwendigkeit.
+* **`APP_VERSION` auf 2.0.3** — Pflicht, weil `style.css` geändert wurde (die Version ist der Cache-Buster für die Datei).
+* **Neue Testdatei `test_fristen.py` (17 Tests):** die Regel selbst (2 Jahre aktuell, ab 3 prüfen, ab 5 dringend, genau auf den Tag, ein Tag davor, ohne Dokument, ohne Datum, 29.02. + 3 Jahre ohne Absturz), die Liste (aktuelle SDB erscheinen nicht, veraltete und fehlende erscheinen, Inventurfrist je Standort, noch nie inventarisiert), die Rechte (`benutzer` sieht nur eigene Bereiche, `lesen` bekommt keine Aktionsknöpfe), die SDB-Seite nutzt dieselben Stufen — und **die Kachelzahl stimmt mit der Liste überein**. Gesamtstand: **103 Tests (38 + 9 + 23 + 16 + 17), alle grün.**
+* **Fortsetzung, sobald gewünscht:** Die Substitutionsprüfung (§7 GefStoffV) braucht ein „zuletzt geprüft am" am Stoff — eine Spalte und ein Feld, danach erscheint sie in derselben Liste. Unterweisungen brauchen eine eigene Tabelle (Person × Betriebsanweisung mit Datum und Unterschrift); die Unterschriftenerfassung ist vorhanden und laut `DATENSCHUTZ_UND_TOM.md` Abschnitt 2.3 ausdrücklich auch für Beschäftigte ohne Benutzerkonto gedacht.
+
 ### v3.17 – Einträge gelöschter Benutzer bleiben zuordenbar; drei Datenbank-Sicherheitsfehler (September 2026)
 
 **1. Die Einträge eines gelöschten Kontos waren gar nicht mehr zuordenbar.**

@@ -271,15 +271,34 @@ h4 { font-size: 0.95rem; }
     font-size: 1.25rem;
 }
 
-/* Zwischenbereich 1240–1500 px: Die vollständige Navigation braucht rund
-   1181 px (nachgemessen), verdichtet ~1207 px. Ohne Verdichtung lief sie
+/* Zwischenbereich 1340–1750 px: Die vollständige Navigation braucht rund
+   1380 px (nachgemessen), verdichtet ~1307 px. Ohne Verdichtung lief sie
    zwischen 901 und 1465 px über den Rand (+378 px bei 1000, +98 px bei 1280,
    +18 px bei 1440) — das traf jede Seite und genau die üblichen
-   Laptop-Breiten. Das Hamburger-Menü greift deshalb unter 1240 px; auf
-   1280/1366/1440 bleibt die Navigation sichtbar. Der Wert 1240 ist gemessen,
-   nicht geschätzt: bei 1207 px lief die Leiste noch 7 px über, bei 1240 px
-   bleiben 33 px Luft. */
-@media (min-width: 1240px) and (max-width: 1500px) {
+   Laptop-Breiten. Das Hamburger-Menü greift deshalb unter 1340 px.
+
+   ⚠️ Beide Werte waren bis v3.18 1240 und 1500. Der Navigationseintrag
+   "Fristen" (mit Zähler) kostet gemessen 110 px verdichtet und 128 px
+   unverdichtet - der Balken hatte davor praktisch keine Luft (bei 1240 px
+   genau 0 px Überlauf), deshalb mussten beide Schwellen mitwandern.
+
+   Die Tabelle beschreibt die beiden Stufen selbst, nicht welche Stufe bei
+   welcher Fensterbreite greift:
+
+     Breite | Nav verdichtet | Nav unverdichtet | Überlauf (vorher)
+       1240 |           1307 |                — |      +67   (vorher 0)
+       1340 |           1307 |                — |        0
+       1520 |              — |             1507 |     +107
+       1751 |              — |             1507 |        0
+
+   Mit diesen Schwellen nachgeprüft: von 320 bis 2560 px kein Überlauf mehr.
+
+   Folge, die man kennen sollte: unter 1340 px zeigt die Seite jetzt das
+   Hamburger-Menü, also auch bei 1280 px - vorher blieb die Navigation dort
+   sichtbar. Wer das zurückhaben will, muss den Balken an anderer Stelle
+   entlasten (das längste Element ist "Sicherheitsdatenblätter" mit rund
+   150 px) oder auf den Navigationseintrag verzichten. */
+@media (min-width: 1340px) and (max-width: 1750px) {
     .navbar-brand { font-size: 1.05rem; }
     .nav-links { gap: 0; }
     .nav-links a {
@@ -290,7 +309,7 @@ h4 { font-size: 0.95rem; }
     .nav-links .btn { margin-left: 0.1rem; }
 }
 
-@media (max-width: 1239px) {
+@media (max-width: 1339px) {
     .nav-toggle { display: flex; align-items: center; }
     .nav-links {
         display: none;

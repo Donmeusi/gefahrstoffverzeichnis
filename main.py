@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -12,6 +12,7 @@ import subprocess
 import platform
 import threading
 import time
+import calendar
 from datetime import datetime
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
@@ -75,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.2"
+APP_VERSION = "2.0.3"
 
 @app.context_processor
 def inject_globals():
@@ -693,6 +694,156 @@ def ziel_standort_pruefen(raw_wert, bereiche):
         return None, 'Kein Zugriff auf diesen Ziel-Standort.'
     return ziel_id, None
 
+# ─── Fristen ─────────────────────────────────────────────────────────────────
+#
+# Fälligkeiten werden aus vorhandenen Daten abgeleitet, nicht gespeichert:
+#   SDB       -> sdb_datum + SDB_FRIST_JAHRE
+#   Inventur  -> jüngstes last_inventur_datum eines Standorts + INVENTUR_FRIST_MONATE
+# "Erledigt" ist damit jeweils eine vorhandene Aktion (SDB-Datum eintragen bzw.
+# Schnell-Inventur durchführen) - es braucht keine eigene Tabelle und keine
+# Migration.
+#
+# Die Schwellen standen vorher zweimal mit unterschiedlichen Zahlen im Code:
+# index() rechnete für die Kachel "Veraltete SDBs" mit >= 3 Jahren,
+# sicherheitsdatenblaetter.html rechnete dieselbe Regel mit drei Stufen im
+# Template nach. Hier stehen sie einmal.
+
+SDB_FRIST_JAHRE       = 3   # ab hier: SDB aktualisieren
+SDB_DRINGEND_JAHRE    = 5   # ab hier: dringend
+INVENTUR_FRIST_MONATE = 12
+
+# Reihenfolge in der Liste: kleiner = dringlicher
+FRISTEN_RANG = {'fehlt': 0, 'dringend': 1, 'ohne_datum': 2, 'pruefen': 3, 'inventur': 4}
+
+
+def _plus_jahre(datum, jahre):
+    """Datum um Jahre verschieben. Der 29.02. wird auf den 28. gelegt."""
+    try:
+        return datum.replace(year=datum.year + jahre)
+    except ValueError:
+        return datum.replace(year=datum.year + jahre, day=28)
+
+
+def _plus_monate(datum, monate):
+    """Datum um Monate verschieben, Tag auf den Monatsletzten begrenzt."""
+    monat_index = datum.month - 1 + monate
+    jahr = datum.year + monat_index // 12
+    monat = monat_index % 12 + 1
+    tag = min(datum.day, calendar.monthrange(jahr, monat)[1])
+    return datum.replace(year=jahr, month=monat, day=tag)
+
+
+def sdb_status(stoff, heute):
+    """Friststatus des Sicherheitsdatenblatts eines Gefahrstoffs.
+
+    Rückgabe: (stufe, faellig_seit) mit stufe aus
+      'fehlt'      - kein Sicherheitsdatenblatt hinterlegt
+      'ohne_datum' - Dokument vorhanden, aber kein Datum erfasst
+      'dringend'   - älter als SDB_DRINGEND_JAHRE
+      'pruefen'    - älter als SDB_FRIST_JAHRE
+      'ok'         - aktuell
+    'faellig_seit' ist der Beginn der Frist (None bei 'fehlt'/'ohne_datum') und
+    dient der Anzeige "überfällig seit".
+
+    Die beiden Fehlfälle sind neu: bisher fielen Stoffe ohne Dokument durch
+    beide vorhandenen Prüfungen, weil die SDB-Seite auf
+    sicherheitsdatenblatt.isnot(None) filtert.
+    """
+    if not stoff.sicherheitsdatenblatt:
+        return 'fehlt', None
+    if not stoff.sdb_datum:
+        return 'ohne_datum', None
+
+    frist = _plus_jahre(stoff.sdb_datum, SDB_FRIST_JAHRE)
+    if heute < frist:
+        return 'ok', None
+    if heute >= _plus_jahre(stoff.sdb_datum, SDB_DRINGEND_JAHRE):
+        return 'dringend', frist
+    return 'pruefen', frist
+
+
+def fristen_liste(heute=None):
+    """Alle offenen Fristen im Zugriffsbereich des angemeldeten Benutzers.
+
+    Nutzt get_gefahrstoff_query(), damit die vorhandene Bereichs-Isolation gilt
+    und kein zweites Rechtemodell entsteht. Dringlichste zuerst.
+    'aktion_link' ist nur für schreibberechtigte Rollen gesetzt.
+    """
+    if heute is None:
+        heute = datetime.utcnow().date()
+
+    eintraege = []
+    stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
+
+    for stoff in stoffe:
+        stufe, faellig_seit = sdb_status(stoff, heute)
+        if stufe == 'ok':
+            continue
+        eintraege.append({
+            'kategorie': 'SDB',
+            'stufe': stufe,
+            'objekt': stoff.name,
+            'objekt_link': url_for('view_stoff', id=stoff.id),
+            'ort': standort_text(stoff.unterbereich_id),
+            'faellig_seit': faellig_seit,
+            'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
+            'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
+            'aktion_text': 'SDB-Datum eintragen',
+        })
+
+    # Inventur: das Datum hängt am Stoff, nicht am Standort. Ein Standort gilt
+    # als fällig, wenn sein jüngstes Inventurdatum zu alt ist - oder wenn dort
+    # noch nie inventarisiert wurde.
+    je_standort = {}
+    for stoff in stoffe:
+        if stoff.unterbereich_id:
+            je_standort.setdefault(stoff.unterbereich_id, []).append(stoff)
+
+    for unterbereich_id in sorted(je_standort):
+        stoffe_dort = je_standort[unterbereich_id]
+        juengste = max((s.last_inventur_datum for s in stoffe_dort if s.last_inventur_datum),
+                       default=None)
+        faellig_seit = _plus_monate(juengste.date(), INVENTUR_FRIST_MONATE) if juengste else None
+        if faellig_seit and heute < faellig_seit:
+            continue
+        eintraege.append({
+            'kategorie': 'Inventur',
+            'stufe': 'inventur',
+            'objekt': standort_text(unterbereich_id),
+            'objekt_link': url_for('index', unterbereich_id=unterbereich_id),
+            'ort': f'{len(stoffe_dort)} Gefahrstoff(e)',
+            'faellig_seit': faellig_seit,
+            'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
+            'aktion_link': (url_for('location_inventur', id=unterbereich_id)
+                            if current_user.can_write else None),
+            'aktion_text': 'Inventur starten',
+        })
+
+    # Dringlichste zuerst. Einträge ohne Fälligkeitsdatum (kein SDB hinterlegt,
+    # noch nie inventarisiert) stehen innerhalb ihrer Gruppe vorn - dort ist am
+    # wenigsten bekannt, also am ehesten etwas zu tun.
+    eintraege.sort(key=lambda e: (
+        FRISTEN_RANG.get(e['stufe'], 9),
+        0 if e['tage_ueberfaellig'] is None else 1,
+        -(e['tage_ueberfaellig'] or 0),
+        e['objekt'],
+    ))
+    return eintraege
+
+
+def fristen_alle():
+    """fristen_liste() einmal pro Request, zwischengespeichert in g.
+
+    Der Zähler in der Navigation braucht bei jedem Seitenaufbau eine Zahl, die
+    Liste selbst nur auf /fristen. Beides kommt aus derselben Berechnung - sonst
+    stünden Zähler und Liste irgendwann auseinander, und genau das war der
+    Ausgangsfehler (Kachel und SDB-Seite rechneten verschieden).
+    """
+    if not hasattr(g, '_fristen'):
+        g._fristen = fristen_liste()
+    return g._fristen
+
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -833,16 +984,16 @@ def index():
     
     # KPIs berechnen
     stats_total = len(gefahrstoffe)
-    
-    # Abgelaufene SDBs (älter als 3 Jahre)
+
+    # Veraltete SDBs - dieselbe Regel wie in der Fristenliste (sdb_status),
+    # damit Kachel und Liste nicht auseinanderlaufen. Vorher rechnete diese
+    # Stelle das Alter selbst aus.
     today = datetime.utcnow().date()
-    stats_expired_sdb = 0
-    for stoff in gefahrstoffe:
-        if stoff.sicherheitsdatenblatt and stoff.sdb_datum:
-            diff_years = (today - stoff.sdb_datum).days / 365
-            if diff_years >= 3:
-                stats_expired_sdb += 1
-                
+    stats_expired_sdb = sum(
+        1 for stoff in gefahrstoffe
+        if sdb_status(stoff, today)[0] in ('dringend', 'pruefen')
+    )
+
     # Anzahl der Standorte (distinct unterbereich_id)
     stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
 
@@ -870,7 +1021,37 @@ def sicherheitsdatenblaetter_list():
     query = get_gefahrstoff_query()
     # Nur Stoffe mit Sicherheitsdatenblatt, alphabetisch sortiert
     stoffe = query.filter(Gefahrstoff.sicherheitsdatenblatt.isnot(None)).order_by(Gefahrstoff.name).all()
-    return render_template('sicherheitsdatenblaetter.html', gefahrstoffe=stoffe, today=datetime.utcnow().date())
+    # Die Stufen kommen aus sdb_status() - vorher rechnete das Template dieselbe
+    # Regel mit eigenen Zahlen nach. Angezeigt wird weiterhin nur der Status;
+    # die Entscheidung, was "veraltet" heißt, fällt an einer Stelle.
+    heute = datetime.utcnow().date()
+    sdb_stufen = {stoff.id: sdb_status(stoff, heute)[0] for stoff in stoffe}
+    return render_template('sicherheitsdatenblaetter.html', gefahrstoffe=stoffe,
+                           sdb_stufen=sdb_stufen)
+
+
+@app.route('/fristen')
+@login_required
+def fristen():
+    """Offene Fristen als Arbeitsliste.
+
+    Die Regel steht in fristen_liste(), die Zahl auf der Startseite und der
+    Zähler in der Navigation kommen aus derselben Funktion (fristen_alle()).
+    """
+    eintraege = fristen_alle()
+    heute = datetime.utcnow().date()
+
+    # Aufschlüsselung für den Kopfbereich: die Kachel auf der Startseite zählt
+    # nur die veralteten SDBs, diese Seite zeigt zusätzlich fehlende Dokumente
+    # und fällige Inventuren. Ohne die Aufschlüsselung wären die beiden Zahlen
+    # nicht vergleichbar.
+    uebersicht = {
+        'sdb_faellig':  sum(1 for e in eintraege if e['stufe'] in ('dringend', 'pruefen')),
+        'sdb_fehlend':  sum(1 for e in eintraege if e['stufe'] in ('fehlt', 'ohne_datum')),
+        'inventur':     sum(1 for e in eintraege if e['stufe'] == 'inventur'),
+    }
+    return render_template('fristen.html', eintraege=eintraege, uebersicht=uebersicht,
+                           heute=heute)
 
 # ─── Standorte ───────────────────────────────────────────────────────────────
 
@@ -1832,6 +2013,26 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ─── Profil & Freigaben ────────────────────────────────────────────────────────
+
+@app.context_processor
+def inject_fristen_zaehler():
+    """Zähler für den Navigationseintrag „Fristen".
+
+    Läuft bei jedem Seitenaufbau und liest dafür alle zugänglichen
+    Gefahrstoffe - das ist derselbe Aufwand, den index() ohnehin hat, und
+    fristen_alle() rechnet innerhalb eines Requests nur einmal. Bewusst nicht
+    als eigene Abfrage nachgebaut: sonst gäbe es wieder zwei Regeln, die
+    auseinanderlaufen können.
+    """
+    if not current_user.is_authenticated:
+        return dict(fristen_count=0)
+    try:
+        return dict(fristen_count=len(fristen_alle()))
+    except Exception as e:
+        # Ein Zähler darf nie eine Seite verhindern.
+        print(f"Fristenzähler nicht berechenbar: {e}")
+        return dict(fristen_count=0)
+
 
 @app.context_processor
 def inject_pending_approvals():
