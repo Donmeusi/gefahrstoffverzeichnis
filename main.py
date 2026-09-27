@@ -3091,6 +3091,9 @@ if __name__ == '__main__':
             db.create_all()
             print("Datenbank gefahrstoffe.db erstellt.")
     
-    # Im Entwicklungsmodus laufen lassen
-    # Für Produktion nutzen Sie stattdessen run_prod.py
-    app.run(debug=True)
+    # Eingebauter Entwicklungsserver. Der Debugger ist standardmäßig AUS: er
+    # liefert bei einem Fehler eine Konsolenoberfläche aus, die beliebigen
+    # Python-Code ausführt und nur durch eine PIN im Klartext-Log geschützt ist.
+    # Einschalten bewusst über FLASK_DEBUG=1. Für den Dauerbetrieb run_prod.py
+    # (Waitress) verwenden.
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1')

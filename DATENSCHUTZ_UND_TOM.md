@@ -18,7 +18,7 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 ### 1.2 Systemarchitektur & Deployment
 * **Architektur:** 3-Schichten-Webanwendung (Frontend, Backend, Datenbank).
 * **Backend Framework:** Python 3.11, Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF.
-* **Anwendungsserver:** Das mitgelieferte Container-Image startet die Anwendung mit `flask run` — dem **Entwicklungsserver** von Flask. Der für den Dauerbetrieb vorgesehene Waitress-Server liegt mit `run_prod.py` bereit, wird vom Startskript (`docker-entrypoint.sh`) aber **nicht** aufgerufen. ⚠️ Siehe `TOM.md`, Risiko **R-4**.
+* **Produktions-Webserver (WSGI):** Waitress (Multi-Threaded WSGI HTTP Server) über `run_prod.py` — beide Startwege verwenden ihn: der Container über `docker-entrypoint.sh`, die native Ausführung über `update.sh`.
 * **Datenbank:** SQLite 3 (`gefahrstoffe.db`).
 * **Deployment:** Native Ausführung auf Linux/Windows-Servern oder containerisiert via Docker (`docker-compose`).
 * **Netzwerkeinbindung:** Die Anwendung setzt **keine** extern betriebenen Cloud-Dienste voraus und ist für den Betrieb im internen Firmennetzwerk ausgelegt. **Ob eine konkrete Installation ausschließlich intern erreichbar ist, ist installationsabhängig festzustellen und zu dokumentieren** (siehe `TOM.md`, Risiko **R-1**).

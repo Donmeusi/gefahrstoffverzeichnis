@@ -115,7 +115,7 @@ anlegen kann.
 | Maßnahme | Umsetzung | Status |
 |---|---|---|
 | Transportverschlüsselung | TLS-Terminierung am Reverse Proxy (Pangolin); `ProxyFix` reicht `X-Forwarded-Proto` weiter, Links werden als `https://` erzeugt | **Betreiber** |
-| Cookie nur über HTTPS | `SESSION_COOKIE_SECURE` wird **nur bei `FLASK_ENV=production`** gesetzt — im Docker-Image der Fall, bei Start über `run_prod.py` ohne diese Variable **nicht** | bedingt → R-5 |
+| Cookie nur über HTTPS | `SESSION_COOKIE_SECURE` wird **nur bei `FLASK_ENV=production`** gesetzt — im Docker-Image der Fall, bei Start über `run_prod.py` ohne diese Variable **nicht** | bedingt → R-4 |
 | Cookie nicht für Skripte lesbar | `SESSION_COOKIE_HTTPONLY = True` | umgesetzt |
 | Cookie nicht bei Fremdseiten | `SESSION_COOKIE_SAMESITE = 'Lax'` | umgesetzt |
 | **Verschlüsselung im Ruhezustand** | **nicht vorhanden** — SQLite-Datei und hochgeladene Dokumente liegen im Klartext auf dem Datenträger | **offen → R-3** |
@@ -143,8 +143,8 @@ anlegen kann.
 | Nachvollziehbarkeit von Änderungen | Beim Rollenwechsel stehen alte und neue Rolle, beim Verschieben alter und neuer Standort, beim Löschen eines Standorts die Zahl der betroffenen Objekte im Eintrag | umgesetzt |
 | Keine Geheimnisse im Protokoll | Passwörter erscheinen nur als Ereignis („Passwort neu gesetzt"), Unterschriften nur als „gesetzt"/„entfernt" — **nie im Inhalt** | umgesetzt |
 | Zuordnung nach Kontolöschung | Einträge bleiben einander über die Benutzer-ID zuordenbar; der Name wird nicht aufbewahrt (Pseudonymisierung) | umgesetzt |
-| **Manipulationsschutz des Protokolls** | **nicht vorhanden** — gewöhnliche Tabelle in derselben Datenbank, für Administratoren lesbar, Anzeige der letzten 100 Einträge | **offen → R-6** |
-| **Fehlgeschlagene Anmeldungen** | **werden nicht protokolliert** — keine Erkennung von Angriffsversuchen | **offen → R-6** |
+| **Manipulationsschutz des Protokolls** | **nicht vorhanden** — gewöhnliche Tabelle in derselben Datenbank, für Administratoren lesbar, Anzeige der letzten 100 Einträge | **offen → R-5** |
+| **Fehlgeschlagene Anmeldungen** | **werden nicht protokolliert** — keine Erkennung von Angriffsversuchen | **offen → R-5** |
 
 > Das Protokoll ist damit ein **Nachweis-, kein Beweismittel**-Bestand: Es
 > belegt Vorgänge, es beweist sie nicht. Wer Datenbankzugriff hat, kann es
@@ -170,8 +170,8 @@ anlegen kann.
 |---|---|---|
 | Örtliche Datenhaltung | SQLite-Datei und Uploads im Datenverzeichnis (`APP_DATA_DIR`), kein externer Speicher | umgesetzt |
 | Selbststart nach Neustart | `restart: always` in der Compose-Konfiguration | umgesetzt |
-| **Produktionsserver** | Der Container startet mit `exec flask run` — dem **Entwicklungsserver**. Waitress liegt mit `run_prod.py` bereit, wird vom Entrypoint aber nicht verwendet | **offen → R-4** |
-| Abhängigkeitsinstallation | Der Entrypoint führt bei **jedem** Containerstart `pip install -r requirements.txt` aus: langsam, netzabhängig und nicht reproduzierbar | **offen → R-7** |
+| **Produktionsserver** | Waitress über `run_prod.py` — in beiden Startwegen (Container: `docker-entrypoint.sh`, nativ: `update.sh`). Der eingebaute Entwicklungsserver von Flask ist nur für die Entwicklung gedacht und liefert seinen Debugger ausschließlich bei `FLASK_DEBUG=1` aus | umgesetzt |
+| Abhängigkeitsinstallation | Der Entrypoint führt bei **jedem** Containerstart `pip install -r requirements.txt` aus: langsam, netzabhängig und nicht reproduzierbar | **offen → R-6** |
 | Datenbank-Schema aktuell halten | Automatische Migration beim Start (`migrate_db.py`) plus Alembic-Aufruf; neue Spalten gehören in die Liste in `migrate_db.py` | umgesetzt |
 
 ### 5.2 Wiederherstellbarkeit
@@ -179,9 +179,9 @@ anlegen kann.
 | Maßnahme | Umsetzung | Status |
 |---|---|---|
 | Sicherung vor Updates | Vor einem Update wird die Datenbank nach `data/backups/` kopiert (in den Update-Skripten und im Docker-Pfad) | umgesetzt |
-| **Zeitgesteuerte Sicherungen** | **nicht vorhanden** — ohne Update entsteht keine Sicherung | **offen → R-8 (mittel)** |
-| **Wiederherstellungstest** | **nicht durchgeführt und nicht dokumentiert** | **offen → R-8** |
-| Wiederherstellung archivierter Datensätze | Archivierte Gefahrstoffe (`is_deleted`) bleiben in der Datenbank, **lassen sich in der Oberfläche aber nicht zurückholen** | bewusst so, siehe R-9 |
+| **Zeitgesteuerte Sicherungen** | **nicht vorhanden** — ohne Update entsteht keine Sicherung | **offen → R-7 (mittel)** |
+| **Wiederherstellungstest** | **nicht durchgeführt und nicht dokumentiert** | **offen → R-7** |
+| Wiederherstellung archivierter Datensätze | Archivierte Gefahrstoffe (`is_deleted`) bleiben in der Datenbank, **lassen sich in der Oberfläche aber nicht zurückholen** | bewusst so, siehe R-8 |
 
 > **Der wichtigste offene Punkt dieses Abschnitts:** Es gibt derzeit **keinen
 > belegten Wiederherstellungsweg**. Eine Sicherung, deren Rückspielen nie
@@ -194,7 +194,7 @@ anlegen kann.
 | Maßnahme | Umsetzung | Status |
 |---|---|---|
 | Auftragsverarbeitung | **nicht anwendbar** — es werden keine Dienstleister mit der Verarbeitung personenbezogener Daten beauftragt | by design |
-| Ausnahme mit Klärungsbedarf | **PubChem-Autofill** sendet die CAS-Nummer an die U.S. National Library of Medicine. Enthalten sind ausschließlich anorganische Sachdaten, keine personenbezogenen Daten und keine Bestandsdaten. Die IP-Adresse des **Servers** wird dabei jedoch übertragen — deshalb sollte die Funktion bewusst freigegeben und im Verzeichnis der Verarbeitungstätigkeiten erwähnt werden | **zu dokumentieren → R-10** |
+| Ausnahme mit Klärungsbedarf | **PubChem-Autofill** sendet die CAS-Nummer an die U.S. National Library of Medicine. Enthalten sind ausschließlich anorganische Sachdaten, keine personenbezogenen Daten und keine Bestandsdaten. Die IP-Adresse des **Servers** wird dabei jedoch übertragen — deshalb sollte die Funktion bewusst freigegeben und im Verzeichnis der Verarbeitungstätigkeiten erwähnt werden | **zu dokumentieren → R-9** |
 
 ---
 
@@ -205,7 +205,7 @@ anlegen kann.
 | **Fristenüberwachung in der Anwendung** | Die Seite `/fristen` führt offene Aufgaben als Arbeitsliste: Sicherheitsdatenblätter (3 und 5 Jahre), Substitutionsprüfungen, Inventuren. Jede Zeile führt zur erledigenden Aktion | umgesetzt |
 | **Nachweis der Prüffristen** | Intervalle stehen als benannte Konstanten im Quelltext (`SDB_FRIST_JAHRE`, `SDB_DRINGEND_JAHRE`, `INVENTUR_FRIST_MONATE`, `SUBSTITUTION_FRIST_MONATE`) und sind damit prüfbar und änderbar | umgesetzt |
 | Hinweis auf Zusammenlagerungsverbote | Die Anwendung prüft bei der Anzeige eines Gefahrstoffs die Lagerklassen desselben Standorts nach TRGS 510 und zeigt Konflikte | umgesetzt |
-| **Regelmäßige Überprüfung der Maßnahmen selbst** | **nicht institutionalisiert** — kein Termin, keine verantwortliche Person, keine dokumentierte Prüfung dieses TOM | **offen → R-11** |
+| **Regelmäßige Überprüfung der Maßnahmen selbst** | **nicht institutionalisiert** — kein Termin, keine verantwortliche Person, keine dokumentierte Prüfung dieses TOM | **offen → R-10** |
 | Technische Absicherung durch Tests | 119 automatisierte Tests; die Testumgebung ist von der echten Datenbank getrennt (`testkonfiguration.py`) | umgesetzt |
 
 > Anmerkung zur Abgrenzung: Ein gesetzliches Wiederholungsintervall gibt es nur
@@ -236,7 +236,7 @@ anlegen kann.
 | Betreiber / Verantwortlicher | Betrieb, Netz, Zutritt, Sicherungen, Freigabe der PubChem-Funktion | *[zu ergänzen]* |
 | IT-Administration | Installation, Updates, Überwachung, Wiederherstellung | *[zu ergänzen]* |
 | Datenschutzbeauftragte:r | Beurteilung der offenen Punkte, Freigabe der Unterschriftsverarbeitung | *[zu ergänzen]* |
-| Anwendungsentwicklung | Behebung der technischen Punkte R-2, R-4, R-7 | *[zu ergänzen]* |
+| Anwendungsentwicklung | Behebung der technischen Punkte aus Abschnitt 9 | *[zu ergänzen]* |
 
 ---
 
@@ -284,18 +284,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** Infrastruktur, kein Anwendungscode.
 * **Status:** offen (Betreiber).
 
-### R-4 — Container startet den Entwicklungsserver · **mittel**
-
-* **Was:** Der Entrypoint führt `exec flask run` aus. `run_prod.py` mit Waitress
-  ist vorhanden, wird aber nicht verwendet.
-* **Wirkung:** Für den Dauerbetrieb ist der Entwicklungsserver nicht gedacht;
-  keine definierte Parallelität, keine Betriebsprotokollierung im üblichen
-  Umfang.
-* **Maßnahme:** Entrypoint auf Waitress umstellen (`run_prod.py`).
-* **Aufwand:** klein.
-* **Status:** offen.
-
-### R-5 — Cookie-Markierung „nur über HTTPS" nur bedingt gesetzt · **niedrig**
+### R-4 — Cookie-Markierung „nur über HTTPS" nur bedingt gesetzt · **niedrig**
 
 * **Was:** `SESSION_COOKIE_SECURE` hängt an `FLASK_ENV=production`.
 * **Wirkung:** Ohne diese Variable wird das Sitzungs-Cookie nicht als
@@ -304,7 +293,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** klein.
 * **Status:** offen.
 
-### R-6 — Protokoll ohne Manipulationsschutz, Fehlversuche unprotokolliert · **niedrig**
+### R-5 — Protokoll ohne Manipulationsschutz, Fehlversuche unprotokolliert · **niedrig**
 
 * **Was:** Das Audit-Log ist eine gewöhnliche Tabelle in derselben Datenbank,
   Anzeige der letzten 100 Einträge; fehlgeschlagene Anmeldungen werden nicht
@@ -317,7 +306,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** mittel.
 * **Status:** offen.
 
-### R-7 — Abhängigkeiten bei jedem Start installiert · **niedrig**
+### R-6 — Abhängigkeiten bei jedem Start installiert · **niedrig**
 
 * **Was:** Der Container führt bei jedem Start `pip install -r
   requirements.txt` aus.
@@ -327,7 +316,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** klein.
 * **Status:** offen.
 
-### R-8 — Keine zeitgesteuerten Sicherungen, kein Wiederherstellungstest · **mittel**
+### R-7 — Keine zeitgesteuerten Sicherungen, kein Wiederherstellungstest · **mittel**
 
 * **Was:** Sicherungen entstehen nur vor Updates; ein Rückspielen wurde nie
   geprobt.
@@ -339,7 +328,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** mittel (Betreiber).
 * **Status:** offen.
 
-### R-9 — Archivierte Datensätze nicht wiederherstellbar · **niedrig**
+### R-8 — Archivierte Datensätze nicht wiederherstellbar · **niedrig**
 
 * **Was:** Gelöschte Gefahrstoffe bleiben in der Datenbank, ein
   Wiederherstellen gibt es in der Oberfläche aber nicht.
@@ -349,7 +338,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** klein bis mittel.
 * **Status:** bewusst offen, im Handbuch benannt.
 
-### R-10 — PubChem-Abruf dokumentieren · **niedrig**
+### R-9 — PubChem-Abruf dokumentieren · **niedrig**
 
 * **Was:** Serverinitiierte Abfrage an einen Dienst außerhalb der EU.
 * **Wirkung:** Kein Personenbezug in der Nutzlast, aber die Server-IP wird
@@ -359,7 +348,7 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 * **Aufwand:** klein (Text).
 * **Status:** offen.
 
-### R-11 — Überprüfung dieses TOM nicht institutionalisiert · **niedrig**
+### R-10 — Überprüfung dieses TOM nicht institutionalisiert · **niedrig**
 
 * **Was:** Kein Termin, keine verantwortliche Person, keine dokumentierte
   Prüfung.
