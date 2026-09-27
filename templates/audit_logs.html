@@ -62,6 +62,10 @@
                         <span class="badge" style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd;"><i class="fa-solid fa-building" style="margin-right:4px;"></i> Bereiche zugewiesen</span>
                     {% elif log.action == 'USER_DELETE' %}
                         <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;"><i class="fa-solid fa-user-xmark" style="margin-right:4px;"></i> Benutzer gelöscht</span>
+                    {% elif log.action == 'USER_PASSWORD' %}
+                        <span class="badge" style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd;"><i class="fa-solid fa-key" style="margin-right:4px;"></i> Passwort geändert</span>
+                    {% elif log.action == 'SYSTEM_UPDATE' %}
+                        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;"><i class="fa-solid fa-arrows-rotate" style="margin-right:4px;"></i> Systemänderung</span>
                     {# Die folgenden Aktionen wurden schon vorher geschrieben, aber
                        nicht übersetzt und standen deshalb als Code in der Liste. #}
                     {% elif log.action == 'LOGIN' %}
@@ -76,7 +80,9 @@
                         <span class="badge" style="background:#f1f5f9; color:#475569;">{{ log.action }}</span>
                     {% endif %}
                     <br>
-                    <small style="color:#94a3b8;">{{ log.entity_type }} #{{ log.entity_id }}</small>
+                    {# Systemeinträge haben keine Datensatz-ID; ohne die Abfrage
+                       stünde dort "System #None". #}
+                    <small style="color:#94a3b8;">{{ log.entity_type }}{% if log.entity_id is not none %} #{{ log.entity_id }}{% endif %}</small>
                 </td>
                 <td style="padding:1rem 1.5rem;">
                     <code style="background:#f8fafc; padding:4px 8px; border-radius:4px; font-size:0.85rem; color:#475569;">

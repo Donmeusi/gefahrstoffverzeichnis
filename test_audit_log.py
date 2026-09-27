@@ -12,6 +12,7 @@ Mit ausführen:
 import unittest
 import os
 import sys
+from unittest import mock
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
@@ -347,6 +348,70 @@ class TestAuditLog(unittest.TestCase):
                                                entity_type='Unterbereich').first()
             self.assertIn('Labor A / Regal 1 / Schrank 1', eintrag.details)
 
+    # ── Passwort, Login, System ──────────────────────────────────────────────
+
+    def test_passwortaenderung_im_profil_wird_protokolliert(self):
+        self._login_admin()
+
+        res = self.client.post('/profile',
+                               data={'old_password': 'pass123',
+                                     'new_password': 'NeuesGeheim456',
+                                     'confirm_password': 'NeuesGeheim456'},
+                               follow_redirects=True)
+        self.assertIn('erfolgreich geändert', res.get_data(as_text=True))
+
+        with app.app_context():
+            eintrag = AuditLog.query.filter_by(action='USER_PASSWORD').first()
+            self.assertIsNotNone(eintrag,
+                                 'Die Passwortänderung muss protokolliert werden')
+            self.assertEqual(eintrag.entity_id, User.query.filter_by(
+                username='chef_audit').first().id)
+            # Wie bei der Unterschrift: nur das Ereignis, nie das Passwort
+            self.assertNotIn('NeuesGeheim456', eintrag.details or '')
+            self.assertNotIn('pass123', eintrag.details or '')
+
+    def test_lokaler_login_wird_protokolliert(self):
+        # Bisher wurde nur der LDAP-Login erfasst.
+        self._login_admin()
+
+        with app.app_context():
+            eintrag = AuditLog.query.filter_by(action='LOGIN').first()
+            self.assertIsNotNone(eintrag, 'Der lokale Login muss protokolliert werden')
+            self.assertIn('Lokaler Login', eintrag.details)
+            self.assertEqual(eintrag.user.username, 'chef_audit')
+
+    def test_repository_url_wird_protokolliert(self):
+        # subprocess wird ersetzt: der Test darf kein echtes git-Kommando im
+        # Arbeitsverzeichnis ausführen, das würde die Herkunft des Repos ändern.
+        self._login_admin()
+
+        with mock.patch('subprocess.check_call'):
+            self.client.post('/admin/system/update_repo',
+                             data={'repo_url': 'https://example.invalid/repo.git'},
+                             follow_redirects=True)
+
+        with app.app_context():
+            eintrag = AuditLog.query.filter_by(action='SYSTEM_UPDATE').first()
+            self.assertIsNotNone(eintrag,
+                                 'Die Änderung der Repository-URL muss protokolliert werden')
+            self.assertIn('example.invalid', eintrag.details)
+
+    def test_update_ausloesen_wird_protokolliert(self):
+        # Der Update-Thread würde update.sh starten - das macht git pull und
+        # startet einen Server - und den Prozess am Ende mit os._exit beenden.
+        # Deshalb werden Thread, subprocess und os._exit hier ersetzt.
+        self._login_admin()
+
+        with mock.patch('threading.Thread'), mock.patch('os._exit'), \
+                mock.patch('subprocess.Popen'):
+            self.client.post('/admin/system/do_update',
+                             data={'target_branch': 'beta'}, follow_redirects=True)
+
+        with app.app_context():
+            eintrag = AuditLog.query.filter_by(action='SYSTEM_UPDATE').first()
+            self.assertIsNotNone(eintrag, 'Das Auslösen des Updates muss protokolliert werden')
+            self.assertIn('beta', eintrag.details)
+
     # ── Anzeige ──────────────────────────────────────────────────────────────
 
     def test_historie_rendert_und_uebersetzt_die_aktionen(self):
@@ -376,6 +441,30 @@ class TestAuditLog(unittest.TestCase):
         self.assertNotIn('USER_DELETE', html)
         self.assertNotIn('MOVE', html)
         self.assertNotIn('COPY', html)
+    def test_historie_zeigt_systemeintraege_ohne_datensatz_id(self):
+        # Systemeinträge (Repository-URL, Update) haben keine entity_id. Ohne
+        # Sonderbehandlung in der Anzeige stünde dort "System #None".
+        self._login_admin()
+
+        self.client.post('/profile',
+                         data={'old_password': 'pass123',
+                               'new_password': 'NeuesGeheim456',
+                               'confirm_password': 'NeuesGeheim456'},
+                         follow_redirects=True)
+        with mock.patch('subprocess.check_call'):
+            self.client.post('/admin/system/update_repo',
+                             data={'repo_url': 'https://example.invalid/repo.git'},
+                             follow_redirects=True)
+
+        res = self.client.get('/audit_logs')
+        self.assertEqual(res.status_code, 200)
+        html = res.get_data(as_text=True)
+        self.assertIn('Passwort geändert', html)
+        self.assertIn('Systemänderung', html)
+        self.assertNotIn('USER_PASSWORD', html)
+        self.assertNotIn('SYSTEM_UPDATE', html)
+        self.assertNotIn('#None', html)
+
     # ── Keine Geheimnisse in der Historie ────────────────────────────────────
 
     def test_passwort_steht_nicht_in_der_historie(self):

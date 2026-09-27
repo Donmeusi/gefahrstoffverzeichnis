@@ -2,6 +2,26 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.16 – Die letzten drei Lücken in der Systemhistorie (September 2026)
+
+* **Passwortänderung im eigenen Profil** (`/profile`) erzeugt jetzt einen Eintrag `USER_PASSWORD`. Wie bei der Unterschrift der Betriebsanweisung steht dort **nur das Ereignis**, nie das Passwort — auch nicht das alte. Ein Test prüft das.
+* **Der lokale Login wird protokolliert.** Bisher wurde nur der LDAP-Login erfasst (`LOGIN`, „Erfolgreicher LDAPs Login."); wer sich mit einem Datenbankpasswort anmeldete, fehlte in der Historie. Das war eine Inkonsistenz ohne Grund — jetzt steht dort „Lokaler Login (Passwort aus der Datenbank)."
+* **Die beiden Wartungsaktionen** (`/admin/system/update_repo`, `/admin/system/do_update`) erzeugen `SYSTEM_UPDATE`-Einträge. Bei der Repository-URL steht das neue Ziel im Eintrag: es bestimmt, woher künftige Updates kommen, ist also eine sicherheitsrelevante Angabe. Beim Update steht der Ziel-Branch darin.
+* **⚠️ Der Update-Eintrag wird im Request geschrieben, nicht im Update-Thread.** Der Thread beendet den Prozess am Ende mit `os._exit(0)`; ein Eintrag aus dem Thread ginge dabei verloren. Genau dieselbe Stelle wäre auch beim Debuggen die naheliegende Fehlerquelle gewesen.
+* **Einträge aus einem Testlauf:**
+  ```
+  [LOGIN         ] User    #1                 Lokaler Login (Passwort aus der Datenbank).
+  [USER_PASSWORD ] User    #1                 Passwort im eigenen Profil geändert.
+  [SYSTEM_UPDATE ] System  (keine Datensatz-ID) Repository-URL auf "https://example.invalid/repo.git" gesetzt.
+  [SYSTEM_UPDATE ] System  (keine Datensatz-ID) Update ausgelöst (Ziel-Branch: beta).
+  ```
+* **Anzeige korrigiert:** Systemeinträge haben keine `entity_id`. Die Liste hätte dort „System #None" geschrieben; das `#id` entfällt jetzt, wenn keine ID vorhanden ist. Dazu deutsche Beschriftungen und Symbole für `USER_PASSWORD` („Passwort geändert") und `SYSTEM_UPDATE` („Systemänderung").
+* **Fünf neue Tests** in `test_audit_log.py` (jetzt 21): Passwortänderung (ohne Passwort im Eintrag), lokaler Login, Repository-URL, Auslösen des Updates und ein Rendering-Test, der auch das fehlende `#None` prüft. Gesamtstand: **84 Tests (38 + 9 + 21 + 16), alle grün.**
+* **Die Tests führen bewusst kein echtes `git` aus.** `update_repo` und `do_update` werden mit ersetztem `subprocess` bzw. ersetztem Thread aufgerufen — sonst würde der Test `git remote set-url` im Arbeitsverzeichnis ausführen, und `do_update` würde `update.sh` starten (das macht `git pull` und startet einen Server) und den Testprozess mit `os._exit` beenden. Nach dem Lauf geprüft: `git remote -v` ist unverändert.
+* **⚠️ Nicht protokolliert, und zwar mit Absicht: fehlgeschlagene Anmeldungen.** Ein Eintrag dafür wäre sicherheitsrelevant, aber es gibt keine Sperre gegen Passwortraten. Ohne die könnte jeder Unauthentifizierte die Historie mit Fehlversuchen fluten — und weil `/audit_logs` nur die letzten 100 Einträge zeigt, würden dabei echte Einträge aus der Ansicht verdrängt. Sinnvoll ist das erst zusammen mit einer Rate-Begrenzung.
+* **Ebenfalls nicht protokolliert: abgewiesene Versuche.** Wenn eine Rechteprüfung greift („Keine Berechtigung."), entsteht kein Eintrag. Das ist im ganzen Programm einheitlich so und wäre eine eigene Entscheidung — ein Protokoll abgewiesener Zugriffe ist vor allem für die Erkennung von Angriffen nützlich.
+* **Damit ist die Historie vollständig.** Eine Prüfung über den Quelltext (jede Funktion, die `db.session.commit()` aufruft, gegen `log_audit_event`) findet **keine** schreibende Stelle mehr ohne Protokollierung. Die beiden Einschränkungen oben bleiben.
+
 ### v3.15 – Anlegen von Standorten wird protokolliert (September 2026)
 
 * **Die letzte Asymmetrie in der Standortverwaltung ist weg.** v3.12 hatte das **Löschen** eines Bereichs und eines Unterbereichs erfasst, das **Anlegen** aber nicht — in der Historie stand damit, wer einen Standort entfernt hatte, nicht aber, wer ihn angelegt hatte. Beide Zweige von `/locations` (`action=add_bereich` und `action=add_unterbereich`) schreiben jetzt einen Eintrag: `CREATE` mit `entity_type` `Bereich` bzw. `Unterbereich`.

@@ -753,6 +753,9 @@ def login():
             flash('Ungültiger Benutzername oder Passwort', 'error')
             return redirect(url_for('login'))
         login_user(user)
+        # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
+        log_audit_event('LOGIN', 'User', user.id,
+                        'Lokaler Login (Passwort aus der Datenbank).')
         return redirect(url_for('index'))
     return render_template('login.html')
 
@@ -1854,6 +1857,9 @@ def profile():
         else:
             current_user.set_password(new_password)
             db.session.commit()
+            # Wie bei der Unterschrift: nur das Ereignis, nie das Passwort.
+            log_audit_event('USER_PASSWORD', 'User', current_user.id,
+                            'Passwort im eigenen Profil geändert.')
             flash('Dein Passwort wurde erfolgreich geändert.', 'success')
             return redirect(url_for('profile'))
             
@@ -2520,18 +2526,27 @@ def update_repo():
     new_url = request.form.get('repo_url', '').strip()
     if not new_url:
         new_url = "https://github.com/Donmeusi/gefahrstoffverzeichnis"
+    erfolg = False
     try:
         subprocess.check_call(['git', 'remote', 'set-url', 'origin', new_url], stderr=subprocess.STDOUT)
         flash('Repository-URL erfolgreich aktualisiert.', 'success')
+        erfolg = True
     except subprocess.CalledProcessError:
         try:
             subprocess.check_call(['git', 'remote', 'add', 'origin', new_url], stderr=subprocess.STDOUT)
             flash('Repository-URL erfolgreich hinzugefügt.', 'success')
+            erfolg = True
         except Exception as e:
             flash(f'Fehler beim Setzen der URL: {e}', 'error')
     except Exception as e:
         flash(f'Ein unerwarteter Fehler ist aufgetreten: {e}', 'error')
-    
+
+    # Nur der erfolgreiche Fall wird protokolliert. Das Ziel der URL bestimmt,
+    # woher künftige Updates kommen - das ist eine sicherheitsrelevante Angabe.
+    if erfolg:
+        log_audit_event('SYSTEM_UPDATE', 'System', None,
+                        f'Repository-URL auf "{new_url}" gesetzt.')
+
     return redirect(url_for('admin_system'))
 
 @app.route('/admin/system/do_update', methods=['POST'])
@@ -2541,6 +2556,12 @@ def do_update():
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
     target_branch = request.form.get('target_branch', '').strip() or None
+
+    # Vor dem Start des Threads protokollieren, nicht darin: der Update-Thread
+    # beendet den Prozess am Ende mit os._exit(0), ein Eintrag aus dem Thread
+    # ginge dabei verloren.
+    log_audit_event('SYSTEM_UPDATE', 'System', None,
+                    f'Update ausgelöst (Ziel-Branch: {target_branch or "unverändert"}).')
 
     def trigger_update_script():
         import time, os, subprocess
