@@ -34,6 +34,15 @@
                 <td style="padding:1rem 1.5rem; font-weight:500;">
                     {% if log.user %}
                         <i class="fa-solid fa-user" style="color:#94a3b8; margin-right:4px;"></i> {{ log.user.username }}
+                    {% elif log.user_id %}
+                        {# Der Benutzer wurde gelöscht. Die ID bleibt als Pseudonym
+                           erhalten, der Name nicht - so beschreibt es
+                           DATENSCHUTZ_UND_TOM.md ("pseudonymisiert erhalten").
+                           Ohne diese Unterscheidung stünde hier für Einträge
+                           eines gelöschten Kontos dasselbe wie für Systemeinträge. #}
+                        <i class="fa-solid fa-user-slash" style="color:#94a3b8; margin-right:4px;"></i>
+                        <span style="color:#64748b;">Benutzer #{{ log.user_id }}</span>
+                        <span style="font-size:0.78rem; color:#94a3b8;">(gelöscht)</span>
                     {% else %}
                         <span style="color:#94a3b8;">System / Unbekannt</span>
                     {% endif %}

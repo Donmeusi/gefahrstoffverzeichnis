@@ -16,6 +16,10 @@ from unittest import mock
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+# Muss vor dem Import von main stehen: der Datenbank-Engine wird beim Import
+# erzeugt. Siehe testkonfiguration.py.
+import testkonfiguration  # noqa: F401,E402
+
 from main import app, db, User, Bereich, Unterbereich, Gefahrstoff, AuditLog
 
 
@@ -23,7 +27,9 @@ class TestAuditLog(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         app.config['WTF_CSRF_ENABLED'] = False
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        # Kein SQLALCHEMY_DATABASE_URI hier: das hätte keine Wirkung, der
+        # Engine steht seit dem Import. Die Isolation kommt aus
+        # testkonfiguration.py (APP_DATA_DIR -> /tmp).
         self.client = app.test_client()
         with app.app_context():
             db.create_all()
@@ -464,6 +470,62 @@ class TestAuditLog(unittest.TestCase):
         self.assertNotIn('USER_PASSWORD', html)
         self.assertNotIn('SYSTEM_UPDATE', html)
         self.assertNotIn('#None', html)
+
+    # ── Löschen eines Benutzers: Pseudonymisierung ───────────────────────────
+
+    def test_eintraege_bleiben_nach_benutzerloeschung_zugeordnet(self):
+        # Vorher setzte SQLAlchemy beim Löschen user_id auf NULL. Damit verlor
+        # die Historie nicht nur den Namen - das ist gewollt, siehe
+        # DATENSCHUTZ_UND_TOM.md - sondern auch den Bezug zwischen den
+        # Einträgen: sie standen danach alle als "System / Unbekannt" da.
+        self._login_admin()
+        zid = self._benutzer_anlegen('geht_gehen', role='benutzer')
+
+        # Der Benutzer tut etwas, das protokolliert wird.
+        self.client.get('/logout')
+        self.client.post('/login', data={'username': 'geht_gehen', 'password': 'pass123'},
+                         follow_redirects=True)
+        with app.app_context():
+            # Nach user_id filtern: der Login des Administrators aus _login_admin
+            # steht ebenfalls als LOGIN in der Historie.
+            eintrag = AuditLog.query.filter_by(action='LOGIN', user_id=zid).first()
+            self.assertIsNotNone(eintrag)
+            self.assertEqual(eintrag.user_id, zid)
+            self.assertEqual(eintrag.user.username, 'geht_gehen')
+
+        # Der Administrator löscht das Konto.
+        self.client.get('/logout')
+        self.client.post('/login', data={'username': 'chef_audit', 'password': 'pass123'},
+                         follow_redirects=True)
+        self.client.post(f'/users/delete/{zid}', follow_redirects=True)
+
+        with app.app_context():
+            self.assertIsNone(User.query.filter_by(id=zid).first(), 'Das Konto ist weg')
+            eintrag = AuditLog.query.filter_by(action='LOGIN', user_id=zid).first()
+            self.assertEqual(eintrag.user_id, zid,
+                             'Die ID muss als Pseudonym erhalten bleiben')
+            self.assertIsNone(eintrag.user,
+                              'Der Name darf nicht erhalten bleiben (Pseudonymisierung)')
+
+    def test_anzeige_kennzeichnet_eintraege_geloeschter_benutzer(self):
+        self._login_admin()
+        zid = self._benutzer_anlegen('weg_damit2', role='benutzer')
+
+        self.client.get('/logout')
+        self.client.post('/login', data={'username': 'weg_damit2', 'password': 'pass123'},
+                         follow_redirects=True)
+        self.client.get('/logout')
+        self.client.post('/login', data={'username': 'chef_audit', 'password': 'pass123'},
+                         follow_redirects=True)
+        self.client.post(f'/users/delete/{zid}', follow_redirects=True)
+
+        res = self.client.get('/audit_logs')
+        self.assertEqual(res.status_code, 200)
+        html = res.get_data(as_text=True)
+        # Einträge des gelöschten Kontos sind als solche erkennbar und nicht
+        # mit Systemeinträgen vermischt.
+        self.assertIn(f'Benutzer #{zid}', html)
+        self.assertIn('(gelöscht)', html)
 
     # ── Keine Geheimnisse in der Historie ────────────────────────────────────
 

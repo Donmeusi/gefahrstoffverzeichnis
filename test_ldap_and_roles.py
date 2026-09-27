@@ -6,6 +6,11 @@ from html import unescape
 # Ensure app directory is on path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+# Muss vor dem Import von main stehen: der Datenbank-Engine wird beim Import
+# erzeugt. Ohne diese Zeile liefen create_all() und drop_all() gegen die echte
+# data/gefahrstoffe.db. Siehe testkonfiguration.py.
+import testkonfiguration  # noqa: F401,E402
+
 from main import app, db, User, Bereich, Unterbereich, Gefahrstoff
 from ldap_auth import is_ldap_enabled, get_ldap_config, authenticate_ldap
 
@@ -13,7 +18,9 @@ class TestLdapAndRoles(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         app.config['WTF_CSRF_ENABLED'] = False
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        # Kein SQLALCHEMY_DATABASE_URI hier: das hätte keine Wirkung, der
+        # Engine steht seit dem Import. Die Isolation kommt aus
+        # testkonfiguration.py (APP_DATA_DIR -> /tmp).
         self.client = app.test_client()
         with app.app_context():
             db.create_all()

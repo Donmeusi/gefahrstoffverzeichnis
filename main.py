@@ -195,7 +195,17 @@ class AuditLog(db.Model):
     entity_id = db.Column(db.Integer)
     details = db.Column(db.Text)
     
-    user = db.relationship('User', backref=db.backref('audit_logs', lazy=True))
+    # passive_deletes: Beim Löschen eines Benutzers darf SQLAlchemy die user_id
+    # in dessen Einträgen nicht auf NULL setzen. Ohne das verliert die Historie
+    # nicht nur den Namen - das ist gewollt, siehe DATENSCHUTZ_UND_TOM.md
+    # ("pseudonymisiert erhalten") - sondern auch den Bezug zwischen den
+    # Einträgen: sie stünden danach alle als "System / Unbekannt" da und ließen
+    # sich nicht einmal mehr einander zuordnen. Die erhaltene ID wirkt als
+    # Pseudonym, der Name bleibt gelöscht.
+    user = db.relationship(
+        'User',
+        backref=db.backref('audit_logs', lazy=True, passive_deletes=True)
+    )
 
 
 class Bereich(db.Model):

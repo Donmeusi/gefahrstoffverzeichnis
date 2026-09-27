@@ -1,14 +1,33 @@
 import sqlite3
 import os
 
-def run_migrations():
-    possible_paths = ['data/gefahrstoffe.db', 'gefahrstoffe.db']
-    db_path = None
-    for p in possible_paths:
+
+def get_db_path():
+    """Pfad zur Datenbank, die die Anwendung tatsächlich benutzt.
+
+    APP_DATA_DIR hat Vorrang - main.py liest denselben Wert. Vorher suchte diese
+    Datei ausschließlich an zwei festen relativen Pfaden ('data/gefahrstoffe.db'
+    und 'gefahrstoffe.db') und migrierte damit eine andere Datei als die
+    Anwendung benutzte, sobald APP_DATA_DIR gesetzt war. Die Migration meldete
+    trotzdem Erfolg, das Protokoll nannte nur den festen Pfad.
+
+    Existiert die Datei unter APP_DATA_DIR nicht, wird None zurückgegeben und
+    nicht auf die festen Pfade ausgewichen: das wäre eine fremde Datenbank.
+    """
+    data_dir = os.environ.get('APP_DATA_DIR')
+    if data_dir:
+        pfad = os.path.join(data_dir, 'gefahrstoffe.db')
+        return pfad if os.path.exists(pfad) else None
+
+    for p in ('data/gefahrstoffe.db', 'gefahrstoffe.db'):
         if os.path.exists(p):
-            db_path = p
-            break
-            
+            return p
+    return None
+
+
+def run_migrations():
+    db_path = get_db_path()
+
     if not db_path:
         print("Keine Datenbankdatei gefunden. Es sind keine Migrationen erforderlich.")
         return

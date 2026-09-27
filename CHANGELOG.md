@@ -2,6 +2,46 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.17 – Einträge gelöschter Benutzer bleiben zuordenbar; drei Datenbank-Sicherheitsfehler (September 2026)
+
+**1. Die Einträge eines gelöschten Kontos waren gar nicht mehr zuordenbar.**
+
+* Beim Löschen eines Benutzers setzte SQLAlchemy `user_id` in **allen** dessen Einträgen auf `NULL`. Die Einträge eines ausgeschiedenen Kontos erschienen danach als „System / Unbekannt" — nicht einmal mehr einander zuordenbar, und nicht zu unterscheiden von echten Systemeinträgen (Update, Repository-URL). Nachgemessen:
+  ```
+  user_id vorher: 1  ->  nachher: None
+  ```
+* **Behoben mit `passive_deletes=True`** an der `audit_logs`-Beziehung: Die ID bleibt erhalten, der Benutzer ist trotzdem weg (`log.user` ist None). Vorher/nachher in der Oberfläche:
+  ```
+  VOR:    anna          | Anmeldung | User #2
+  NACH:   Benutzer #2   | (gelöscht) | Anmeldung
+  ```
+* **⚠️ Bewusst NICHT den Namen mitgespeichert.** Der naheliegende Fix wäre eine zusätzliche Spalte mit dem Benutzernamen. Das habe ich verworfen, weil `DATENSCHUTZ_UND_TOM.md` Abschnitt 5 die Löschung ausdrücklich als **pseudonymisierte** Aufbewahrung beschreibt („Bereits getätigte Audit-Log-Einträge bleiben zur Einhaltung der Rechenschaftspflicht pseudonymisiert erhalten"). Eine Namensspalte würde dieser dokumentierten Zusage widersprechen und personenbezogene Daten über die Kontolöschung hinaus aufbewahren. Der Fehler war nicht die Namenlosigkeit — die ist gewollt — sondern dass mit der ID auch der Bezug zwischen den Einträgen zerstört wurde.
+  * **Falls die vollständige Zuordnung gewünscht ist** (also „wer genau hat das geändert?" auch nach dem Ausscheiden), ist das die Alternative: eine `username`-Spalte in `audit_log`, gefüllt beim Schreiben, plus Migration (`migrate_db.py`). Das ist eine datenschutzrechtliche Entscheidung, keine technische — sie gehört dem DSB, nicht dem Code.
+* **Keine Schemaänderung nötig:** Die Lösung ist eine Eigenschaft an der Beziehung, keine neue Spalte. Kein Migrationsschritt, kein Risiko beim Ausrollen.
+* **Grenze, die dokumentiert gehört:** Der Eintrag über die Löschung selbst nennt den Namen im Klartext („Benutzer \"max.mustermann\" (Rolle: benutzer) gelöscht."). Ohne ihn wäre nicht nachvollziehbar, wer gelöscht wurde. Die Pseudonymisierung betrifft also die übrigen Einträge des Kontos. Steht so in `DATENSCHUTZ_UND_TOM.md` Abschnitt 5 und im Handbuch.
+
+**2. ⚠️ Die Testdateien löschten die echte Datenbank.**
+
+* Die Testdateien setzten in `setUp` `SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'`. **Das hat keine Wirkung** — der Engine wird beim Import von `main` erzeugt und ignoriert die spätere Änderung. Nachgemessen:
+  ```
+  Engine-URL nach Import : sqlite:////.../data/gefahrstoffe.db
+  Engine-URL nach setUp  : sqlite:////.../data/gefahrstoffe.db   (unverändert)
+  ```
+* Damit liefen `db.create_all()` und vor allem `db.drop_all()` aus `tearDown` gegen die **echte** `data/gefahrstoffe.db` und löschten dort nach jedem Testlauf alle Tabellen. Während dieser Sitzung war die Datei deshalb zwischenzeitlich leer; das ist aufgefallen, weil eine Abfrage plötzlich 0 Tabellen meldete statt 6.
+* **Betroffen:** `test_ldap_and_roles.py` (schon vorher), `test_audit_log.py` und `test_gefahrstoff_operationen.py` (beide neu und mit demselben Muster angelegt). `test_ba_persistenz.py` machte es als einzige richtig und war das Vorbild.
+* **Datenverlust:** Substanzen und Historie waren nachweislich leer (0 Zeilen, zu Beginn der Sitzung geprüft). Die übrigen Tabellen wurden nicht gezählt, ein Benutzerkonto darin lässt sich also nicht ausschließen. Das Schema ist wiederhergestellt (6 Tabellen, 0 Zeilen) — inhaltlich also der Zustand von vorher. Ein Backup gab es nicht (`data/` ist von `.gitignore` erfasst).
+* **Behoben** mit der neuen Datei `testkonfiguration.py`: Sie setzt `APP_DATA_DIR` auf ein frisches Verzeichnis unter `/tmp`, und alle vier Testdateien importieren sie **vor** `main`. Die wirkungslose `SQLALCHEMY_DATABASE_URI`-Zeile ist aus allen `setUp` entfernt und durch einen Verweis ersetzt. Bewusst mit Zuweisung statt `setdefault`: ein bereits gesetzter `APP_DATA_DIR` darf nicht dazu führen, dass Tests gegen echte Daten laufen.
+* **Nachgeprüft:** Vor und nach einem vollständigen Testlauf hat die echte Datei 6 Tabellen.
+
+**3. `migrate_db.py` migrierte eine andere Datei als die Anwendung benutzte.**
+
+* Die Datei suchte ausschließlich an zwei festen relativen Pfaden (`data/gefahrstoffe.db`, `gefahrstoffe.db`) und ignorierte `APP_DATA_DIR` — den Wert, aus dem `main.py` den Pfad bildet. War `APP_DATA_DIR` gesetzt, migrierte sie also eine **fremde** Datei und meldete trotzdem Erfolg. In der Docker-Konfiguration fällt beides zufällig zusammen (`/app/data` = `data/`), in jedem anderen Aufbau nicht — und genau das war beim Testlauf sichtbar: das Protokoll nannte `data/gefahrstoffe.db`, während die Anwendung eine Datei unter `/tmp` benutzte.
+* **Behoben** mit `get_db_path()`: `APP_DATA_DIR` hat Vorrang. Existiert die Datei dort nicht, wird `None` zurückgegeben und **nicht** auf die festen Pfade ausgewichen — das wäre eine fremde Datenbank. Ohne gesetzten `APP_DATA_DIR` bleibt alles wie bisher.
+* Das war nicht nur Kosmetik: Ohne diese Korrektur hätte die Testisolation aus Punkt 2 nicht gegolten, weil der Import von `main` bei jedem Testlauf weiterhin die echte Datei angefasst hätte.
+
+* **Tests:** Zwei neue in `test_audit_log.py` (jetzt 23): Einträge bleiben nach dem Löschen zugeordnet (ID erhalten, Name nicht) und die Anzeige kennzeichnet sie als „Benutzer #<ID> (gelöscht)". Gesamtstand: **86 Tests (38 + 9 + 23 + 16), alle grün.**
+* **Dokumentation:** `DATENSCHUTZ_UND_TOM.md` Abschnitt 5 beschreibt die Pseudonymisierung jetzt präzise (Mechanismus und die Grenze beim Löschungseintrag), `HANDBUCH.md` erklärt sie für Anwender.
+
 ### v3.16 – Die letzten drei Lücken in der Systemhistorie (September 2026)
 
 * **Passwortänderung im eigenen Profil** (`/profile`) erzeugt jetzt einen Eintrag `USER_PASSWORD`. Wie bei der Unterschrift der Betriebsanweisung steht dort **nur das Ereignis**, nie das Passwort — auch nicht das alte. Ein Test prüft das.

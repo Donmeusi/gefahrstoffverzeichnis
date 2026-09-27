@@ -9,14 +9,13 @@ Gebotszeichen. Ausführen mit:
 import json
 import os
 import sys
-import tempfile
 import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-# Muss vor dem Import von main gesetzt sein: main legt die Datenbank beim
-# Import an. So schreibt der Test nicht in die echte data/gefahrstoffe.db.
-os.environ.setdefault('APP_DATA_DIR', tempfile.mkdtemp(prefix='gsv-test-'))
+# Muss vor dem Import von main stehen: der Datenbank-Engine wird beim Import
+# erzeugt. Siehe testkonfiguration.py - dort steht, warum das nötig ist.
+import testkonfiguration  # noqa: F401,E402
 os.environ.setdefault('FLASK_SECRET_KEY', 'test-key')
 
 from main import (  # noqa: E402
