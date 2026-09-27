@@ -1,5 +1,6 @@
-# Technical Documentation & Data Protection Concept (GDPR / DSGVO)
-## Gefahrstoff-Verwaltungsanwendung (Gefahrstoffverzeichnis)
+# 🔒 Technische Dokumentation & Datenschutzkonzept (DSGVO)
+
+**Gefahrstoff-Verwaltungsanwendung (Gefahrstoffverzeichnis)**
 
 > **Dokumententyp:** Technische Systemdokumentation & Technisch-Organisatorische Maßnahmen (TOM) gemäß Art. 32 DSGVO  
 > **Zielgruppe:** Datenschutzbeauftragte (DSB), IT-Administrator:innen, Informationssicherheitsbeauftragte (ISB)  
