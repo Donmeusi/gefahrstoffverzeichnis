@@ -5,8 +5,8 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-users-cog" style="color:var(--primary); margin-right:0.4rem;"></i> Benutzerverwaltung</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+        <h1><i class="fa-solid fa-users-cog h1-icon"></i> Benutzerverwaltung</h1>
+        <p class="text-muted subline">
             {% if current_user.is_admin %}Alle Benutzer verwalten{% else %}Deine angelegten Benutzer verwalten{% endif %}
         </p>
     </div>
@@ -21,7 +21,7 @@
 <div class="card">
     <div class="card-body" style="padding:0;">
         <div style="padding:1rem 1.75rem; border-bottom:1px solid var(--border); background:var(--bg-subtle);">
-            <p class="text-muted" style="font-size:0.875rem; margin:0;">
+            <p class="text-muted text-sm">
                 <i class="fa-solid fa-circle-info" style="color:var(--info); margin-right:0.35rem;"></i>
                 {% if current_user.is_admin %}
                     Der Account <strong>admin</strong> ist geschützt. Moderatoren können nur Benutzer mit der Rolle „Benutzer" anlegen.
@@ -34,12 +34,13 @@
         {% if users %}
         <div class="table-responsive" style="border:none; border-radius:0; box-shadow:none;">
             <table class="data-table">
+                <caption class="sr-only">Benutzer, Rollen und zugewiesene Bereiche</caption>
                 <thead>
                     <tr>
-                        <th>Benutzer</th>
-                        <th>Rolle</th>
-                        <th>Zugewiesene Bereiche</th>
-                        <th>Aktionen</th>
+                        <th scope="col">Benutzer</th>
+                        <th scope="col">Rolle</th>
+                        <th scope="col">Zugewiesene Bereiche</th>
+                        <th scope="col">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -116,7 +117,7 @@
                             {% if user.username != 'admin' %}
                                 <!-- Rolle setzen (nur Admin für alle Rollen; Mod kann seine Benutzer nicht hochstufen) -->
                                 {% if current_user.is_admin %}
-                                <form action="{{ url_for('set_role', id=user.id) }}" method="POST" style="margin:0;">
+                                <form action="{{ url_for('set_role', id=user.id) }}" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <select name="role" onchange="this.form.submit()"
                                             style="font-size:0.8rem; border:1px solid var(--border); border-radius:6px; padding:4px 8px; background:var(--bg-card); cursor:pointer;">
@@ -139,7 +140,7 @@
                                     
                                     {% if current_user.id != user.id %}
                                     {% if current_user.is_admin or (current_user.role == 'moderator' and user.created_by == current_user.id and user.role == 'benutzer') %}
-                                    <form action="{{ url_for('delete_user', id=user.id) }}" method="POST" style="margin:0;"
+                                    <form action="{{ url_for('delete_user', id=user.id) }}" method="POST"
                                           onsubmit="return confirm('Benutzer {{ user.username }} wirklich löschen?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-sm btn-outline text-danger"

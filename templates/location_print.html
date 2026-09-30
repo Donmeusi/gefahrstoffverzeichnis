@@ -274,14 +274,15 @@
     {% if stoffe %}
     <div class="print-table-scroll">
     <table class="print-table">
+        <caption class="sr-only">Gefahrstoffliste des Standorts</caption>
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 30%;">Gefahrstoff</th>
-                <th style="width: 15%;">CAS-Nr.</th>
-                <th style="width: 15%;">Menge</th>
-                <th style="width: 10%;">LGK</th>
-                <th style="width: 25%;">GHS-Kennzeichnung</th>
+                <th scope="col" style="width: 5%;">#</th>
+                <th scope="col" style="width: 30%;">Gefahrstoff</th>
+                <th scope="col" style="width: 15%;">CAS-Nr.</th>
+                <th scope="col" style="width: 15%;">Menge</th>
+                <th scope="col" style="width: 10%;">LGK</th>
+                <th scope="col" style="width: 25%;">GHS-Kennzeichnung</th>
             </tr>
         </thead>
         <tbody>

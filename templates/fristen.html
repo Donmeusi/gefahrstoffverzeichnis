@@ -2,9 +2,9 @@
 {% block title %}Fristen – Gefahrstoff-App{% endblock %}
 
 {% block content %}
-<div class="content-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; margin-top:1.5rem; flex-wrap:wrap; gap:1rem;">
-    <h1 style="margin:0; font-size:1.75rem; color:#0f172a; display:flex; align-items:center; gap:0.5rem;">
-        <div style="background:#fef3c7; color:#b45309; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
+<div class="content-header">
+    <h1>
+        <div class="page-icon page-icon-warning">
             <i class="fa-solid fa-clock"></i>
         </div>
         Fristen
@@ -25,23 +25,23 @@
 <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
     <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <div style="display:flex; align-items:center; gap:0.6rem;">
-            <i class="fa-solid fa-file-pdf" style="color:#dc2626;"></i>
-            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.sdb_faellig }}</span>
-            <span class="text-muted" style="font-size:0.875rem;">SDB veraltet</span>
+            <i class="fa-solid fa-file-pdf text-danger"></i>
+            <span class="tile-value">{{ uebersicht.sdb_faellig }}</span>
+            <span class="text-muted text-sm">SDB veraltet</span>
         </div>
     </div>
     <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <div style="display:flex; align-items:center; gap:0.6rem;">
-            <i class="fa-solid fa-triangle-exclamation" style="color:#dc2626;"></i>
-            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.sdb_fehlend }}</span>
-            <span class="text-muted" style="font-size:0.875rem;">SDB fehlt oder ohne Datum</span>
+            <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+            <span class="tile-value">{{ uebersicht.sdb_fehlend }}</span>
+            <span class="text-muted text-sm">SDB fehlt oder ohne Datum</span>
         </div>
     </div>
     <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <div style="display:flex; align-items:center; gap:0.6rem;">
-            <i class="fa-solid fa-flask-vial" style="color:#6b21a8;"></i>
-            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.substitution }}</span>
-            <span class="text-muted" style="font-size:0.875rem;">Substitutionsprüfung</span>
+            <i class="fa-solid fa-flask-vial text-accent"></i>
+            <span class="tile-value">{{ uebersicht.substitution }}</span>
+            <span class="text-muted text-sm">Substitutionsprüfung</span>
         </div>
         {# "noch nie geprüft" wird bewusst nicht als Zeile geführt (das wäre bei
            einem gewachsenen Verzeichnis jeder Stoff). Als Zahl bleibt die Lücke
@@ -56,74 +56,75 @@
     </div>
     <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <div style="display:flex; align-items:center; gap:0.6rem;">
-            <i class="fa-solid fa-clipboard-check" style="color:#0284c7;"></i>
-            <span style="font-size:1.4rem; font-weight:700; color:#0f172a;">{{ uebersicht.inventur }}</span>
-            <span class="text-muted" style="font-size:0.875rem;">Inventur fällig</span>
+            <i class="fa-solid fa-clipboard-check text-primary"></i>
+            <span class="tile-value">{{ uebersicht.inventur }}</span>
+            <span class="text-muted text-sm">Inventur fällig</span>
         </div>
     </div>
 </div>
 
 <div class="content-card" style="padding:0; overflow:hidden;">
     <div class="table-responsive">
-    <table class="data-table" id="fristenTable" style="margin:0;">
+    <table class="data-table" id="fristenTable">
+        <caption class="sr-only">Offene Fristen</caption>
         <thead>
             <tr>
-                <th style="padding:1rem 1.5rem;">Objekt</th>
-                <th style="padding:1rem 1.5rem;">Kategorie</th>
-                <th style="padding:1rem 1.5rem;">Fällig seit</th>
-                <th style="padding:1rem 1.5rem;">Ort</th>
-                <th style="width:220px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
+                <th scope="col">Objekt</th>
+                <th scope="col">Kategorie</th>
+                <th scope="col">Fällig seit</th>
+                <th scope="col">Ort</th>
+                <th scope="col" style="width:220px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
             </tr>
         </thead>
         <tbody>
             {% for e in eintraege %}
             <tr class="frist-row">
-                <td style="padding:1rem 1.5rem;">
+                <td>
                     <a href="{{ e.objekt_link }}" class="frist-objekt" style="color:#0f172a; font-weight:600; font-size:1.05rem; text-decoration:none;">
                         {{ e.objekt }}
                     </a>
                 </td>
-                <td style="padding:1rem 1.5rem;">
+                <td>
                     {# Die Stufe kommt aus sdb_status(), substitution_status() bzw.
                        fristen_liste(); hier stehen nur Beschriftung und Farbe.
                        Nach Kategorie unterschieden, weil "fehlt" bei SDB etwas
                        anderes heißt als bei der Substitutionsprüfung. #}
                     {% if e.kategorie == 'SDB' %}
                         {% if e.stufe == 'fehlt' %}
-                            <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">Kein SDB hinterlegt</span>
+                            <span class="badge badge-danger">Kein SDB hinterlegt</span>
                         {% elif e.stufe == 'dringend' %}
-                            <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">SDB dringend aktualisieren</span>
+                            <span class="badge badge-danger">SDB dringend aktualisieren</span>
                         {% elif e.stufe == 'ohne_datum' %}
-                            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">SDB-Datum fehlt</span>
+                            <span class="badge badge-warning">SDB-Datum fehlt</span>
                         {% else %}
-                            <span class="badge" style="background:#fef08a; color:#854d0e; border:1px solid #eab308;">SDB prüfen</span>
+                            <span class="badge badge-warning">SDB prüfen</span>
                         {% endif %}
                     {% elif e.kategorie == 'Substitution' %}
                         {% if e.stufe == 'fehlt' %}
-                            <span class="badge" style="background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;">Substitutionsprüfung fehlt</span>
+                            <span class="badge badge-accent">Substitutionsprüfung fehlt</span>
                         {% elif e.stufe == 'ohne_datum' %}
-                            <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">Prüfdatum fehlt</span>
+                            <span class="badge badge-warning">Prüfdatum fehlt</span>
                         {% else %}
-                            <span class="badge" style="background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;">Prüfung wiederholen</span>
+                            <span class="badge badge-accent">Prüfung wiederholen</span>
                         {% endif %}
                     {% else %}
-                        <span class="badge" style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd;">Inventur fällig</span>
+                        <span class="badge badge-info">Inventur fällig</span>
                     {% endif %}
                 </td>
                 <td style="padding:1rem 1.5rem; white-space:nowrap;">
                     {% if e.faellig_seit %}
-                        <span style="color:#475569;">{{ e.faellig_seit.strftime('%d.%m.%Y') }}</span>
+                        <span class="text-muted">{{ e.faellig_seit.strftime('%d.%m.%Y') }}</span>
                         {% if e.tage_ueberfaellig is not none %}
                             <br><span style="font-size:0.8rem; color:#94a3b8;">vor {{ e.tage_ueberfaellig }} Tagen</span>
                         {% endif %}
                     {% else %}
-                        <span class="text-muted" style="font-size:0.875rem;">noch nie erfasst</span>
+                        <span class="text-muted text-sm">noch nie erfasst</span>
                     {% endif %}
                 </td>
-                <td style="padding:1rem 1.5rem;">
-                    <span class="text-muted" style="font-size:0.875rem;">{{ e.ort }}</span>
+                <td>
+                    <span class="text-muted text-sm">{{ e.ort }}</span>
                 </td>
-                <td style="text-align:right; padding:1rem 1.5rem;">
+                <td class="cell-right">
                     {# aktion_link ist nur für schreibberechtigte Rollen gesetzt -
                        die Rolle "lesen" sieht hier bewusst keinen Knopf. #}
                     {% if e.aktion_link %}
@@ -135,12 +136,12 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" style="text-align:center; padding: 4rem 2rem; color:#64748b;">
+                <td colspan="5" class="empty-hint">
                     <div style="background:#f0fdf4; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
                         <i class="fa-solid fa-circle-check" style="font-size:2.5rem; color:#16a34a;"></i>
                     </div>
-                    <h3 style="color:#334155; margin-bottom:0.5rem;">Keine offenen Fristen</h3>
-                    <p style="margin:0;">Alle Sicherheitsdatenblätter sind aktuell und die Inventuren sind durchgeführt.</p>
+                    <h3>Keine offenen Fristen</h3>
+                    <p>Alle Sicherheitsdatenblätter sind aktuell und die Inventuren sind durchgeführt.</p>
                 </td>
             </tr>
             {% endfor %}

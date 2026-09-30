@@ -5,8 +5,8 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-user-plus" style="color:var(--primary); margin-right:0.4rem;"></i> Neuen Benutzer anlegen</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+        <h1><i class="fa-solid fa-user-plus h1-icon"></i> Neuen Benutzer anlegen</h1>
+        <p class="text-muted subline">
             {% if current_user.is_admin %}
                 Du kannst alle Rollen vergeben und Bereiche manuell zuweisen.
             {% else %}
@@ -97,7 +97,7 @@
                 {% endif %}
             </div>
             {% elif current_user.role == 'moderator' %}
-            <div class="alert alert-warning" style="margin:0;">
+            <div class="alert alert-warning">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 <span>Du hast noch keine Bereiche angelegt. Lege zuerst Bereiche an, bevor du Benutzer erstellst.</span>
             </div>

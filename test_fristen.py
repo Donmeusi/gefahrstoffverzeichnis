@@ -336,7 +336,10 @@ class TestFristenliste(unittest.TestCase):
 
     def _zahl(self, html, label):
         """Zahl aus einer Aufschlüsselungs-Kachel im Kopfbereich."""
-        treffer = re.search(r'>(\d+)</span>\s*<span class="text-muted"[^>]*>'
+        # class="text-muted[^"]*" statt class="text-muted": die Kachel kann
+        # weitere Klassen tragen, seit die Schriftgröße als Klasse (text-sm)
+        # statt als Inline-Stil am Element steht.
+        treffer = re.search(r'>(\d+)</span>\s*<span class="text-muted[^"]*"[^>]*>'
                             + re.escape(label), html)
         return int(treffer.group(1)) if treffer else None
 

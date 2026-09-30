@@ -6,7 +6,7 @@
 <div class="page-header">
     <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
         <a href="{{ url_for('index') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
-        <h1 style="margin:0;">{{ stoff.name }}</h1>
+        <h1>{{ stoff.name }}</h1>
         {% if stoff.signalwort == 'Gefahr' %}
         <span class="badge badge-danger"><i class="fa-solid fa-skull-crossbones"></i> Gefahr</span>
         {% elif stoff.signalwort == 'Achtung' %}
@@ -94,12 +94,14 @@
                 <dt>SDB Datum</dt>
                 <dd>
                     {% if stoff.sdb_datum %}
-                        {% set diff_days = (today - stoff.sdb_datum).days %}
-                        {% set diff_years = diff_days / 365 %}
-                        {% if diff_years >= 5 %}
-                            <span class="badge" style="background-color:#fecaca; color:#ef4444; border:1px solid #ef4444;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Dringend aktualisieren)</span>
-                        {% elif diff_years >= 3 %}
-                            <span class="badge" style="background-color:#fef08a; color:#eab308; border:1px solid #eab308;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktualisierung prüfen)</span>
+                        {# Die Stufe kommt aus sdb_status() in main.py. Hier
+                           standen die Jahre selbst nachgerechnet - mit harten
+                           5 und 3 statt SDB_DRINGEND_JAHRE/SDB_FRIST_JAHRE -
+                           und die Farben als Einzelwerte. #}
+                        {% if sdb_stufe == 'dringend' %}
+                            <span class="badge badge-danger">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Dringend aktualisieren)</span>
+                        {% elif sdb_stufe == 'pruefen' %}
+                            <span class="badge badge-warning">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktualisierung prüfen)</span>
                         {% else %}
                             {{ stoff.sdb_datum.strftime('%d.%m.%Y') }}
                         {% endif %}
@@ -156,7 +158,7 @@
                 {% if stoff.gefahrenkategorien %}
                 <div style="margin-bottom:1.25rem;">
                     <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.25rem;">Gefahrenkategorien</p>
-                    <p style="margin:0;">{{ stoff.gefahrenkategorien }}</p>
+                    <p>{{ stoff.gefahrenkategorien }}</p>
                 </div>
                 {% endif %}
 
@@ -202,14 +204,14 @@
                     {% if stoff.sicherheitsdatenblatt %}
                         {% if current_user.role == 'lesen' %}
                         <span class="btn btn-outline" style="border-color:#fca5a5; opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
-                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            <i class="fa-solid fa-file-pdf text-danger icon-lg"></i>
                             SDB vorhanden (Download gesperrt)
                         </span>
                         {% else %}
                         <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
                            class="btn btn-outline" target="_blank"
                            style="border-color:#fca5a5;">
-                            <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
+                            <i class="fa-solid fa-file-pdf text-danger icon-lg"></i>
                             SDB ansehen
                         </a>
                         {% endif %}
@@ -255,7 +257,7 @@
                         {% endif %}
                     {% else %}
                     <span style="display:flex; align-items:center; gap:0.5rem; color:var(--text-muted); font-size:0.875rem; padding:0.4rem 0;">
-                        <i class="fa-solid fa-file-shield" style="color:#cbd5e1;"></i> Keine GB
+                        <i class="fa-solid fa-file-shield text-light"></i> Keine GB
                     </span>
                     {% endif %}
                 </div>

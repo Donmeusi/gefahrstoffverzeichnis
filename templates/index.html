@@ -16,8 +16,8 @@
 
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-table-list" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff-Übersicht</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+        <h1><i class="fa-solid fa-table-list h1-icon" aria-hidden="true"></i> Gefahrstoff-Übersicht</h1>
+        <p class="text-muted subline">
             {% if aktiver_unterbereich %}
                 Standort: <strong>{{ aktiver_unterbereich.get_full_path()|striptags }}</strong>
             {% elif aktiver_bereich %}
@@ -28,13 +28,13 @@
             · <strong>{{ gefahrstoffe|length }}</strong> Stoff(e)
         </p>
     </div>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+    <div class="btn-row">
         {% if current_user.role != 'lesen' %}
-        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#059669;">
-            <i class="fa-solid fa-file-excel"></i> Excel
+        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm btn-outline-success">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Excel
         </a>
-        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#dc2626;">
-            <i class="fa-solid fa-file-pdf"></i> PDF
+        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm btn-outline-danger">
+            <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF
         </a>
         {% endif %}
         {% if current_user.can_write %}
@@ -96,8 +96,7 @@
             {# Die Kachel war eine Sackgasse: sie nannte eine Zahl, aber man
                konnte nicht sehen, welche Stoffe betroffen sind. Sie ist jetzt
                der Einstieg in die Fristenliste. #}
-            <a class="kpi-card" href="{{ url_for('fristen') }}" title="Offene Fristen ansehen"
-               style="text-decoration:none;">
+            <a class="kpi-card" href="{{ url_for('fristen') }}" title="Offene Fristen ansehen">
                 <div class="kpi-icon {% if stats_expired_sdb > 0 %}danger{% else %}primary{% endif %}">
                     <i class="fa-solid fa-file-pdf"></i>
                 </div>
@@ -107,26 +106,41 @@
                 </div>
             </a>
         </div>
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem;">
+        <div class="list-toolbar">
             <!-- View Controls -->
+            {# Zwei Schaltflaechen ohne sichtbaren Text. Ihr Name kam bisher nur aus
+               title - das werten Vorleseprogramme nicht zuverlaessig aus und auf
+               Touchgeraeten erscheint es gar nicht. aria-label liefert den Namen,
+               aria-pressed den Zustand; der wird in setView() mitgefuehrt, damit
+               er auch beim Wiederherstellen der gespeicherten Ansicht stimmt. #}
             <div class="view-controls">
-                <button class="view-btn active" onclick="setView('table')" id="btnViewTable" title="Listenansicht">
-                    <i class="fa-solid fa-list"></i>
+                <button class="view-btn active" onclick="setView('table')" id="btnViewTable"
+                        title="Listenansicht" aria-label="Listenansicht" aria-pressed="true">
+                    <i class="fa-solid fa-list" aria-hidden="true"></i>
                 </button>
-                <button class="view-btn" onclick="setView('grid')" id="btnViewGrid" title="Kachelansicht">
-                    <i class="fa-solid fa-border-all"></i>
+                <button class="view-btn" onclick="setView('grid')" id="btnViewGrid"
+                        title="Kachelansicht" aria-label="Kachelansicht" aria-pressed="false">
+                    <i class="fa-solid fa-border-all" aria-hidden="true"></i>
                 </button>
             </div>
 
             <!-- Filters & Live Search -->
-            <div style="display:flex; gap:0.5rem; flex:1; min-width:0; flex-wrap:wrap; align-items:center; justify-content:flex-end;" class="mobile-stack">
-                <select id="filterSignalwort" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:150px;">
+            <div class="filters mobile-stack">
+                {# Die drei Filterfelder hatten keine Beschriftung. Der erste
+                   <option>-Eintrag bzw. der Platzhaltertext ist kein Ersatz: der
+                   Platzhalter verschwindet beim Tippen, und ein Auswahlfeld wird
+                   ohne Label nur mit seinem Wert vorgelesen ("Gefahr"). Die
+                   Beschriftungen sind sr-only, weil die Felder optisch durch
+                   ihren Inhalt sprechen. #}
+                <label class="sr-only" for="filterSignalwort">Nach Signalwort filtern</label>
+                <select id="filterSignalwort" onchange="filterItems()" class="search-bar filter-select">
                     <option value="">Alle Signalwörter</option>
                     <option value="gefahr">Gefahr</option>
                     <option value="achtung">Achtung</option>
                     <option value="keines">Ohne Signalwort</option>
                 </select>
-                <select id="filterPiktogramm" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:170px;">
+                <label class="sr-only" for="filterPiktogramm">Nach Piktogramm filtern</label>
+                <select id="filterPiktogramm" onchange="filterItems()" class="search-bar filter-select">
                     <option value="">Alle Piktogramme</option>
                     <option value="ghs01">GHS01 (Explosiv)</option>
                     <option value="ghs02">GHS02 (Entzündbar)</option>
@@ -138,28 +152,34 @@
                     <option value="ghs08">GHS08 (Gesundheitsgefahr)</option>
                     <option value="ghs09">GHS09 (Umwelt)</option>
                 </select>
-                {# min-width:0 statt 200px: die feste Mindestbreite erzwang 200 px
-                   in einem 171 px breiten Elternelement und schob die Seite
-                   5 px über den Rand. max-width:400px hält die Breite weiter
-                   in Grenzen, flex:1 verteilt den Rest. #}
-                <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:0; max-width:400px; position:relative;">
-                    <i class="fa-solid fa-search" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--text-light); pointer-events:none; z-index:10;"></i>
-                    <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()" style="padding-left: 2.75rem !important;">
+                {# Die Werte stehen in .search-field: min-width:0 statt der
+                   früheren 200px (die feste Mindestbreite erzwang 200 px in
+                   einem 171 px breiten Elternelement und schob die Seite 5 px
+                   über den Rand), max-width:400px hält die Breite in Grenzen,
+                   flex:1 verteilt den Rest.
+                   Der Inline-Stil des Lupensymbols wiederholte nur, was
+                   .search-bar-wrapper i längst sagt; padding-left am Eingabefeld
+                   stand doppelt (auch in .search-bar). #}
+                <div class="search-bar-wrapper search-field">
+                    <label class="sr-only" for="tableSearch">Gefahrstoffe durchsuchen (Name, CAS-Nummer, H-Satz)</label>
+                    <i class="fa-solid fa-search" aria-hidden="true"></i>
+                    <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()">
                 </div>
             </div>
         </div>
 
         <div class="table-responsive">
             <table class="data-table" id="gefahrstoffTable">
+                <caption class="sr-only">Gefahrstoffe mit Standort, Signalwort, Piktogrammen, Menge und Dokumenten</caption>
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>CAS / EG-Nr.</th>
-                        <th class="d-none-mobile">Standort</th>
-                        <th>Signalwort</th>
-                        <th>Piktogramme</th>
-                        <th class="d-none-mobile">Menge</th>
-                        <th class="d-none-mobile">Dokumente</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">CAS / EG-Nr.</th>
+                        <th scope="col" class="d-none-mobile">Standort</th>
+                        <th scope="col">Signalwort</th>
+                        <th scope="col">Piktogramme</th>
+                        <th scope="col" class="d-none-mobile">Menge</th>
+                        <th scope="col" class="d-none-mobile">Dokumente</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -168,34 +188,33 @@
                         data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
                         data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                         <td>
-                            <a href="{{ url_for('view_stoff', id=stoff.id) }}"
-                               style="color:var(--text-main); font-weight:600; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; line-height:1.3;">
+                            <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="table-link">
                                 <span>{{ stoff.name }}</span>
-                                <span style="display:inline-flex; align-items:center; gap:0.3rem;">
+                                <span class="inline-icons">
                                     {% if stoff.trgs_warnings %}
-                                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                                    <i class="fa-solid fa-triangle-exclamation text-danger" title="Zusammenlagerungsverbot (TRGS 510)"></i>
                                     {% endif %}
-                                    <i class="fa-solid fa-chevron-right" style="font-size:0.7em; color:var(--primary); opacity:0.7;"></i>
+                                    <i class="fa-solid fa-chevron-right row-caret" aria-hidden="true"></i>
                                 </span>
                             </a>
                         </td>
-                        <td style="font-size:0.85rem; white-space: nowrap;">
-                            <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                        <td class="text-sm nowrap">
+                            <div class="stack-xs">
                                 {% if stoff.cas_nummer %}
-                                <div class="font-mono"><span class="text-muted" style="font-size:0.75rem; margin-right:4px;">CAS</span>{{ stoff.cas_nummer }}</div>
+                                <div class="font-mono"><span class="text-muted unit-label">CAS</span>{{ stoff.cas_nummer }}</div>
                                 {% else %}
                                 <div class="text-muted">–</div>
                                 {% endif %}
                                 {% if stoff.eg_nummer %}
-                                <div class="font-mono"><span class="text-muted" style="font-size:0.75rem; margin-right:4px;">EG</span>{{ stoff.eg_nummer }}</div>
+                                <div class="font-mono"><span class="text-muted unit-label">EG</span>{{ stoff.eg_nummer }}</div>
                                 {% endif %}
                             </div>
                         </td>
-                        <td style="font-size:0.85rem;" class="d-none-mobile">
+                        <td class="text-sm d-none-mobile">
                             {% if stoff.unterbereich %}
-                            <div style="display:flex; align-items:flex-start; gap:0.4rem; line-height:1.4;">
-                                <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.8em; margin-top:0.25em;"></i>
-                                <span style="word-break: break-word;">{{ stoff.unterbereich.get_full_path()|safe }}</span>
+                            <div class="standort-zelle">
+                                <i class="fa-solid fa-map-marker-alt" aria-hidden="true"></i>
+                                <span>{{ stoff.unterbereich.get_full_path()|safe }}</span>
                             </div>
                             {% else %}
                             <span class="text-muted">–</span>
@@ -224,31 +243,29 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td style="white-space: nowrap;" class="d-none-mobile">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
+                        <td class="nowrap d-none-mobile">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
                         <td class="d-none-mobile">
-                            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                            <div class="doc-row">
                                 {% if stoff.sicherheitsdatenblatt %}
-                                    {% set sdb_warn = false %}
-                                    {% if stoff.sdb_datum %}
-                                        {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
-                                        {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
-                                    {% endif %}
+                                    {# Die Stufe kommt aus sdb_status() - die
+                                       Schwelle stand hier vorher als harte 3. #}
+                                    {% set sdb_warn = sdb_stufen[stoff.id] in ('dringend', 'pruefen') %}
                                     {% if current_user.role == 'lesen' %}
-                                        <span class="doc-btn doc-btn-sdb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                        <span class="doc-btn doc-btn-sdb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                             <i class="fa-solid fa-file-pdf"></i> SDB
                                         </span>
                                     {% else %}
                                         <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
                                            class="doc-btn doc-btn-sdb" title="Sicherheitsdatenblatt" target="_blank">
                                             <i class="fa-solid fa-file-pdf"></i> SDB
-                                            {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                                            {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation doc-warn" title="SDB ist veraltet"></i>{% endif %}
                                         </a>
                                     {% endif %}
                                 {% endif %}
                                 
                                 {% if stoff.betriebsanweisung %}
                                     {% if current_user.role == 'lesen' %}
-                                        <span class="doc-btn doc-btn-ba" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                        <span class="doc-btn doc-btn-ba doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                             <i class="fa-solid fa-file-word"></i> BA
                                         </span>
                                     {% else %}
@@ -261,7 +278,7 @@
 
                                 {% if stoff.gefaehrdungsbeurteilung %}
                                     {% if current_user.role == 'lesen' %}
-                                        <span class="doc-btn doc-btn-gb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                        <span class="doc-btn doc-btn-gb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                             <i class="fa-solid fa-file-shield"></i> GB
                                         </span>
                                     {% else %}
@@ -297,7 +314,7 @@
                         <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">
                             {{ stoff.name }}
                             {% if stoff.trgs_warnings %}
-                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger); font-size: 0.8em;" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                            <i class="fa-solid fa-triangle-exclamation card-title-warn" title="Zusammenlagerungsverbot (TRGS 510)"></i>
                             {% endif %}
                         </a>
                         <div class="stoff-card-cas">{{ stoff.cas_nummer or 'Keine CAS' }}</div>
@@ -315,36 +332,32 @@
 
                 <div class="stoff-card-body">
                     <div class="stoff-card-info">
-                        <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); width:16px; text-align:center;"></i>
+                        <i class="fa-solid fa-map-marker-alt icon-fixed" aria-hidden="true"></i>
                         <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|safe }}{% else %}Kein Standort{% endif %}</span>
                     </div>
                     <div class="stoff-card-info">
-                        <i class="fa-solid fa-scale-balanced" style="color:var(--info); width:16px; text-align:center;"></i>
-                        <span style="white-space: nowrap;">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
+                        <i class="fa-solid fa-scale-balanced icon-fixed" aria-hidden="true"></i>
+                        <span class="nowrap">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
                     </div>
                 </div>
 
                 <div class="stoff-card-actions">
                     {% if stoff.sicherheitsdatenblatt %}
-                        {% set sdb_warn = false %}
-                        {% if stoff.sdb_datum %}
-                            {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
-                            {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
-                        {% endif %}
+                        {% set sdb_warn = sdb_stufen[stoff.id] in ('dringend', 'pruefen') %}
                         {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-sdb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <span class="doc-btn doc-btn-sdb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                 <i class="fa-solid fa-file-pdf"></i> SDB
                             </span>
                         {% else %}
                             <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
-                                <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                                <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation doc-warn" title="SDB ist veraltet"></i>{% endif %}
                             </a>
                         {% endif %}
                     {% endif %}
                     
                     {% if stoff.betriebsanweisung %}
                         {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-ba" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <span class="doc-btn doc-btn-ba doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                 <i class="fa-solid fa-file-word"></i> BA
                             </span>
                         {% else %}
@@ -356,7 +369,7 @@
 
                     {% if stoff.gefaehrdungsbeurteilung %}
                         {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-gb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <span class="doc-btn doc-btn-gb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                 <i class="fa-solid fa-file-shield"></i> GB
                             </span>
                         {% else %}
@@ -370,8 +383,8 @@
             {% endfor %}
         </div>
 
-        <p id="noResultsMsg" style="display:none; text-align:center; padding:2rem; color:var(--text-muted);">
-            <i class="fa-solid fa-search" style="font-size:1.5rem; margin-bottom:0.5rem; display:block;"></i>
+        <p id="noResultsMsg" class="no-results" style="display:none;">
+            <i class="fa-solid fa-search" aria-hidden="true"></i>
             Keine Ergebnisse für diese Suche.
         </p>
         {% else %}
@@ -405,12 +418,16 @@ function setView(viewMode) {
         gridView.style.display = 'grid';
         btnTable.classList.remove('active');
         btnGrid.classList.add('active');
+        btnTable.setAttribute('aria-pressed', 'false');
+        btnGrid.setAttribute('aria-pressed', 'true');
         localStorage.setItem('gefahrstoffe_view', 'grid');
     } else {
         tableView.style.display = 'block';
         gridView.style.display = 'none';
         btnTable.classList.add('active');
         btnGrid.classList.remove('active');
+        btnTable.setAttribute('aria-pressed', 'true');
+        btnGrid.setAttribute('aria-pressed', 'false');
         localStorage.setItem('gefahrstoffe_view', 'table');
     }
 }

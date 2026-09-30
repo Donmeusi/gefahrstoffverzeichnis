@@ -5,8 +5,8 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-clipboard-check" style="color:var(--primary); margin-right:0.4rem;"></i> Schnell-Inventur</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+        <h1><i class="fa-solid fa-clipboard-check h1-icon"></i> Schnell-Inventur</h1>
+        <p class="text-muted subline">
             Standort: <strong>{{ unterbereich.get_full_path() | safe }}</strong>
         </p>
     </div>
@@ -20,7 +20,7 @@
     <div class="card-body" style="padding: 1.25rem;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem; flex-wrap:wrap; gap:0.5rem;">
             <span style="font-weight:600; font-size:0.95rem;">
-                <i class="fa-solid fa-tasks" style="color:var(--primary);"></i> Fortschritt:
+                <i class="fa-solid fa-tasks text-primary"></i> Fortschritt:
                 <span id="checked_count">0</span> von {{ stoffe | length }} Stoffen abgehakt
             </span>
             <button type="button" class="btn btn-sm btn-outline" id="btn_toggle_all" onclick="toggleAllCheckboxes()">
@@ -52,7 +52,7 @@
                            unter seine Mindestinhaltbreite schrumpfen und schob
                            die Zeile 5 px über den Rand (bei 320 px Viewport). #}
                         <div style="min-width:0;">
-                            <label for="chk_{{ stoff.id }}" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; color: var(--text);">
+                            <label for="chk_{{ stoff.id }}" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; color: var(--text-main);">
                                 {{ stoff.name }}
                             </label>
                             
@@ -102,7 +102,7 @@
     <!-- Bottom Submit Floating Bar -->
     <div style="position: sticky; bottom: 1rem; margin-top: 1.5rem; background: var(--bg-card); border: 1px solid var(--border); padding: 1rem 1.5rem; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; z-index: 100;">
         <div>
-            <strong style="font-size:0.95rem;"><i class="fa-solid fa-floppy-disk" style="color:var(--primary);"></i> Inventur speichern</strong>
+            <strong style="font-size:0.95rem;"><i class="fa-solid fa-floppy-disk text-primary"></i> Inventur speichern</strong>
             <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Geprüfte Stoffe erhalten das heutige Prüfdatum</p>
         </div>
         {# flex-wrap: "Abbrechen" und "Inventur abschließen" passten in einer

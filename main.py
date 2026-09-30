@@ -76,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.3"
+APP_VERSION = "2.0.4"
 
 @app.context_processor
 def inject_globals():
@@ -1093,9 +1093,13 @@ def index():
     # damit Kachel und Liste nicht auseinanderlaufen. Vorher rechnete diese
     # Stelle das Alter selbst aus.
     today = datetime.utcnow().date()
+    # Die Stufe wird einmal je Stoff bestimmt und trägt sowohl die Kachel als
+    # auch die Dokumentenspalte. Das Template rechnete dafür bisher selbst
+    # "(heute - sdb_datum).days / 365 >= 3" nach - mit der harten 3 statt
+    # SDB_FRIST_JAHRE, und an zwei Stellen (Tabelle und Kachelansicht) doppelt.
+    sdb_stufen = {stoff.id: sdb_status(stoff, today)[0] for stoff in gefahrstoffe}
     stats_expired_sdb = sum(
-        1 for stoff in gefahrstoffe
-        if sdb_status(stoff, today)[0] in ('dringend', 'pruefen')
+        1 for stufe in sdb_stufen.values() if stufe in ('dringend', 'pruefen')
     )
 
     # Anzahl der Standorte (distinct unterbereich_id)
@@ -1107,6 +1111,7 @@ def index():
                            aktiver_bereich=aktiver_bereich,
                            aktiver_unterbereich=aktiver_unterbereich,
                            today=today,
+                           sdb_stufen=sdb_stufen,
                            stats_total=stats_total,
                            stats_expired_sdb=stats_expired_sdb,
                            stats_locations=stats_locations)
@@ -1420,7 +1425,11 @@ def view_stoff(id):
     if not accessible:
         flash('Keine Berechtigung, diesen Gefahrstoff anzusehen.', 'error')
         return redirect(url_for('index'))
-    return render_template('view.html', stoff=stoff, today=datetime.utcnow().date())
+    # Die Stufe des Sicherheitsdatenblatts kommt aus sdb_status(), damit die
+    # Detailseite dieselbe Entscheidung zeigt wie Liste und Fristenliste.
+    heute = datetime.utcnow().date()
+    return render_template('view.html', stoff=stoff, today=heute,
+                           sdb_stufe=sdb_status(stoff, heute)[0])
 
 
 @app.route('/gefahrstoff/<int:id>/betriebsanweisung')

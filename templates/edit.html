@@ -14,8 +14,8 @@
 
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-pen" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff bearbeiten</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">{{ stoff.name }}</p>
+        <h1><i class="fa-solid fa-pen h1-icon"></i> Gefahrstoff bearbeiten</h1>
+        <p class="text-muted subline">{{ stoff.name }}</p>
     </div>
     <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline">
         <i class="fa-solid fa-arrow-left"></i> Abbrechen
@@ -43,7 +43,7 @@
                         <div style="display:flex; gap:0.5rem; align-items:center;" class="mobile-stack">
                             <input type="text" id="cas_nummer" name="cas_nummer" value="{{ stoff.cas_nummer or '' }}" style="flex:1;">
                             <button type="button" class="btn btn-outline btn-sm" id="btn_autofill_cas" title="GHS-Daten per PubChem abrufen" style="white-space:nowrap; padding:0.5rem 0.75rem;">
-                                <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--primary);"></i> Autofill
+                                <i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Autofill
                             </button>
                         </div>
                     </div>
@@ -61,7 +61,7 @@
                     <h3>Gefahrenhinweise (GHS)</h3>
                 </div>
                 <div class="form-group">
-                    <label for="gefahrenkategorien">Gefahrenkategorien (CLP) <small style="color:#64748b;">(Auto-Fill aus SDB)</small></label>
+                    <label for="gefahrenkategorien">Gefahrenkategorien (CLP) <small class="text-light">(Auto-Fill aus SDB)</small></label>
                     <input type="text" id="gefahrenkategorien" name="gefahrenkategorien" value="{{ stoff.gefahrenkategorien or '' }}" placeholder="Auswahl über SDB oder Klick..."
                            readonly style="cursor:pointer;" onclick="openHpModal('gefahrenkategorien')">
                 </div>
@@ -194,7 +194,7 @@
                         {% if stoff.sicherheitsdatenblatt %}
                         <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
                             <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
-                                <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i>
+                                <i class="fa-solid fa-file-pdf text-danger"></i>
                                 <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" target="_blank" style="word-break:break-all;">
                                     {{ stoff.sicherheitsdatenblatt }}
                                 </a>
@@ -214,7 +214,7 @@
                         {% if stoff.betriebsanweisung %}
                         <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
                             <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
-                                <i class="fa-solid fa-file-word" style="color:var(--primary);"></i>
+                                <i class="fa-solid fa-file-word text-primary"></i>
                                 <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" target="_blank" style="word-break:break-all;">
                                     {{ stoff.betriebsanweisung }}
                                 </a>
@@ -313,7 +313,7 @@
 <script>
 function checkSdbDate(input) {
     if (!input.value) {
-        input.style.backgroundColor = '';
+        input.classList.remove('input-warn', 'input-danger');
         return;
     }
     const sdbDate = new Date(input.value);
@@ -325,12 +325,12 @@ function checkSdbDate(input) {
         yearsDiff--;
     }
     
+    // Farben standen hier als Hex-Werte - siehe .input-warn/.input-danger.
+    input.classList.remove('input-warn', 'input-danger');
     if (yearsDiff >= 5) {
-        input.style.backgroundColor = '#fecaca'; // Rot
+        input.classList.add('input-danger');
     } else if (yearsDiff >= 3) {
-        input.style.backgroundColor = '#fef08a'; // Gelb
-    } else {
-        input.style.backgroundColor = '';
+        input.classList.add('input-warn');
     }
 }
 

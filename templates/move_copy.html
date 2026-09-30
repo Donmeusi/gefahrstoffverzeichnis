@@ -6,11 +6,10 @@
 <div class="page-header">
     <div>
         <h1>
-            <i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %}"
-               style="color:var(--primary); margin-right:0.4rem;"></i>
+            <i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %} h1-icon"></i>
             Gefahrstoff {{ action|lower }}
         </h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">{{ stoff.name }}</p>
+        <p class="text-muted subline">{{ stoff.name }}</p>
     </div>
     <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline">
         <i class="fa-solid fa-arrow-left"></i> Zurück
@@ -23,12 +22,12 @@
         <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem;">Ausgewählter Stoff</p>
         <h2 style="font-size:1.25rem; color:var(--primary-hover); margin-bottom:0.4rem;">{{ stoff.name }}</h2>
         {% if stoff.unterbereich %}
-        <p class="text-muted" style="font-size:0.875rem; margin:0;">
+        <p class="text-muted text-sm">
             <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.8em;"></i>
             Aktuell: {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
         </p>
         {% else %}
-        <p class="text-muted" style="font-size:0.875rem; margin:0;">
+        <p class="text-muted text-sm">
             <i class="fa-solid fa-question-circle"></i> Noch keinem Standort zugewiesen
         </p>
         {% endif %}

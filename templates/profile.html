@@ -5,8 +5,8 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-user-gear" style="color:var(--primary); margin-right:0.4rem;"></i> Mein Profil</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">Account-Einstellungen verwalten</p>
+        <h1><i class="fa-solid fa-user-gear h1-icon"></i> Mein Profil</h1>
+        <p class="text-muted subline">Account-Einstellungen verwalten</p>
     </div>
     <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
 </div>
@@ -19,7 +19,7 @@
                 <i class="fa-solid fa-lock icon-danger"></i>
                 <h3>Passwort ändern</h3>
             </div>
-            <p class="text-muted mb-4" style="font-size:0.875rem;">
+            <p class="text-muted mb-4 text-sm">
                 Ändere das Anmeldepasswort für den Account <strong>{{ current_user.username }}</strong>.
             </p>
 
@@ -128,13 +128,17 @@
         
         {% if pending_gefahrstoffe %}
         <div class="table-responsive" style="margin-top: 1rem;">
-            <table class="table">
+            {# .table war nirgends im Stylesheet definiert - diese Tabelle stand
+               deshalb im Browser-Standard und sah anders aus als alle übrigen.
+               .data-table ist die Klasse, die alle anderen Tabellen nutzen. #}
+            <table class="data-table">
+                <caption class="sr-only">Offene Freigaben</caption>
                 <thead>
                     <tr>
-                        <th>Stoffname</th>
-                        <th>CAS / EG</th>
-                        <th>Standort</th>
-                        <th style="text-align: right;">Aktionen</th>
+                        <th scope="col">Stoffname</th>
+                        <th scope="col">CAS / EG</th>
+                        <th scope="col">Standort</th>
+                        <th scope="col" style="text-align: right;">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -147,7 +151,7 @@
                             </div>
                         </td>
                         <td>
-                            <div style="font-size:0.85rem;">CAS: {{ stoff.cas_nummer or '-' }}</div>
+                            <div class="text-sm">CAS: {{ stoff.cas_nummer or '-' }}</div>
                             <div style="font-size:0.85rem; color:var(--text-muted);">EG: {{ stoff.eg_nummer or '-' }}</div>
                         </td>
                         <td>{{ stoff.unterbereich.get_full_path() if stoff.unterbereich else 'Kein Standort' }}</td>
@@ -170,9 +174,11 @@
             </table>
         </div>
         {% else %}
-        <div style="text-align:center; padding: 2.5rem 1rem; color:var(--text-muted); background:var(--bg-color); border-radius:8px; margin-top:1rem; border:1px dashed var(--border);">
+        {# var(--bg-color) gab es im Stylesheet nicht - der Hintergrund dieses
+           Kastens fiel damit still weg. #}
+        <div class="hint-box">
             <i class="fa-solid fa-inbox" style="font-size:2.5rem; opacity:0.3; margin-bottom:1rem; display:block;"></i>
-            <p style="margin:0;">Keine ausstehenden Freigaben oder neuen Nachrichten.</p>
+            <p>Keine ausstehenden Freigaben oder neuen Nachrichten.</p>
         </div>
         {% endif %}
     </div>
@@ -186,7 +192,7 @@
             <i class="fa-solid fa-server icon-primary"></i>
             <h3>System & Updates</h3>
         </div>
-        <p class="text-muted mb-4" style="font-size:0.875rem;">
+        <p class="text-muted mb-4 text-sm">
             Verwalte Updates, das Quell-Repository und Systemeinstellungen.
         </p>
         <a href="{{ url_for('admin_system') }}" class="btn btn-primary">
