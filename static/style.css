@@ -1943,10 +1943,23 @@ a.kpi-card { text-decoration: none; }
 .standort-zelle i   { color: var(--primary); font-size: 0.8em; margin-top: 0.25em; }
 .standort-zelle span { overflow-wrap: break-word; min-width: 0; }
 
-/* Die Standortspalte bekommt eine Mindestbreite: ohne sie verteilt der
-   Browser die Breite nach Mindestinhalt, und die Spalte verhungert.
-   Gemessen bei 1440 px: 14rem -> Spalte 224 px, 6 Zeilen statt 13. */
-.col-standort { min-width: 14rem; }
+/* Die Standortzelle hatte zwischenzeitlich eine Mindestbreite von 14rem. Die
+   ist hier wieder weg: sie machte die Tabelle 1111 px breit, der Kasten fasst
+   aber nur 978 px - waagerechter Scrollbalken. Ohne sie braucht die Tabelle
+   1047 px, und "overflow-wrap" verhindert die Wortmitte-Brueche auch ohne
+   Mindestbreite (die Mindestbreite einer Spalte ist die Laenge des laengsten
+   Wortes, darunter kann der Browser gar nicht gehen).
+
+   Es fehlten aber immer noch 69 px: der Kasten ist ueber .container auf
+   1280 px gedeckelt und waechst auch auf breiten Schirmen nicht mit, fuer die
+   Tabelle bleiben 978 px. Deshalb unten das engere Polster fuer genau diese
+   Tabelle - ohne es laeuft sie bei JEDER Desktopbreite ueber (gemessen bei
+   1440 px: +69 px), mit ihm passt sie ab 1280 px Fensterbreite.
+
+   Nicht die Polster aller Tabellen kuerzen: die Uebersicht ist die einzige
+   mit sieben Spalten, alle anderen haben Luft. */
+.data-table--dense th,
+.data-table--dense td { padding-left: 1rem; padding-right: 1rem; }
 
 /* Dokumentknöpfe einer Zeile oder Kachel */
 .doc-row  { display: flex; gap: 0.35rem; flex-wrap: wrap; }
