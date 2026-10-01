@@ -2028,6 +2028,14 @@ a.kpi-card { text-decoration: none; }
    nur. z-index kam dort hinzu, damit das Symbol über dem Feld liegt. */
 .search-field { margin-bottom: 0; flex: 1; min-width: 0; max-width: 400px; }
 
+/* Suchfeld in einem Seitenkopf (.content-header) - dort steht die Ueberschrift
+   daneben, deshalb 300 statt 400 px. Dieselben Werte standen dreimal als
+   Inline-Stil in betriebsanweisungen.html, fristen.html und
+   sicherheitsdatenblaetter.html. Das Feld darf schrumpfen (min-width: 0),
+   sonst schoebe es den Kopfbereich auf schmalen Bildschirmen ueber den Rand.
+   Kein flex-grow: es soll nicht die halbe Kopfzeile fuellen. */
+.search-header { margin-bottom: 0; flex: 0 1 300px; min-width: 0; }
+
 /* ============================================================
    BEWEGUNG REDUZIEREN
    ============================================================ */
