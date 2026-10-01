@@ -19,7 +19,7 @@
         <h1><i class="fa-solid fa-table-list h1-icon" aria-hidden="true"></i> Gefahrstoff-Übersicht</h1>
         <p class="text-muted subline">
             {% if aktiver_unterbereich %}
-                Standort: <strong>{{ aktiver_unterbereich.get_full_path()|striptags }}</strong>
+                Standort: <strong>{{ aktiver_unterbereich.get_full_path() }}</strong>
             {% elif aktiver_bereich %}
                 Standort: <strong>{{ aktiver_bereich.name }}</strong>
             {% else %}
@@ -175,7 +175,7 @@
                     <tr>
                         <th scope="col">Name</th>
                         <th scope="col">CAS / EG-Nr.</th>
-                        <th scope="col" class="d-none-mobile">Standort</th>
+                        <th scope="col" class="d-none-mobile col-standort">Standort</th>
                         <th scope="col">Signalwort</th>
                         <th scope="col">Piktogramme</th>
                         <th scope="col" class="d-none-mobile">Menge</th>
@@ -210,11 +210,11 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="text-sm d-none-mobile">
+                        <td class="text-sm d-none-mobile col-standort">
                             {% if stoff.unterbereich %}
                             <div class="standort-zelle">
                                 <i class="fa-solid fa-map-marker-alt" aria-hidden="true"></i>
-                                <span>{{ stoff.unterbereich.get_full_path()|safe }}</span>
+                                <span>{{ stoff.unterbereich.get_full_path() }}</span>
                             </div>
                             {% else %}
                             <span class="text-muted">–</span>
@@ -305,7 +305,7 @@
             {% for stoff in gefahrstoffe %}
             {% set border_class = 'danger' if stoff.signalwort == 'Gefahr' else ('warning' if stoff.signalwort == 'Achtung' else 'normal') %}
             <div class="stoff-card {{ border_class }} filter-item" 
-                 data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|striptags|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
+                 data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
                  data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
                  data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                 
@@ -333,7 +333,7 @@
                 <div class="stoff-card-body">
                     <div class="stoff-card-info">
                         <i class="fa-solid fa-map-marker-alt icon-fixed" aria-hidden="true"></i>
-                        <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|safe }}{% else %}Kein Standort{% endif %}</span>
+                        <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path() }}{% else %}Kein Standort{% endif %}</span>
                     </div>
                     <div class="stoff-card-info">
                         <i class="fa-solid fa-scale-balanced icon-fixed" aria-hidden="true"></i>

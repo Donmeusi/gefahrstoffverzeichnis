@@ -76,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.4"
+APP_VERSION = "2.0.5"
 
 @app.context_processor
 def inject_globals():
@@ -239,12 +239,25 @@ class Unterbereich(db.Model):
     )
 
     def get_full_path(self):
+        """Standortpfad als Klartext: "Bereich › Unterbereich › ...".
+
+        Liefert bewusst kein HTML mehr (frueher "&rsaquo;"), sondern das
+        Zeichen selbst. Damit brauchen die Vorlagen kein |safe mehr - das
+        hatte HTML aus Bereichsnamen ungefiltert durchgelassen, und wo es
+        fehlte, stand "&rsaquo;" woertlich auf der Seite.
+
+        Vor dem Trenner steht ein geschuetztes Leerzeichen, damit er beim
+        Umbruch nicht allein am Zeilenanfang landet.
+        """
         parts = []
         current = self
-        while current:
+        # Begrenzt wie standort_text(): ein Zyklus in den Daten darf nicht in
+        # einer Endlosschleife enden.
+        while current is not None and len(parts) < 20:
             parts.insert(0, current.name)
             current = current.parent
-        return f"{self.bereich.name} &rsaquo; {' &rsaquo; '.join(parts)}"
+        trenner = ' › '      # geschuetztes Leerzeichen + "› " + Leerzeichen
+        return self.bereich.name + trenner + trenner.join(parts)
 
 
 class Gefahrstoff(db.Model):

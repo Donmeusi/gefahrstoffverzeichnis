@@ -65,7 +65,7 @@
                 <dd>
                     {% if stoff.unterbereich %}
                     <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); margin-right:0.3rem;"></i>
-                    {{ stoff.unterbereich.get_full_path()|safe }}
+                    {{ stoff.unterbereich.get_full_path() }}
                     {% elif stoff.lagerort %}
                     {{ stoff.lagerort }}
                     {% else %}–{% endif %}

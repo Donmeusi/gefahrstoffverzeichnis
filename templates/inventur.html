@@ -7,7 +7,7 @@
     <div>
         <h1><i class="fa-solid fa-clipboard-check h1-icon"></i> Schnell-Inventur</h1>
         <p class="text-muted subline">
-            Standort: <strong>{{ unterbereich.get_full_path() | safe }}</strong>
+            Standort: <strong>{{ unterbereich.get_full_path() }}</strong>
         </p>
     </div>
     <a href="{{ url_for('locations') }}" class="btn btn-outline">

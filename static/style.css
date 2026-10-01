@@ -1770,6 +1770,10 @@ footer i { color: var(--primary); }
     font-size: var(--fs-sm);
     color: var(--text-muted);
 }
+/* Der Standortpfad steckt auch in der Kachelansicht. Ohne overflow-wrap
+   laeuft ein langes Wort aus der Kachel heraus, ohne min-width:0 weigert
+   sich der Flexkasten zu schrumpfen. */
+.stoff-card-info span { overflow-wrap: break-word; min-width: 0; }
 
 .stoff-card-actions {
     margin-top: auto;
@@ -1926,10 +1930,23 @@ a.kpi-card { text-decoration: none; }
 /* "CAS"/"EG" vor der Nummer */
 .unit-label { font-size: var(--fs-xs); margin-right: 4px; }
 
-/* Standortzelle: Symbol und Pfad nebeneinander, mehrzeilig */
+/* Standortzelle: Symbol und Pfad nebeneinander, mehrzeilig.
+   Hier stand "word-break: break-word". Das zaehlt anders als
+   "overflow-wrap: break-word" zur Mindestbreite mit - die Spalte schrumpfte
+   damit auf ein Zeichen, und der Pfad brach mitten in den Woertern
+   ("Chemiel abor / Gebaeu de C"). Gemessen bei 1440 px: Spalte 127 px,
+   13 Zeilen, Zeilenhoehe 324 px. Mit overflow-wrap: Spalte 161 px, 8 Zeilen,
+   Zeilenhoehe 212 px. Der Trenner "›" haengt jetzt per geschuetztem
+   Leerzeichen am vorigen Namen (main.py, get_full_path) und steht nicht mehr
+   allein am Zeilenanfang. */
 .standort-zelle     { display: flex; align-items: flex-start; gap: 0.4rem; line-height: 1.4; }
 .standort-zelle i   { color: var(--primary); font-size: 0.8em; margin-top: 0.25em; }
-.standort-zelle span { word-break: break-word; }
+.standort-zelle span { overflow-wrap: break-word; min-width: 0; }
+
+/* Die Standortspalte bekommt eine Mindestbreite: ohne sie verteilt der
+   Browser die Breite nach Mindestinhalt, und die Spalte verhungert.
+   Gemessen bei 1440 px: 14rem -> Spalte 224 px, 6 Zeilen statt 13. */
+.col-standort { min-width: 14rem; }
 
 /* Dokumentknöpfe einer Zeile oder Kachel */
 .doc-row  { display: flex; gap: 0.35rem; flex-wrap: wrap; }
