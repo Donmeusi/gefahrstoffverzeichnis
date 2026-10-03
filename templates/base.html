@@ -25,7 +25,7 @@
     {% block navbar %}
     <nav class="navbar">
         <div class="container nav-container">
-            <a href="{{ url_for('index') }}" class="navbar-brand" style="white-space: nowrap;">
+            <a href="{{ url_for('index') }}" class="navbar-brand nowrap">
                 <i class="fa-solid fa-flask"></i> Gefahrstoff-App
             </a>
 
@@ -130,17 +130,17 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <div class="search-bar-wrapper" style="margin-bottom:0;">
+                    <div class="search-bar-wrapper mb-0">
                         <label class="sr-only" for="hpModalSearch">H- und P-Sätze durchsuchen</label>
                         <i class="fa-solid fa-search" aria-hidden="true"></i>
                         <input type="text" id="hpModalSearch" class="search-bar" placeholder="Suchen (z.B. H200, flüssigkeit)..." oninput="filterHpList()">
                     </div>
                 </div>
-                <div id="hpModalList" class="hp-list" style="margin-top:0.75rem;">
+                <div id="hpModalList" class="hp-list">
                     <!-- Injected via JS -->
                 </div>
             </div>
-            <div style="padding:1rem 1.5rem; text-align:right; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:0.75rem;">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeHpModal()">Abbrechen</button>
                 <button type="button" class="btn btn-primary" onclick="saveHpSelection()"><i class="fa-solid fa-check"></i> Auswahl übernehmen</button>
             </div>

@@ -6,8 +6,8 @@
 {% macro render_sidebar_unterbereiche(unterbereich, aktiver_unterbereich, level) %}
 <a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
    class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
-   style="padding-left: {{ 1.5 + level * 1 }}rem; font-size: 0.9em;">
-    <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size: 0.8em;"></i> {{ unterbereich.name }}
+   style="padding-left: {{ 1.5 + level * 1 }}rem;">
+    <i class="fa-solid fa-level-up-alt fa-rotate-90 text-light"></i> {{ unterbereich.name }}
 </a>
 {% for child in unterbereich.children %}
     {{ render_sidebar_unterbereiche(child, aktiver_unterbereich, level + 1) }}
@@ -102,7 +102,7 @@
                 </div>
                 <div class="kpi-content">
                     <span class="kpi-value">{{ stats_expired_sdb }}</span>
-                    <span class="kpi-label">Veraltete SDBs <i class="fa-solid fa-arrow-right" style="font-size:0.7em;"></i></span>
+                    <span class="kpi-label">Veraltete SDBs <i class="fa-solid fa-arrow-right icon-xs"></i></span>
                 </div>
             </a>
         </div>

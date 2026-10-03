@@ -368,6 +368,7 @@ h4 { font-size: var(--fs-base); }
 .mb-3 { margin-bottom: 1rem !important; }
 .mb-4 { margin-bottom: 1.5rem !important; }
 .m-4  { margin: 1.5rem !important; }
+.mb-0 { margin-bottom: 0 !important; }
 .mb-5 { margin-bottom: 2rem !important; }
 .ml-2 { margin-left: 0.5rem !important; }
 /* Kursiv als eigene Utility: kam an mehreren Stellen zusammen mit
@@ -854,14 +855,17 @@ h4 { font-size: var(--fs-base); }
     overflow-wrap: break-word;
     min-width: 0;
 }
-.location-link i { flex: 0 0 auto; }
+/* Zwei getrennte Regeln fuer dasselbe Element, hier zusammengefuehrt.
+   Die Schriftgroesse stand zuletzt als Inline-Wert (0,8em) im Template und
+   gewann damit gegen die 0,9em hier - der Wert ist jetzt hier festgehalten,
+   damit die Angleichung an .icon-sm (0,75em) ihn nicht still veraendert. */
+.location-link i { flex: 0 0 auto; width: 18px; text-align: center; font-size: 0.8em; }
 .location-link:hover { background: var(--primary-light); color: var(--primary); }
 .location-link.active {
     background: var(--primary-light);
     color: var(--primary);
     font-weight: 600;
 }
-.location-link i { width: 18px; text-align: center; font-size: 0.9em; }
 
 @media (max-width: 900px) {
     .index-grid { grid-template-columns: 1fr; }
@@ -1382,6 +1386,20 @@ input[type="file"]:hover { border-color: var(--text-light); }
     border-radius: var(--radius-sm);
     padding: 0.4rem;
     background: var(--bg-subtle);
+    /* Abstand zum Suchfeld darueber. Stand als Inline-Stil in base.html; die
+       Liste kommt nur dort vor. */
+    margin-top: 0.75rem;
+}
+
+/* Fusszeile eines Dialogs (Abbrechen / Uebernehmen). Stand als Inline-Stil
+   in base.html. */
+.modal-footer {
+    padding: 1rem 1.5rem;
+    text-align: right;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
 }
 
 .hp-item {
@@ -2067,6 +2085,7 @@ a.kpi-card { text-decoration: none; }
 .text-accent  { color: var(--on-accent) !important; }
 .icon-lg      { font-size: 1.2rem; }
 .icon-sm      { font-size: 0.75em; }
+.icon-xs      { font-size: 0.7em; }
 .font-medium  { font-weight: 500; }
 .text-xs      { font-size: var(--fs-xs); }
 .text-sm      { font-size: var(--fs-sm); }
