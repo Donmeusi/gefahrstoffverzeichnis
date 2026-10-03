@@ -14,8 +14,8 @@
 
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-pen" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff bearbeiten</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">{{ stoff.name }}</p>
+        <h1><i class="fa-solid fa-pen h1-icon"></i> Gefahrstoff bearbeiten</h1>
+        <p class="text-muted subline">{{ stoff.name }}</p>
     </div>
     <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline">
         <i class="fa-solid fa-arrow-left"></i> Abbrechen
@@ -40,10 +40,10 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="cas_nummer">CAS-Nummer</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center;" class="mobile-stack">
-                            <input type="text" id="cas_nummer" name="cas_nummer" value="{{ stoff.cas_nummer or '' }}" style="flex:1;">
-                            <button type="button" class="btn btn-outline btn-sm" id="btn_autofill_cas" title="GHS-Daten per PubChem abrufen" style="white-space:nowrap; padding:0.5rem 0.75rem;">
-                                <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--primary);"></i> Autofill
+                        <div class="field-row mobile-stack">
+                            <input type="text" id="cas_nummer" name="cas_nummer" value="{{ stoff.cas_nummer or '' }}" class="flex-1">
+                            <button type="button" class="btn btn-outline btn-sm btn-compact" id="btn_autofill_cas" title="GHS-Daten per PubChem abrufen">
+                                <i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Autofill
                             </button>
                         </div>
                     </div>
@@ -57,33 +57,33 @@
             <!-- Section 2 -->
             <div class="form-section">
                 <div class="form-section-title">
-                    <span class="section-badge" style="background:var(--danger-light); color:var(--danger);">2</span>
+                    <span class="section-badge section-badge-danger">2</span>
                     <h3>Gefahrenhinweise (GHS)</h3>
                 </div>
                 <div class="form-group">
-                    <label for="gefahrenkategorien">Gefahrenkategorien (CLP) <small style="color:#64748b;">(Auto-Fill aus SDB)</small></label>
+                    <label for="gefahrenkategorien">Gefahrenkategorien (CLP) <small class="text-light">(Auto-Fill aus SDB)</small></label>
                     <input type="text" id="gefahrenkategorien" name="gefahrenkategorien" value="{{ stoff.gefahrenkategorien or '' }}" placeholder="Auswahl über SDB oder Klick..."
-                           readonly style="cursor:pointer;" onclick="openHpModal('gefahrenkategorien')">
+                           readonly class="clickable" onclick="openHpModal('gefahrenkategorien')">
                 </div>
                 <div class="form-group">
                     <label for="signalwort">Signalwort</label>
                     <select id="signalwort" name="signalwort">
                         <option value="" {% if not stoff.signalwort %}selected{% endif %}>Keines</option>
-                        <option value="Achtung" {% if stoff.signalwort=='Achtung' %}selected{% endif %}>⚠️ Achtung</option>
-                        <option value="Gefahr" {% if stoff.signalwort=='Gefahr' %}selected{% endif %}>☠️ Gefahr</option>
+                        <option value="Achtung" {% if stoff.signalwort=='Achtung' %}selected{% endif %}>Achtung</option>
+                        <option value="Gefahr" {% if stoff.signalwort=='Gefahr' %}selected{% endif %}>Gefahr</option>
                     </select>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="h_saetze">H-Sätze</label>
                         <input type="text" id="h_saetze" name="h_saetze" value="{{ stoff.h_saetze or '' }}"
-                               readonly style="cursor:pointer;" onclick="openHpModal('h_saetze')">
+                               readonly class="clickable" onclick="openHpModal('h_saetze')">
                         <small class="form-text"><i class="fa-solid fa-cursor"></i> Klicken zum Bearbeiten</small>
                     </div>
                     <div class="form-group">
                         <label for="p_saetze">P-Sätze</label>
                         <input type="text" id="p_saetze" name="p_saetze" value="{{ stoff.p_saetze or '' }}"
-                               readonly style="cursor:pointer;" onclick="openHpModal('p_saetze')">
+                               readonly class="clickable" onclick="openHpModal('p_saetze')">
                         <small class="form-text"><i class="fa-solid fa-cursor"></i> Klicken zum Bearbeiten</small>
                     </div>
                 </div>
@@ -107,7 +107,7 @@
             <!-- Section 3 -->
             <div class="form-section">
                 <div class="form-section-title">
-                    <span class="section-badge" style="background:var(--success-light); color:var(--success);">3</span>
+                    <span class="section-badge section-badge-success">3</span>
                     <h3>Bestand &amp; Lagerung</h3>
                 </div>
                 <div class="form-row">
@@ -184,23 +184,23 @@
             <!-- Section 4 -->
             <div class="form-section">
                 <div class="form-section-title">
-                    <span class="section-badge" style="background:var(--warning-light); color:#92400e;">4</span>
-                    <h3>Dokumente <span style="font-weight:400; color:var(--text-muted); font-size:0.85rem;">(Optional)</span></h3>
+                    <span class="section-badge section-badge-warning">4</span>
+                    <h3>Dokumente <span class="label-hint-sm">(Optional)</span></h3>
                 </div>
                 <div class="form-row">
                     <!-- SDB -->
                     <div class="form-group">
                         <label for="sicherheitsdatenblatt">Sicherheitsdatenblatt (SDB)</label>
                         {% if stoff.sicherheitsdatenblatt %}
-                        <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
-                            <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
-                                <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i>
-                                <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" target="_blank" style="word-break:break-all;">
+                        <div class="doc-current">
+                            <div class="doc-current-file">
+                                <i class="fa-solid fa-file-pdf text-danger"></i>
+                                <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" target="_blank">
                                     {{ stoff.sicherheitsdatenblatt }}
                                 </a>
                             </div>
-                            <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--danger); font-size:0.85rem;">
-                                <input type="checkbox" name="delete_sdb" value="1" style="width:14px; height:14px; margin:0;"> Dokument löschen
+                            <label class="doc-delete">
+                                <input type="checkbox" name="delete_sdb" value="1"> Dokument löschen
                             </label>
                         </div>
                         {% endif %}
@@ -212,15 +212,15 @@
                     <div class="form-group">
                         <label for="betriebsanweisung">Betriebsanweisung (BA)</label>
                         {% if stoff.betriebsanweisung %}
-                        <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
-                            <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
-                                <i class="fa-solid fa-file-word" style="color:var(--primary);"></i>
-                                <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" target="_blank" style="word-break:break-all;">
+                        <div class="doc-current">
+                            <div class="doc-current-file">
+                                <i class="fa-solid fa-file-word text-primary"></i>
+                                <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" target="_blank">
                                     {{ stoff.betriebsanweisung }}
                                 </a>
                             </div>
-                            <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--danger); font-size:0.85rem;">
-                                <input type="checkbox" name="delete_ba" value="1" style="width:14px; height:14px; margin:0;"> Dokument löschen
+                            <label class="doc-delete">
+                                <input type="checkbox" name="delete_ba" value="1"> Dokument löschen
                             </label>
                         </div>
                         {% endif %}
@@ -234,15 +234,15 @@
                     <div class="form-group">
                         <label for="gefaehrdungsbeurteilung">Gefährdungsbeurteilung (GB)</label>
                         {% if stoff.gefaehrdungsbeurteilung %}
-                        <div style="margin-bottom:0.5rem; padding:0.5rem; border:1px dashed var(--border); border-radius:var(--radius-sm); background:var(--bg-card); display:flex; flex-direction:column; gap:0.5rem;">
-                            <div style="font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;">
-                                <i class="fa-solid fa-file-shield" style="color:var(--success);"></i>
-                                <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" target="_blank" style="word-break:break-all;">
+                        <div class="doc-current">
+                            <div class="doc-current-file">
+                                <i class="fa-solid fa-file-shield text-success"></i>
+                                <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" target="_blank">
                                     {{ stoff.gefaehrdungsbeurteilung }}
                                 </a>
                             </div>
-                            <label style="margin:0; font-weight:normal; display:flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--danger); font-size:0.85rem;">
-                                <input type="checkbox" name="delete_gb" value="1" style="width:14px; height:14px; margin:0;"> Dokument löschen
+                            <label class="doc-delete">
+                                <input type="checkbox" name="delete_gb" value="1"> Dokument löschen
                             </label>
                         </div>
                         {% endif %}
@@ -255,7 +255,7 @@
             <!-- Section 5 -->
             <div class="form-section">
                 <div class="form-section-title">
-                    <span class="section-badge" style="background:var(--info-light); color:#1e40af;">5</span>
+                    <span class="section-badge section-badge-info">5</span>
                     <h3>Weitere Grundangaben</h3>
                 </div>
                 
@@ -264,8 +264,8 @@
                         <label for="sdb_datum">Datum des Sicherheitsdatenblattes</label>
                         <input type="date" id="sdb_datum" name="sdb_datum" value="{{ stoff.sdb_datum|default('', true) }}" onchange="checkSdbDate(this)">
                         <small class="form-text">
-                            <span style="display:inline-block; width:12px; height:12px; background-color:#fef08a; border:1px solid #eab308; margin-right:4px; vertical-align:middle;"></span> &gt; 3 Jahre (Aktualisierung prüfen)<br>
-                            <span style="display:inline-block; width:12px; height:12px; background-color:#fecaca; border:1px solid #ef4444; margin-right:4px; vertical-align:middle; margin-top:4px;"></span> &gt; 5 Jahre (Dringend aktualisieren)
+                            <span class="swatch swatch-warn"></span> &gt; 3 Jahre (Aktualisierung prüfen)<br>
+                            <span class="swatch swatch-danger"></span> &gt; 5 Jahre (Dringend aktualisieren)
                         </small>
                     </div>
                     <div class="form-group">
@@ -276,13 +276,23 @@
                             <option value="nein" {% if stoff.substitutionspruefung == 'nein' %}selected{% endif %}>Nein (Kein Ersatzstoff)</option>
                         </select>
 
-                        <div id="ersatzstoff-group" style="display:none; margin-top: 10px;">
+                        <div id="ersatzstoff-group" class="field-sub" style="display:none;">
                             <label for="ersatzstoff">Name des Ersatzstoffes</label>
                             <input type="text" id="ersatzstoff" name="ersatzstoff" placeholder="z.B. Zitronensäure" value="{{ stoff.ersatzstoff|default('', true) }}">
                         </div>
-                        <div id="begruendung-group" style="display:none; margin-top: 10px;">
+                        <div id="begruendung-group" class="field-sub" style="display:none;">
                             <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
                             <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da...">{{ stoff.begruendung|default('', true) }}</textarea>
+                        </div>
+
+                        {# Grundlage für die Frist in /fristen. Ohne Datum gilt die
+                           Prüfung als nicht datiert, ohne Auswahl als nie
+                           durchgeführt. #}
+                        <div class="field-sub">
+                            <label for="substitution_geprueft_am">Zuletzt geprüft am</label>
+                            <input type="date" id="substitution_geprueft_am" name="substitution_geprueft_am"
+                                   value="{{ stoff.substitution_geprueft_am|default('', true) }}">
+                            <small class="form-text">Wird für die Fristenliste ausgewertet.</small>
                         </div>
                     </div>
                 </div>
@@ -303,7 +313,7 @@
 <script>
 function checkSdbDate(input) {
     if (!input.value) {
-        input.style.backgroundColor = '';
+        input.classList.remove('input-warn', 'input-danger');
         return;
     }
     const sdbDate = new Date(input.value);
@@ -315,12 +325,12 @@ function checkSdbDate(input) {
         yearsDiff--;
     }
     
+    // Farben standen hier als Hex-Werte - siehe .input-warn/.input-danger.
+    input.classList.remove('input-warn', 'input-danger');
     if (yearsDiff >= 5) {
-        input.style.backgroundColor = '#fecaca'; // Rot
+        input.classList.add('input-danger');
     } else if (yearsDiff >= 3) {
-        input.style.backgroundColor = '#fef08a'; // Gelb
-    } else {
-        input.style.backgroundColor = '';
+        input.classList.add('input-warn');
     }
 }
 
@@ -348,5 +358,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
-</script>
 {% endblock %}

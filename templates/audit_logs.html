@@ -2,65 +2,119 @@
 {% block title %}Audit Log – Gefahrstoff-App{% endblock %}
 
 {% block content %}
-<div class="content-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; margin-top:1.5rem;">
-    <h1 style="margin:0; font-size:1.75rem; color:#0f172a; display:flex; align-items:center; gap:0.5rem;">
-        <div style="background:#e0f2fe; color:#0284c7; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
-            <i class="fa-solid fa-history"></i>
-        </div>
+{# Diese Seite trug ihre Farben vollständig als Einzelwerte: sechs eigene
+   Farbtrios (grün, gelb, rot, hellblau, violett, grau) aus einer fremden
+   Palette, dazu "margin-right:4px" an jedem Symbol. Die Badge-Klassen gab es
+   bereits - .badge hat sogar schon gap:0.3rem, die Ränder waren also doppelt.
+   Jetzt: Badge-Klassen und Tokens. #}
+<div class="content-header">
+    <h1>
+        <span class="page-icon"><i class="fa-solid fa-history" aria-hidden="true"></i></span>
         System-Historie (Audit Log)
     </h1>
 </div>
 
-<div class="content-card" style="padding:0; overflow:hidden;">
-    <table class="data-table" style="margin:0;">
+{# table-responsive: gibt der Tabelle auf schmalen Bildschirmen einen
+   eigenen waagerechten Scrollbereich, statt die ganze Seite zu verbreitern.
+   Muster und Klasse stammen aus style.css (.table-responsive).
+   Ein zusätzlicher <div class="content-card"> lag hier früher außen herum -
+   diese Klasse ist im Stylesheet nie definiert gewesen und tat nichts. #}
+<div class="table-responsive">
+    <table class="data-table">
+        <caption class="sr-only">Systemhistorie: protokollierte Aktionen</caption>
         <thead>
             <tr>
-                <th style="padding:1rem 1.5rem;">Zeitstempel</th>
-                <th style="padding:1rem 1.5rem;">Benutzer</th>
-                <th style="padding:1rem 1.5rem;">Aktion</th>
-                <th style="padding:1rem 1.5rem;">Details</th>
+                <th scope="col">Zeitstempel</th>
+                <th scope="col">Benutzer</th>
+                <th scope="col">Aktion</th>
+                <th scope="col">Details</th>
             </tr>
         </thead>
         <tbody>
             {% for log in logs %}
             <tr>
-                <td style="padding:1rem 1.5rem; white-space:nowrap; color:#64748b;">
+                <td class="nowrap text-muted">
                     {{ log.timestamp.strftime('%d.%m.%Y %H:%M') }}
                 </td>
-                <td style="padding:1rem 1.5rem; font-weight:500;">
+                <td class="font-medium">
                     {% if log.user %}
-                        <i class="fa-solid fa-user" style="color:#94a3b8; margin-right:4px;"></i> {{ log.user.username }}
+                        <span class="inline-icons">
+                            <i class="fa-solid fa-user text-light" aria-hidden="true"></i>
+                            {{ log.user.username }}
+                        </span>
+                    {% elif log.user_id %}
+                        {# Der Benutzer wurde gelöscht. Die ID bleibt als Pseudonym
+                           erhalten, der Name nicht - so beschreibt es
+                           DATENSCHUTZ_UND_TOM.md ("pseudonymisiert erhalten").
+                           Ohne diese Unterscheidung stünde hier für Einträge
+                           eines gelöschten Kontos dasselbe wie für Systemeinträge. #}
+                        <span class="inline-icons">
+                            <i class="fa-solid fa-user-slash text-light" aria-hidden="true"></i>
+                            <span class="text-light">Benutzer #{{ log.user_id }}</span>
+                            <span class="text-xs text-light">(gelöscht)</span>
+                        </span>
                     {% else %}
-                        <span style="color:#94a3b8;">System / Unbekannt</span>
+                        <span class="text-light">System / Unbekannt</span>
                     {% endif %}
                 </td>
-                <td style="padding:1rem 1.5rem;">
+                <td>
                     {% if log.action == 'CREATE' %}
-                        <span class="badge" style="background:#dcfce7; color:#166534; border:1px solid #bbf7d0;"><i class="fa-solid fa-plus" style="margin-right:4px;"></i> Erstellt</span>
+                        <span class="badge badge-success"><i class="fa-solid fa-plus" aria-hidden="true"></i> Erstellt</span>
                     {% elif log.action == 'UPDATE' %}
-                        <span class="badge" style="background:#fef9c3; color:#854d0e; border:1px solid #fef08a;"><i class="fa-solid fa-pen" style="margin-right:4px;"></i> Geändert</span>
+                        <span class="badge badge-warning"><i class="fa-solid fa-pen" aria-hidden="true"></i> Geändert</span>
                     {% elif log.action == 'DELETE' %}
-                        <span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;"><i class="fa-solid fa-trash" style="margin-right:4px;"></i> Gelöscht</span>
+                        <span class="badge badge-danger"><i class="fa-solid fa-trash" aria-hidden="true"></i> Gelöscht</span>
+                    {% elif log.action == 'MOVE' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i> Verschoben</span>
+                    {% elif log.action == 'COPY' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-clone" aria-hidden="true"></i> Kopiert</span>
+                    {# Benutzerverwaltung. Die Aktionen der Benutzerverwaltung waren
+                       bis v3.10 gar nicht protokolliert und hätten hier sonst als
+                       roher englischer Code gestanden. #}
+                    {% elif log.action == 'USER_CREATE' %}
+                        <span class="badge badge-success"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Benutzer angelegt</span>
+                    {% elif log.action == 'USER_UPDATE' %}
+                        <span class="badge badge-warning"><i class="fa-solid fa-user-pen" aria-hidden="true"></i> Benutzer geändert</span>
+                    {% elif log.action == 'USER_ROLE' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Rolle geändert</span>
+                    {% elif log.action == 'USER_BEREICHE' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-building" aria-hidden="true"></i> Bereiche zugewiesen</span>
+                    {% elif log.action == 'USER_DELETE' %}
+                        <span class="badge badge-danger"><i class="fa-solid fa-user-xmark" aria-hidden="true"></i> Benutzer gelöscht</span>
+                    {% elif log.action == 'USER_PASSWORD' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-key" aria-hidden="true"></i> Passwort geändert</span>
+                    {% elif log.action == 'SYSTEM_UPDATE' %}
+                        <span class="badge badge-neutral"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Systemänderung</span>
+                    {# Die folgenden Aktionen wurden schon vorher geschrieben, aber
+                       nicht übersetzt und standen deshalb als Code in der Liste. #}
+                    {% elif log.action == 'LOGIN' %}
+                        <span class="badge badge-neutral"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Anmeldung</span>
+                    {% elif log.action == 'APPROVE' %}
+                        <span class="badge badge-success"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Freigegeben</span>
+                    {% elif log.action == 'REJECT' %}
+                        <span class="badge badge-danger"><i class="fa-solid fa-ban" aria-hidden="true"></i> Abgelehnt</span>
+                    {% elif log.action == 'INVENTUR' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Inventur</span>
                     {% else %}
-                        <span class="badge" style="background:#f1f5f9; color:#475569;">{{ log.action }}</span>
+                        <span class="badge badge-neutral">{{ log.action }}</span>
                     {% endif %}
                     <br>
-                    <small style="color:#94a3b8;">{{ log.entity_type }} #{{ log.entity_id }}</small>
+                    {# Systemeinträge haben keine Datensatz-ID; ohne die Abfrage
+                       stünde dort "System #None". #}
+                    <small class="text-light">{{ log.entity_type }}{% if log.entity_id is not none %} #{{ log.entity_id }}{% endif %}</small>
                 </td>
-                <td style="padding:1rem 1.5rem;">
-                    <code style="background:#f8fafc; padding:4px 8px; border-radius:4px; font-size:0.85rem; color:#475569;">
-                        {{ log.details }}
-                    </code>
+                <td>
+                    <code class="detail-code">{{ log.details }}</code>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" style="text-align:center; padding: 4rem 2rem; color:#64748b;">
-                    <div style="background:#f8fafc; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
-                        <i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#cbd5e1;"></i>
+                <td colspan="4" class="empty-hint">
+                    <div class="empty-hint-icon">
+                        <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
                     </div>
-                    <h3 style="color:#334155; margin-bottom:0.5rem;">Keine Einträge</h3>
-                    <p style="margin:0;">Die System-Historie ist noch leer.</p>
+                    <h3>Keine Einträge</h3>
+                    <p>Die System-Historie ist noch leer.</p>
                 </td>
             </tr>
             {% endfor %}

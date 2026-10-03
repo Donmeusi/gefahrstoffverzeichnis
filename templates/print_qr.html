@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR-Code - {{ unterbereich.name }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {# Schrift und Icons lokal ausgeliefert, siehe static/vendor/SOURCES.md. #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/inter.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -27,6 +28,18 @@
             text-align: center;
             max-width: 400px;
             width: 100%;
+            /* Diese Seite lädt style.css nicht und hat deshalb kein globales
+               box-sizing. Ohne die Zeile addiert sich das Padding auf die
+               100%-Breite und die Seite lief auf schmalen Bildschirmen 32 px
+               über den Rand (gemessen bei 320 px Viewport). */
+            box-sizing: border-box;
+        }
+
+        /* Auf schmalen Bildschirmen kleinerer Innenabstand, sonst bleibt für
+           den QR-Code zu wenig Platz. */
+        @media screen and (max-width: 480px) {
+            body { padding: 1rem; }
+            .print-container { padding: 1.5rem; }
         }
 
         .app-title {

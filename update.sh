@@ -20,6 +20,8 @@ git pull
 source venv/bin/activate
 pip install -r requirements.txt
 export FLASK_APP=main.py
+# Ohne FLASK_ENV=production setzt main.py kein SESSION_COOKIE_SECURE
+export FLASK_ENV=production
 flask db upgrade
 
-nohup python main.py > error.log 2>&1 &
+nohup python run_prod.py > error.log 2>&1 &

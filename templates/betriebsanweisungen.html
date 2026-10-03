@@ -2,66 +2,72 @@
 {% block title %}Betriebsanweisungen – Gefahrstoff-App{% endblock %}
 
 {% block content %}
-<div class="content-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; margin-top:1.5rem;">
-    <h1 style="margin:0; font-size:1.75rem; color:#0f172a; display:flex; align-items:center; gap:0.5rem;">
-        <div style="background:#e0f2fe; color:#0284c7; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
+<div class="content-header">
+    <h1>
+        <div class="page-icon">
             <i class="fa-solid fa-file-pdf"></i>
         </div>
         Betriebsanweisungen
     </h1>
-    <div style="position:relative; width:300px;">
-        <i class="fa-solid fa-search" style="position:absolute; left:12px; top:10px; color:#94a3b8;"></i>
-        <input type="text" id="searchInput" placeholder="Nach Stoff suchen..." style="width:100%; padding:0.5rem 1rem 0.5rem 2.5rem; border:1px solid #cbd5e1; border-radius:8px; outline:none;" onkeyup="filterTable()">
+    <div class="search-bar-wrapper search-header">
+        <label class="sr-only" for="searchInput">Betriebsanweisungen durchsuchen (Gefahrstoffname)</label>
+        <i class="fa-solid fa-search" aria-hidden="true"></i>
+        <input type="text" class="search-bar" id="searchInput" placeholder="Nach Stoff suchen…" oninput="filterTable()">
     </div>
 </div>
 
-<div class="content-card" style="padding:0; overflow:hidden;">
-    <table class="data-table" id="baTable" style="margin:0;">
+{# table-responsive: waagerechter Scrollbereich für die Tabelle auf schmalen
+   Bildschirmen, siehe style.css. #}
+<div class="content-card">
+    <div class="table-responsive">
+    <table class="data-table" id="baTable">
+        <caption class="sr-only">Betriebsanweisungen je Gefahrstoff</caption>
         <thead>
             <tr>
-                <th style="padding:1rem 1.5rem;">Gefahrstoff</th>
-                <th style="padding:1rem 1.5rem;">Standort</th>
-                <th style="width: 150px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
+                <th scope="col">Gefahrstoff</th>
+                <th scope="col">Standort</th>
+                <th scope="col" class="col-action col-action--sm">Aktion</th>
             </tr>
         </thead>
         <tbody>
             {% for stoff in gefahrstoffe %}
             <tr class="ba-row">
-                <td style="padding:1rem 1.5rem;">
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <i class="fa-solid fa-file-pdf" style="color:#ef4444; font-size:1.2rem;"></i>
-                        <strong class="stoff-name" style="color:#0f172a; font-size:1.05rem;">{{ stoff.name }}</strong>
+                <td>
+                    <div class="inline-row inline-row--wide">
+                        <i class="fa-solid fa-file-pdf text-danger icon-lg"></i>
+                        <strong class="stoff-name">{{ stoff.name }}</strong>
                     </div>
                 </td>
-                <td style="padding:1rem 1.5rem;">
+                <td>
                     {% if stoff.unterbereich %}
-                        <span class="badge" style="background:#f1f5f9; color:#475569; border: 1px solid #e2e8f0; font-weight:500;">
-                            <i class="fa-solid fa-location-dot" style="margin-right:4px; color:#94a3b8;"></i>
+                        <span class="badge badge-neutral">
+                            <i class="fa-solid fa-location-dot text-light icon-leading"></i>
                             {{ stoff.unterbereich.bereich.name }} &raquo; {{ stoff.unterbereich.name }}
                         </span>
                     {% else %}
-                        <span class="badge" style="background:#f8fafc; color:#94a3b8; border: 1px solid #e2e8f0;">Kein Standort zugewiesen</span>
+                        <span class="badge badge-neutral">Kein Standort zugewiesen</span>
                     {% endif %}
                 </td>
-                <td style="text-align:right; padding:1rem 1.5rem;">
-                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="btn btn-outline btn-sm" target="_blank" title="Betriebsanweisung öffnen" style="color:#0ea5e9; border-color:#e0f2fe; background:#f0f9ff;">
+                <td class="cell-right">
+                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="btn btn-outline btn-sm btn-outline-info" target="_blank" title="Betriebsanweisung öffnen">
                         <i class="fa-solid fa-external-link-alt"></i> Öffnen
                     </a>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="3" style="text-align:center; padding: 4rem 2rem; color:#64748b;">
-                    <div style="background:#f8fafc; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
-                        <i class="fa-solid fa-folder-open" style="font-size:2.5rem; color:#cbd5e1;"></i>
+                <td colspan="3" class="empty-hint">
+                    <div class="empty-hint-icon">
+                        <i class="fa-solid fa-folder-open"></i>
                     </div>
-                    <h3 style="color:#334155; margin-bottom:0.5rem;">Keine Betriebsanweisungen</h3>
-                    <p style="margin:0;">In deinen Bereichen wurden bisher keine Betriebsanweisungen hinterlegt.</p>
+                    <h3>Keine Betriebsanweisungen</h3>
+                    <p>In deinen Bereichen wurden bisher keine Betriebsanweisungen hinterlegt.</p>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 
 <script>
