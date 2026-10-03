@@ -592,23 +592,13 @@ h4 { font-size: var(--fs-base); }
 }
 .btn-outline:active { transform: translateY(0); }
 
-/* Farbvarianten des Umriss-Knopfes.
-   Die Export- und Dokumentknöpfe trugen ihre Farben bisher als Inline-Werte
-   im HTML (#10b981/#059669, #ef4444/#dc2626, #0ea5e9). Hier stehen sie einmal.
-   Müssen nach .btn-outline stehen: gleiche Spezifität, sonst gewinnt dessen
+/* Farbvariante des Umriss-Knopfes. Sie trägt die "Öffnen"-Knöpfe der
+   Dokumentenlisten; ihr Farbwert stand früher als Inline-Wert im HTML.
+   Die grüne und die rote Variante standen hier bis Stufe 3 (Excel/PDF) und
+   sind mit der einen Hauptaktion entfallen: seither sind alle Exporte
+   neutrale Umrissknöpfe.
+   Muss nach .btn-outline stehen: gleiche Spezifität, sonst gewinnt dessen
    grauer Rahmen. */
-.btn-outline-success { border-color: var(--success); color: var(--success); }
-.btn-outline-success:hover {
-    background: var(--success-light);
-    border-color: var(--success);
-    color: var(--success);
-}
-.btn-outline-danger { border-color: var(--danger); color: var(--danger); }
-.btn-outline-danger:hover {
-    background: var(--danger-light);
-    border-color: var(--danger);
-    color: var(--danger);
-}
 .btn-outline-info { border-color: var(--primary); color: var(--primary); }
 .btn-outline-info:hover {
     background: var(--primary-light);
