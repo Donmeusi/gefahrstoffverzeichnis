@@ -1900,6 +1900,11 @@ body.auth-page::before {
     padding: 0.4rem 0.5rem;
     border-radius: var(--radius-sm);
     transition: background var(--transition);
+    /* flex-wrap: auf schmalen Bildschirmen (Telefon) passen Name, Stoffzahl und
+       die drei Symbole nicht in eine Zeile - ohne Umbruch schrumpfte der Name
+       und brach mitten im Wort ("Schrank / 1"). Die Symbole rutschen jetzt in
+       eine zweite Zeile. */
+    flex-wrap: wrap;
 }
 .tree-row:hover { background: var(--bg-hover); }
 .tree-label { display: flex; align-items: center; gap: 0.55rem; min-width: 0; font-size: var(--fs-sm); color: var(--text-main); }
