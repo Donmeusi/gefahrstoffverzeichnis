@@ -249,18 +249,18 @@
                             <option value="nein">Nein (Kein Ersatzstoff)</option>
                         </select>
                         
-                        <div id="ersatzstoff-group" style="display:none; margin-top: 10px;">
+                        <div id="ersatzstoff-group" class="field-sub" style="display:none;">
                             <label for="ersatzstoff">Name des Ersatzstoffes</label>
                             <input type="text" id="ersatzstoff" name="ersatzstoff" placeholder="z.B. Zitronensäure">
                         </div>
-                        <div id="begruendung-group" style="display:none; margin-top: 10px;">
+                        <div id="begruendung-group" class="field-sub" style="display:none;">
                             <label for="begruendung">Begründung (warum kein Ersatzstoff möglich ist)</label>
                             <textarea id="begruendung" name="begruendung" rows="2" placeholder="z.B. Technisch nicht möglich, da..."></textarea>
                         </div>
 
                         {# Grundlage für die Frist in /fristen. Ohne Datum gilt die
                            Prüfung als nicht dokumentiert. #}
-                        <div style="margin-top: 10px;">
+                        <div class="field-sub">
                             <label for="substitution_geprueft_am">Zuletzt geprüft am</label>
                             <input type="date" id="substitution_geprueft_am" name="substitution_geprueft_am">
                             <small class="form-text">Wird für die Fristenliste ausgewertet.</small>
@@ -425,5 +425,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
-</script>
 {% endblock %}

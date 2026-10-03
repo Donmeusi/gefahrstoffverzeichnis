@@ -1981,6 +1981,7 @@ a.kpi-card { text-decoration: none; }
 .text-sm      { font-size: var(--fs-sm); }
 .nowrap       { white-space: nowrap; }
 .stack-xs     { display: flex; flex-direction: column; gap: 0.25rem; }
+.stack-md     { display: flex; flex-direction: column; gap: 1rem; }
 .stack-lg     { display: flex; flex-direction: column; gap: 1.5rem; }
 .inline-icons { display: inline-flex; align-items: center; gap: 0.3rem; }
 
@@ -2082,6 +2083,123 @@ a.kpi-card { text-decoration: none; }
     cursor: pointer;
 }
 .doc-delete input[type="checkbox"] { width: 14px; height: 14px; margin: 0; }
+
+/* ============================================================
+   SCHNELL-INVENTUR
+   ============================================================ */
+/* .inventur-card war benutzt, aber nie definiert - die Karte bekam ihre linke
+   Kante und den Uebergang aus einem Inline-Stil. updateInventurCard() setzt
+   borderColor und backgroundColor direkt am Element; als Inline-Werte
+   gewinnen sie gegen diese Regel, der Uebergang bleibt wirksam. */
+.inventur-card {
+    border-left: 4px solid var(--border);
+    transition: border-color 0.2s, background 0.2s;
+}
+.inventur-card .card-body { padding: 1rem 1.25rem; }
+
+/* Fortschrittskasten */
+.inventur-progress .card-body { padding: 1.25rem; }
+.inventur-progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+.inventur-progress-text { font-weight: 600; font-size: var(--fs-base); }
+.progress-track { background: var(--border); height: 10px; border-radius: 5px; overflow: hidden; }
+/* updateProgress() setzt nur style.width - der Wert hier ist der Startzustand. */
+.progress-fill { background: var(--success); height: 100%; width: 0%; transition: width 0.3s ease; }
+
+/* Eine Zeile je Stoff */
+.inventur-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+/* min-width:0: als Flex-Kind konnte der Block nicht unter seine
+   Mindestinhaltbreite schrumpfen und schob die Zeile 5 px ueber den Rand
+   (bei 320 px Viewport). */
+.inventur-main { display: flex; align-items: flex-start; gap: 0.85rem; flex: 1; min-width: 0; }
+.inventur-check {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    margin-top: 2px;
+    accent-color: var(--success);
+}
+.inventur-details { min-width: 0; }
+.inventur-name { font-size: var(--fs-base); font-weight: 700; cursor: pointer; color: var(--text-main); }
+.inventur-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 0.25rem;
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+}
+/* Signalwort farbig. Die beiden Hex-Werte (#b91c1c, #b45309) waren genau die
+   dunklen Texttoene, fuer die es --on-danger und --on-warning schon gibt. */
+.inventur-signal { font-weight: 600; }
+.inventur-signal--danger  { color: var(--on-danger); }
+.inventur-signal--warning { color: var(--on-warning); }
+.inventur-lastcheck { margin-top: 0.35rem; font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* Mengenleiste.
+   min-width:0 und flex-wrap: als Flex-Kind konnte die Leiste nicht schrumpfen;
+   ihre Knoepfe brauchen rund 276 px und schoben die Zeile ueber den Rand. */
+.inventur-amount {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-subtle);
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    min-width: 0;
+    flex-wrap: wrap;
+}
+.inventur-amount-label { font-size: var(--fs-xs); color: var(--text-muted); margin-right: 0.25rem; }
+.inventur-step { padding: 4px 10px; font-weight: bold; }
+/* Zwei Klassen statt einer: input[type="number"] weiter oben setzt
+   width/padding/border/font-size und ist mit (0,1,1) spezifischer als eine
+   einzelne Klasse (0,1,0) - dieselbe Falle, die bei Zeile 858 beschrieben
+   steht. Als Inline-Stil war das egal, als Klasse nicht. */
+.inventur-amount .inventur-amount-input {
+    width: 75px;
+    text-align: center;
+    font-weight: 700;
+    font-size: var(--fs-base);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px;
+}
+.inventur-amount-unit { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
+
+/* Abschlussleiste am unteren Rand */
+.inventur-actions {
+    position: sticky;
+    bottom: 1rem;
+    margin-top: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    z-index: 100;
+}
+.inventur-actions strong { font-size: var(--fs-base); }
+.inventur-actions p { font-size: var(--fs-xs); color: var(--text-muted); }
+.inventur-actions-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
