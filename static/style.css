@@ -682,16 +682,20 @@ h4 { font-size: var(--fs-h4); }
 
    Mit diesen Schwellen nachgeprüft: von 320 bis 2560 px kein Überlauf mehr.
 
-   ⚠️ Beide Schwellen sind mit dem Dunkelmodus-Knopf gewandert
-   (1340->1375, 1750->1785). Der Knopf sitzt neben dem Menueknopf und kostet
-   rund 40 px; die Leiste lief dadurch bei den alten Schwellen 17 bzw. 13 px
-   ueber den Rand. Nachgemessen mit messen.py bei 1374/1375/1376/1784/1785/1786.
+   ⚠️ Beide Schwellen sind seitdem zweimal gewandert.
+   1. Mit dem Dunkelmodus-Knopf (1340->1375, 1750->1785): der Knopf sitzt neben
+      dem Menueknopf und kostet rund 40 px.
+   2. Mit der Schrift "Amt & Akte" (1375->1290, 1785->1450): Source Sans 3 ist
+      schmaler als Inter. Nachgemessen braucht die Leiste jetzt 1225 px
+      verdichtet (vorher 1307) und 1416 px unverdichtet (vorher 1507) — der
+      Hamburger griff dadurch gute 85 px zu frueh, die volle Fassung gut 335 px
+      zu spaet. Nachgemessen mit messen.py bei 1289/1290/1291 und 1449/1450/1451.
 
-   Folge, die man kennen sollte: unter 1360 px zeigt die Seite jetzt das
+   Folge, die man kennen sollte: unter 1290 px zeigt die Seite das
    Hamburger-Menü. Wer das zurückhaben will, muss den Balken an anderer Stelle
    entlasten (das längste Element ist "Sicherheitsdatenblätter" mit rund
    150 px) oder auf den Navigationseintrag verzichten. */
-@media (min-width: 1375px) and (max-width: 1785px) {
+@media (min-width: 1290px) and (max-width: 1610px) {
     .navbar-brand { font-size: 1.05rem; }
     .nav-links { gap: 0; }
     .nav-links a {
@@ -702,7 +706,7 @@ h4 { font-size: var(--fs-h4); }
     .nav-links .btn { margin-left: 0.1rem; }
 }
 
-@media (max-width: 1374px) {
+@media (max-width: 1289px) {
     .nav-toggle { display: flex; align-items: center; }
     .nav-links {
         display: none;

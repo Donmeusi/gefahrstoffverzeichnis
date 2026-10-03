@@ -10,6 +10,7 @@ Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokument
 * **Form:** Radien von 6–12 px auf 2–3 px; **Schlagschatten entfallen** (die Tiefe kommt jetzt aus Linien und Rahmen), ebenso die **Farbverläufe** — die Knöpfe sind flach. Die farbigen Symbol-Kacheln und die Pillen-Abzeichen sind ersetzt (Symbole stehen ohne Kachel, Abzeichen sind eckig).
 * **Dunkelmodus:** auf dunkles Papier umgestellt statt Blauschwarz, passend zur hellen Fassung; die Füllfarbe wird dort heller, sonst hätte sich der Knopf nicht abgehoben.
 * **Unberührt:** Die Druckansichten (Betriebsanweisung, Standortaushang, QR-Aushang) behalten ihre eigene, vorgegebene Gestaltung.
+* **Die Navigations-Schwellen sind mitgezogen** (1375/1785 → 1290/1610): Source Sans 3 ist schmaler als Inter, die Leiste braucht jetzt 1225 px verdichtet statt 1307. Ohne Anpassung hätte das Hamburger-Menü rund 85 px zu früh gegriffen und die volle Fassung 175 px zu spät.
 * **Nachgemessen:** 120 Tests grün, Prüfsumme der Datenbank unverändert, kein Überlauf von 320 bis 1920 px; die berechneten Werte des Prüfskripts sind auf die neue Palette nachgezogen.
 
 ### v3.24 – Nicht freigegebene CMR-Stoffe waren für den Administrator unsichtbar (Oktober 2026)
