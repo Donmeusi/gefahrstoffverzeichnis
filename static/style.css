@@ -65,6 +65,10 @@
     --bg-card:        #ffffff;
     --bg-subtle:      #f6f8fb;
     --bg-muted:       #f1f5f9;
+    /* Kopfzeile der Tabellen. War ein rgba-Literal am th. */
+    --table-head-bg:  rgba(248,250,252,0.95);
+    /* Leerzustands-Symbol. War #cbd5e1 als Literal; im Dunkelmodus zu hell. */
+    --placeholder:    #cbd5e1;
 
     /* Nav */
     --nav-bg:         rgba(255,255,255,0.95);
@@ -110,6 +114,15 @@
     --fs-xs:          0.8rem;    /* Abzeichen, Kleinsttexte, Hinweise */
     --fs-sm:          0.9rem;    /* Nebentexte, Knöpfe, Beschriftungen */
     --fs-base:        1rem;      /* Fließtext, Tabellen, Eingabefelder */
+    --fs-lg:          1.4rem;    /* Kachelwerte (.tile-value) */
+    --fs-xl:          1.8rem;    /* Kennzahl (.kpi-value) */
+    /* Überschriften. Sie standen als Rohwerte direkt in den h1..h4-Regeln;
+       jetzt eine benannte Staffel, damit die Verhältnisse sichtbar sind.
+       Die Werte sind unverändert. */
+    --fs-h1:          1.875rem;
+    --fs-h2:          1.5rem;
+    --fs-h3:          1.125rem;
+    --fs-h4:          var(--fs-base);
 
     /* Transitions */
     --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
@@ -268,10 +281,10 @@ main.container { padding: 1.5rem 1.5rem 2rem; }
    TYPOGRAPHY
    ============================================================ */
 h1,h2,h3,h4 { font-weight: 700; color: var(--text-main); line-height: 1.25; }
-h1 { font-size: 1.875rem; letter-spacing: -0.025em; }
-h2 { font-size: 1.5rem; letter-spacing: -0.02em; }
-h3 { font-size: 1.125rem; margin-bottom: 0.75rem; }
-h4 { font-size: var(--fs-base); }
+h1 { font-size: var(--fs-h1); letter-spacing: -0.025em; }
+h2 { font-size: var(--fs-h2); letter-spacing: -0.02em; }
+h3 { font-size: var(--fs-h3); margin-bottom: 0.75rem; }
+h4 { font-size: var(--fs-h4); }
 
 .text-muted   { color: var(--text-muted) !important; }
 .text-light   { color: var(--text-light) !important; }
@@ -307,7 +320,7 @@ h4 { font-size: var(--fs-base); }
 .badge-accent { background: var(--accent-light); color: var(--on-accent); }
 
 /* Zahlenwert in einer Kennzahlkachel */
-.tile-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); }
+.tile-value { font-size: var(--fs-lg); font-weight: 700; color: var(--text-main); }
 
 /* Leerzustand in einer Tabelle ("Keine Einträge"). Die Struktur war in vier
    Vorlagen Zeichen für Zeichen dieselbe, nur Symbol und Farben unterschieden
@@ -473,6 +486,16 @@ h4 { font-size: var(--fs-base); }
     background: var(--primary-light);
 }
 
+/* Der aktive Navigationspunkt. Es gab bisher keinen - man sah nirgends, auf
+   welcher Seite man ist. aria-current wird in base.html gesetzt; der Wert
+   traegt auch screen reader. Bewusst KEIN font-weight: der Navigationsbalken
+   ist eng (Schwellen bei 1340/1750px), ein fetter Punkt wuerde ihn breiter
+   machen und die gemessenen Schwellen verschieben. */
+.nav-links a[aria-current="page"] {
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
 .nav-links .btn { color: var(--text-main); margin-left: 0.25rem; }
 
 /* hamburger (mobile) */
@@ -573,6 +596,19 @@ h4 { font-size: var(--fs-base); }
     font-size: 0.8rem;
     border-radius: var(--radius-sm);
 }
+
+/* Ein deaktivierter Knopf sah aus wie ein aktiver - in locations.html steht
+   ein disabled "Bereich speichern", solange nichts eingegeben ist. Jetzt
+   sichtbar inaktiv. Die Hover-Regeln der Farbvarianten bleiben sonst aktiv
+   (translateY), deshalb hier zurueckgesetzt. */
+.btn:disabled,
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.btn:disabled:hover,
+.btn[disabled]:hover { transform: none; }
 
 /* Primary */
 .btn-primary {
@@ -938,10 +974,12 @@ h4 { font-size: var(--fs-base); }
 }
 
 /* Polster stand vorher an jeder Tabelle einzeln im HTML
-   ("padding:1rem 1.5rem", 23-mal). Hier einmal. */
+   ("padding:1rem 1.5rem", 23-mal). Hier einmal.
+   Die Hintergrundfarbe stand als rgba-Literal hier - jetzt ein Token, damit
+   der Dunkelmodus sie mitziehen kann. */
 .data-table th {
     padding: 0.9rem 1.5rem;
-    background: rgba(248,250,252,0.95);
+    background: var(--table-head-bg);
     backdrop-filter: blur(8px);
     font-weight: 700;
     color: var(--text-muted);
@@ -949,9 +987,6 @@ h4 { font-size: var(--fs-base); }
     text-transform: uppercase;
     letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 .data-table td {
@@ -966,6 +1001,11 @@ h4 { font-size: var(--fs-base); }
 .data-table tbody tr {
     transition: background-color 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
 }
+
+/* Zebra. Die Zeilen waren bisher alle gleich; der einzige Unterschied war die
+   1px-Trennlinie. Muss VOR :hover stehen - beide haben dieselbe Spezifitaet
+   (0,2,2), also gewinnt die spaetere Regel. */
+.data-table tbody tr:nth-child(even) { background: var(--bg-muted); }
 
 .data-table tbody tr:hover {
     background: var(--bg-hover);
@@ -1338,7 +1378,7 @@ input[type="file"]:hover { border-color: var(--text-light); }
     border-radius: var(--radius-lg);
     border: 2px dashed var(--border);
 }
-.placeholder-icon { font-size: 3.5rem; color: #cbd5e1; margin-bottom: 1rem; display: block; }
+.placeholder-icon { font-size: 3.5rem; color: var(--placeholder); margin-bottom: 1rem; display: block; }
 .empty-state h2 { color: var(--text-muted); margin-bottom: 0.5rem; }
 .empty-state p  { color: var(--text-muted); margin-bottom: 1.5rem; font-size: var(--fs-sm); }
 
@@ -2099,7 +2139,7 @@ a.kpi-card { text-decoration: none; }
 }
 
 .kpi-value {
-    font-size: 1.8rem;
+    font-size: var(--fs-xl);
     font-weight: 800;
     color: var(--text-main);
     line-height: 1.1;
