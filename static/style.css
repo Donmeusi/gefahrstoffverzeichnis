@@ -1845,6 +1845,22 @@ footer i { color: var(--primary); }
     }
 }
 
+/* Vom Nutzer ausgeblendete Tabellenspalte (Spaltenauswahl in der
+   Werkzeugleiste). Das JavaScript setzt die Klasse auf alle th/td der Spalte.
+
+   ⚠️ Die Regel muss NACH dem 600px-Block stehen. Dort setzt .d-none-mobile
+   display:none !important fuer Standort, Menge und Dokumente. Stuende diese
+   Regel davor, gewaenne drueben die Media Query und das Ausblenden waere auf
+   schmalen Bildschirmen wirkungslos - ein Haken ohne Wirkung, ohne dass man
+   es sieht. Umgekehrt bleibt ein Einblenden unter 600px unmoeglich; deshalb
+   sperrt das JavaScript dort die Kaestchen dieser drei Spalten. */
+.col-hidden { display: none !important; }
+
+/* Von JavaScript weggeschaltet (die Spaltenauswahl in der Kachelansicht -
+   dort gibt es keine Spalten). !important, damit sie auch gegen eine
+   Anzeige-Regel gewinnt. */
+.is-hidden { display: none !important; }
+
 /* ============================================================
    VIEW TOGGLE & GRID (Konzept A / B)
    ============================================================ */
@@ -1855,7 +1871,6 @@ footer i { color: var(--primary); }
     padding: 0.25rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    margin-right: 0.5rem;
 }
 
 .view-btn {
@@ -2476,9 +2491,51 @@ a.kpi-card { text-decoration: none; }
 .card-title-warn { color: var(--danger); font-size: 0.8em; }
 
 /* Werkzeugleiste der Übersicht: links die Ansichtsumschaltung, rechts Filter */
+/* Werkzeugleiste: links die Filter (sie schraenken die Daten ein), rechts die
+   Ansichtssteuerung (sie aendert nur die Darstellung). Vorher war es
+   umgekehrt. */
 .list-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; }
-.filters      { display: flex; gap: 0.5rem; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.filters      { display: flex; gap: 0.5rem; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
 .filter-select { width: auto; padding-left: 10px; min-width: 150px; }
+
+/* Rechts stehende Gruppe: Ansichtsumschaltung und Spaltenauswahl. */
+.view-group { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Spaltenauswahl. <details> bringt das Oeffnen selbst mit; das Panel liegt
+   absolut, sonst schoebe das Aufklappen die Werkzeugleiste in die Hoehe. */
+.column-picker { position: relative; }
+/* Der Marker des <summary> verschwindet - es sieht wie ein Knopf aus. */
+.column-picker > summary { list-style: none; cursor: pointer; }
+.column-picker > summary::-webkit-details-marker { display: none; }
+.column-picker[open] > summary { border-color: var(--primary); color: var(--primary); }
+.column-picker-panel {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    z-index: 20;
+    min-width: 220px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+.column-picker-hint {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+/* .pick-item ist fuer Formularlisten gebaut; hier enger und nicht fett. */
+.column-picker-panel .pick-item { font-size: var(--fs-sm); font-weight: 400; margin-bottom: 0; }
+/* Ein Kaestchen, das auf dieser Breite ohnehin nichts bewirkt (die Media Query
+   weiter oben blendet die Spalte aus), wird gesperrt statt wirkungslos
+   angeboten. */
+.column-picker-panel .pick-item.is-locked { opacity: 0.5; cursor: not-allowed; }
 
 /* Formulare (add.html, edit.html) */
 .flex-1     { flex: 1; }

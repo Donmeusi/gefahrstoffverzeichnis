@@ -112,24 +112,9 @@
             </a>
         </div>
         <div class="list-toolbar">
-            <!-- View Controls -->
-            {# Zwei Schaltflaechen ohne sichtbaren Text. Ihr Name kam bisher nur aus
-               title - das werten Vorleseprogramme nicht zuverlaessig aus und auf
-               Touchgeraeten erscheint es gar nicht. aria-label liefert den Namen,
-               aria-pressed den Zustand; der wird in setView() mitgefuehrt, damit
-               er auch beim Wiederherstellen der gespeicherten Ansicht stimmt. #}
-            <div class="view-controls">
-                <button class="view-btn active" onclick="setView('table')" id="btnViewTable"
-                        title="Listenansicht" aria-label="Listenansicht" aria-pressed="true">
-                    <i class="fa-solid fa-list" aria-hidden="true"></i>
-                </button>
-                <button class="view-btn" onclick="setView('grid')" id="btnViewGrid"
-                        title="Kachelansicht" aria-label="Kachelansicht" aria-pressed="false">
-                    <i class="fa-solid fa-border-all" aria-hidden="true"></i>
-                </button>
-            </div>
-
-            <!-- Filters & Live Search -->
+            <!-- Filter und Livesuche: links, weil sie die Daten einschraenken.
+                 Die Ansichtssteuerung steht rechts - sie aendert die
+                 Darstellung, nicht die Auswahl. Vorher war es umgekehrt. -->
             <div class="filters mobile-stack">
                 {# Die drei Filterfelder hatten keine Beschriftung. Der erste
                    <option>-Eintrag bzw. der Platzhaltertext ist kein Ersatz: der
@@ -171,20 +156,60 @@
                     <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()">
                 </div>
             </div>
+
+            <div class="view-group">
+                {# Zwei Schaltflaechen ohne sichtbaren Text. Ihr Name kam bisher nur aus
+                   title - das werten Vorleseprogramme nicht zuverlaessig aus und auf
+                   Touchgeraeten erscheint es gar nicht. aria-label liefert den Namen,
+                   aria-pressed den Zustand; der wird in setView() mitgefuehrt, damit
+                   er auch beim Wiederherstellen der gespeicherten Ansicht stimmt. #}
+                <div class="view-controls">
+                    <button class="view-btn active" onclick="setView('table')" id="btnViewTable"
+                            title="Listenansicht" aria-label="Listenansicht" aria-pressed="true">
+                        <i class="fa-solid fa-list" aria-hidden="true"></i>
+                    </button>
+                    <button class="view-btn" onclick="setView('grid')" id="btnViewGrid"
+                            title="Kachelansicht" aria-label="Kachelansicht" aria-pressed="false">
+                        <i class="fa-solid fa-border-all" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                {# Spaltenauswahl. <details> statt Knopf+Panel: das Oeffnen und
+                   Schliessen braucht dann kein JavaScript. Es schliesst nur
+                   nicht von selbst beim Klick daneben - das erledigt der
+                   Click-Handler unten. Die Knoepfe sind absichtlich nicht im
+                   <summary>: ein Klick darin wuerde das Panel zuklappen.
+                   Name ist nicht abwaehlbar - sie traegt den Zeilentitel. #}
+                <details class="column-picker" id="columnPicker">
+                    <summary class="btn btn-outline btn-sm">
+                        <i class="fa-solid fa-table-columns" aria-hidden="true"></i> Spalten
+                    </summary>
+                    <div class="column-picker-panel">
+                        <p class="column-picker-hint">Sichtbare Spalten</p>
+                        <label class="pick-item"><input type="checkbox" value="cas" checked> CAS / EG-Nr.</label>
+                        <label class="pick-item"><input type="checkbox" value="standort" checked> Standort</label>
+                        <label class="pick-item"><input type="checkbox" value="signalwort" checked> Signalwort</label>
+                        <label class="pick-item"><input type="checkbox" value="piktogramme" checked> Piktogramme</label>
+                        <label class="pick-item"><input type="checkbox" value="menge" checked> Menge</label>
+                        <label class="pick-item"><input type="checkbox" value="dokumente" checked> Dokumente</label>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="alleSpaltenZeigen()">Alle anzeigen</button>
+                    </div>
+                </details>
+            </div>
         </div>
 
         <div class="table-responsive">
             <table class="data-table data-table--dense" id="gefahrstoffTable">
-                <caption class="sr-only">Gefahrstoffe mit Standort, Signalwort, Piktogrammen, Menge und Dokumenten</caption>
+                <caption class="sr-only">Gefahrstoffe; welche Spalten sichtbar sind, wählt man in der Werkzeugleiste.</caption>
                 <thead>
                     <tr>
                         <th scope="col">Name</th>
-                        <th scope="col">CAS / EG-Nr.</th>
-                        <th scope="col" class="d-none-mobile">Standort</th>
-                        <th scope="col">Signalwort</th>
-                        <th scope="col">Piktogramme</th>
-                        <th scope="col" class="d-none-mobile">Menge</th>
-                        <th scope="col" class="d-none-mobile">Dokumente</th>
+                        <th scope="col" data-col="cas">CAS / EG-Nr.</th>
+                        <th scope="col" class="d-none-mobile" data-col="standort">Standort</th>
+                        <th scope="col" data-col="signalwort">Signalwort</th>
+                        <th scope="col" data-col="piktogramme">Piktogramme</th>
+                        <th scope="col" class="d-none-mobile" data-col="menge">Menge</th>
+                        <th scope="col" class="d-none-mobile" data-col="dokumente">Dokumente</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -203,7 +228,7 @@
                                 </span>
                             </a>
                         </td>
-                        <td class="text-sm nowrap">
+                        <td class="text-sm nowrap" data-col="cas">
                             <div class="stack-xs">
                                 {% if stoff.cas_nummer %}
                                 <div class="font-mono"><span class="text-muted unit-label">CAS</span>{{ stoff.cas_nummer }}</div>
@@ -215,7 +240,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="text-sm d-none-mobile">
+                        <td class="text-sm d-none-mobile" data-col="standort">
                             {% if stoff.unterbereich %}
                             <div class="standort-zelle">
                                 <i class="fa-solid fa-map-marker-alt" aria-hidden="true"></i>
@@ -225,7 +250,7 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-col="signalwort">
                             {% if stoff.signalwort == 'Gefahr' %}
                             <span class="badge badge-danger"><i class="fa-solid fa-skull-crossbones"></i> Gefahr</span>
                             {% elif stoff.signalwort == 'Achtung' %}
@@ -234,7 +259,7 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-col="piktogramme">
                             {% if stoff.piktogramme %}
                             <div class="pictogram-display">
                                 {% for code in stoff.piktogramme.split(',') %}
@@ -248,8 +273,8 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td class="nowrap d-none-mobile">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
-                        <td class="d-none-mobile">
+                        <td class="nowrap d-none-mobile" data-col="menge">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
+                        <td class="d-none-mobile" data-col="dokumente">
                             <div class="doc-row">
                                 {% if stoff.sicherheitsdatenblatt %}
                                     {# Die Stufe kommt aus sdb_status() - die
@@ -415,7 +440,12 @@ function setView(viewMode) {
     const gridView = document.getElementById('gefahrstoffGrid');
     const btnTable = document.getElementById('btnViewTable');
     const btnGrid = document.getElementById('btnViewGrid');
-    
+    // Die Spaltenauswahl gilt nur fuer die Tabelle - die Kachelansicht hat
+    // keine Spalten. In der Kachelansicht verschwindet sie deshalb, und ein
+    // offenes Panel wird geschlossen, sonst stuende es beim Zurueckschalten
+    // unvermittelt offen.
+    const picker = document.getElementById('columnPicker');
+
     if (!tableView || !gridView) return;
 
     if (viewMode === 'grid') {
@@ -426,6 +456,10 @@ function setView(viewMode) {
         btnTable.setAttribute('aria-pressed', 'false');
         btnGrid.setAttribute('aria-pressed', 'true');
         localStorage.setItem('gefahrstoffe_view', 'grid');
+        if (picker) {
+            picker.open = false;
+            picker.classList.add('is-hidden');
+        }
     } else {
         tableView.style.display = 'block';
         gridView.style.display = 'none';
@@ -434,6 +468,7 @@ function setView(viewMode) {
         btnTable.setAttribute('aria-pressed', 'true');
         btnGrid.setAttribute('aria-pressed', 'false');
         localStorage.setItem('gefahrstoffe_view', 'table');
+        if (picker) picker.classList.remove('is-hidden');
     }
 }
 
@@ -485,11 +520,100 @@ function filterItems() {
     document.getElementById('noResultsMsg').style.display = (visibleCount === 0 && (q || sig || pikto)) ? 'block' : 'none';
 }
 
+// ── Spaltenauswahl ──────────────────────────────────────────────────────────
+// Die Schluessel entsprechen data-col an den th/td der Tabelle. "name" fehlt
+// absichtlich: sie traegt den Zeilentitel und den Link und bleibt sichtbar.
+const SPALTEN = ['cas', 'standort', 'signalwort', 'piktogramme', 'menge', 'dokumente'];
+const SPALTEN_SCHLUESSEL = 'gefahrstoffe_spalten';
+// Diese drei blendet .d-none-mobile unter 600px ohnehin aus (siehe style.css).
+const SPALTEN_MOBIL_AUS = ['standort', 'menge', 'dokumente'];
+
+// Gespeichert wird, was AUSGEBLENDET ist - nicht was sichtbar ist. Eine
+// spaeter ergaenzte Spalte fehlt in der Liste und ist damit von selbst
+// sichtbar, statt still versteckt zu sein.
+function spaltenMerken() {
+    let versteckt = [];
+    try {
+        versteckt = JSON.parse(localStorage.getItem(SPALTEN_SCHLUESSEL)) || [];
+    } catch (e) {
+        versteckt = [];
+    }
+    if (!Array.isArray(versteckt)) versteckt = [];
+    return versteckt.filter(s => SPALTEN.indexOf(s) > -1);
+}
+
+function spaltenAnwenden(versteckt) {
+    SPALTEN.forEach(s => {
+        const aus = versteckt.indexOf(s) > -1;
+        document.querySelectorAll('[data-col="' + s + '"]').forEach(el => {
+            el.classList.toggle('col-hidden', aus);
+        });
+        const kaestchen = document.querySelector('#columnPicker input[value="' + s + '"]');
+        if (kaestchen) kaestchen.checked = !aus;
+    });
+}
+
+function spaltenAusKaestchen() {
+    const versteckt = [];
+    document.querySelectorAll('#columnPicker input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) versteckt.push(cb.value);
+    });
+    try { localStorage.setItem(SPALTEN_SCHLUESSEL, JSON.stringify(versteckt)); } catch (e) { /* Privatmodus */ }
+    spaltenAnwenden(versteckt);
+}
+
+function alleSpaltenZeigen() {
+    document.querySelectorAll('#columnPicker input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+    spaltenAusKaestchen();
+}
+
+// Unter 600px ist ein Haken auf diesen drei Spalten wirkungslos, weil die
+// Media Query sie unabhaengig davon ausblendet. Gesperrt und erklaert ist
+// ehrlicher als ein Kaestchen, das nichts tut.
+function spaltenSperren() {
+    const schmal = window.matchMedia('(max-width: 600px)').matches;
+    SPALTEN_MOBIL_AUS.forEach(s => {
+        const kaestchen = document.querySelector('#columnPicker input[value="' + s + '"]');
+        if (!kaestchen) return;
+        kaestchen.disabled = schmal;
+        const zeile = kaestchen.closest('.pick-item');
+        if (zeile) {
+            zeile.classList.toggle('is-locked', schmal);
+            zeile.title = schmal ? 'Auf schmalen Bildschirmen ausgeblendet' : '';
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Restore preferred view
     const savedView = localStorage.getItem('gefahrstoffe_view');
     if (savedView === 'grid') {
         setView('grid');
+    }
+
+    // Spaltenauswahl wiederherstellen
+    if (document.getElementById('columnPicker')) {
+        spaltenAnwenden(spaltenMerken());
+        spaltenSperren();
+        window.matchMedia('(max-width: 600px)').addEventListener('change', spaltenSperren);
+        document.querySelectorAll('#columnPicker input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', spaltenAusKaestchen);
+        });
+    }
+});
+
+// <details> schliesst nicht von selbst, wenn man daneben klickt oder Escape
+// drueckt - beides hier nachgeholt.
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('columnPicker');
+    if (picker && picker.open && !picker.contains(e.target)) picker.open = false;
+});
+document.addEventListener('keydown', (e) => {
+    const picker = document.getElementById('columnPicker');
+    if (picker && picker.open && e.key === 'Escape') {
+        picker.open = false;
+        const kopf = picker.querySelector('summary');
+        if (kopf) kopf.focus();
     }
 });
 </script>
