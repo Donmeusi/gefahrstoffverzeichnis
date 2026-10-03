@@ -71,15 +71,45 @@ ihnen nur die zum Text passende.
 Weitergabe sind ausdrücklich vorgesehen; die Schrift darf nur nicht für sich
 allein verkauft werden.
 
-## Warum `fonts/inter.css` eine eigene Datei ist
+## Source Sans 3 / Source Serif 4 (Erscheinungsbild „Amt & Akte", seit 03.10.2026)
+
+Seit dem Wechsel des Erscheinungsbilds setzt die Oberfläche **Source Sans 3**
+(Fließtext) und **Source Serif 4** (Überschriften) ein. Beide kommen ebenfalls
+**lokal** aus `static/fonts/`; geladen werden sie über `fonts/schriften.css`.
+
+Je Familie genügen **zwei** Dateien, weil die Schnitte aus einer variablen Datei
+kommen: Die Prüfsummen von 400 und 600 (bzw. 600 und 700) sind identisch — eine
+Datei je Gewicht wäre dieselbe noch einmal. Im `font-weight` steht deshalb ein
+Bereich (`400 600` bzw. `600 700`).
+
+| Datei | SHA-256 |
+|---|---|
+| `fonts/source-sans-3-latin.woff2` | `587435ca9d90732b8c1ce4958222c6ad3ade2b875500188e1d318efbcb61f4c5` |
+| `fonts/source-sans-3-latin-ext.woff2` | `ed3571ea9ff752f1c846f1c9ad2b0006de42f478a2db9163a74db0729a4eb281` |
+| `fonts/source-serif-4-latin.woff2` | `8e38e3fbd74dea20aabe0831ffef04c9f30bf6fc5b99b7a2649be0dd8c6d859c` |
+| `fonts/source-serif-4-latin-ext.woff2` | `231f594ad829d45f905a8a6cdce704f659615e00f1a9db2699320e6e315c1d1f` |
+
+Bezogen über die Google-Fonts-API (`css2?family=Source+Sans+3:wght@400;600` und
+`Source+Serif+4:wght@600;700`), die `woff2`-Adressen daraus entnommen — dasselbe
+Verfahren wie bei Inter.
+
+**Lizenz: SIL Open Font License 1.1** (`fonts/OFL-Source.txt`), Copyright
+2010–2024 Adobe, Reserved Font Name „Source".
+
+Inter bleibt im Verzeichnis und in `inter.css`: die Druckseiten
+(`ba_print.html`, `print_qr.html`) nutzen es weiterhin.
+
+## Warum `fonts/schriften.css` (und `inter.css`) eigene Dateien sind
 
 Die Betriebsanweisung (`ba_print.html`) und die QR-Seite (`print_qr.html`)
 erben **nicht** von `base.html` und laden `style.css` **nicht**, referenzieren
 Inter aber. Läge das `@font-face` in `style.css`, hätten beide keine Schrift.
-Eine eigene kleine Datei vermeidet die Dopplung — sie wird von `base.html` und
-den beiden Druckseiten geladen.
+Eine eigene kleine Datei vermeidet die Dopplung. `base.html` lädt seither
+`schriften.css` (Source Sans 3 / Source Serif 4), die beiden Druckseiten weiter
+`inter.css`.
 
-`location_print.html` braucht sie nicht: diese Seite nutzt die Systemschrift.
+`location_print.html` braucht keine von beiden: diese Seite nutzt die
+Systemschrift.
 
 ## Aktualisieren
 

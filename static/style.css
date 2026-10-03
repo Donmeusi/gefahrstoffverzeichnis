@@ -11,125 +11,116 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-    /* Core palette - Clinical & Clean.
-       Hier standen bis zur Aussehens-Runde ausserdem --info (== --primary),
-       --info-light (== --primary-light), --gold (== --warning) und --accent.
-       Alle vier waren wertgleich mit einem Nachbarn oder nirgends benutzt;
-       semantisch verschiedene Dinge sahen dadurch identisch aus (.badge-info
-       war .badge-mod). Die Klassen behielten ihre Namen, nur die
-       Token-Referenzen zeigen jetzt auf den Grundton. */
-    --primary:        #0052cc;
-    --primary-hover:  #0747a6;
-    --primary-light:  rgba(0,82,204,0.12);
-    --primary-glow:   rgba(0,82,204,0.35);
-    --accent-hover:   #008da6;
-    --success:        #00875a;
-    --success-light:  rgba(0,135,90,0.12);
-    --danger:         #de350b;
-    --danger-light:   rgba(222,53,11,0.12);
-    --warning:        #ffab00;
-    --warning-light:  rgba(255,171,0,0.12);
-    --warning-hover:  #ff8b00;
-    --warning-glow:   rgba(255,171,0,0.15);
+    /* Core palette - "Amt & Akte".
+       Papier und Tinte statt Weiss und Atlassian-Blau; der Akzent ist ein
+       gedecktes Marine. Die Statusfarben sind gedaempft (Purpur statt
+       Signalrot, Waldgruen statt Grasgruen, Ocker statt Bernstein), damit die
+       Oberflaeche wie ein Verzeichnis wirkt und nicht wie ein Dashboard. */
+    --primary:        #1e3a5f;
+    --primary-hover:  #16304f;
+    --primary-light:  rgba(30,58,95,0.08);
+    --primary-glow:   rgba(30,58,95,0.22);
+    --accent-hover:   #17506b;
+    --success:        #14603c;
+    --success-light:  rgba(20,96,60,0.08);
+    --danger:         #9f1239;
+    --danger-light:   rgba(159,18,57,0.08);
+    --warning:        #8a6410;
+    --warning-light:  rgba(138,100,16,0.10);
+    --warning-hover:  #6f5009;
+    --warning-glow:   rgba(138,100,16,0.14);
 
     /* Ableitungen der Grundtöne.
        Die -light-Varianten sind für Flächen gedacht; als Textfarbe darauf sind
        --danger & Co. zu schwach. Deshalb je Ton eine eigene Textfarbe, alle
-       nachgerechnet gegen die getönte Fläche über Weiß:
-         --on-primary 7,03:1 · --on-success 6,57:1
-         --on-danger  6,73:1 · --on-warning 8,38:1
+       nachgerechnet gegen die getönte Fläche über Papier:
+         --on-primary · --on-success · --on-danger · --on-warning
        Die -soft-Farben sind die kräftigere Stufe derselben Tönung, für Rahmen
        und Überfahr-Zustände (vorher überall als Einzelwerte im Code). */
-    --primary-soft:   rgba(0,82,204,0.22);
-    --success-soft:   rgba(0,135,90,0.22);
-    --danger-soft:    rgba(222,53,11,0.22);
-    --on-primary:     #0747a6;
-    --on-success:     #065f46;
+    --primary-soft:   rgba(30,58,95,0.18);
+    --success-soft:   rgba(20,96,60,0.18);
+    --danger-soft:    rgba(159,18,57,0.18);
+    --on-primary:     #1e3a5f;
+    --on-success:     #14603c;
     --on-danger:      #9f1239;
-    --on-warning:     #78350f;
-    --danger-hover:   #b02a08;
-    --accent-light:   rgba(0,184,217,0.14);
-    --on-accent:      #00697d;   /* Text auf --accent-light: 5,56:1 */
-    --border-strong:  #cbd5e1;
-    --bg-hover:       rgba(0,82,204,0.05);
-    --bg-tint:        rgba(0,82,204,0.04);
+    --on-warning:     #6f5009;
+    --danger-hover:   #7f0e2d;
+    --accent-light:   rgba(23,80,107,0.10);
+    --on-accent:      #17506b;
+    --border-strong:  #c9c4b4;
+    --bg-hover:       rgba(30,58,95,0.05);
+    --bg-tint:        rgba(30,58,95,0.035);
 
     /* Text auf Flächen, die in beiden Modi dieselbe Farbe behalten.
        Nicht --text-main nehmen: das wird im Dunkelmodus hell und kippt den
        Kontrast auf einem gefüllten Knopf oder einem hellen Abzeichen. */
     --on-solid:       #ffffff;   /* gefüllter Knopf (Primär/Danger/Verlauf) */
-    --ink-bright:     #172b4d;   /* fester dunkler Text auf heller Fläche */
+    --ink-bright:     #1c1c1a;   /* fester dunkler Text auf heller Fläche */
     --on-muted:       #ffffff;   /* Text auf --text-light (.badge-muted) */
     /* --primary als TEXT, ICON oder Rahmen. Nicht --primary selbst nehmen:
        das ist die dunkle Füllfarbe der gefüllten Knöpfe und bleibt in beiden
        Modi dunkel (weisser Text darauf soll lesbar bleiben). Als Text auf dem
        Seitengrund war es im Dunkelmodus unlesbar (1,6:1) - der Kontrast-Check
        hat es gefunden. Im Hell-Modus derselbe Wert. */
-    --primary-ink:    #0052cc;
+    --primary-ink:    #1e3a5f;
 
-    /* Backgrounds.
-       --bg-subtle war weiss wie --bg-card. Damit war jede damit getoente
-       Flaeche unsichtbar: der Hinweisstreifen (.card-intro), der Fussbereich,
-       .framed-box, .view-controls, die Kachel des aktiven Ansichtsknopfes und
-       die "zugewiesenen" Bereichschips. Die Chips hoben sich laut Kommentar
-       "leicht ab" - taten es aber nicht. Jetzt eine eigene, leicht kuehlere
-       Stufe zwischen --bg-main und Weiss. */
-    --bg-main:        #f8fafc;
-    --bg-card:        #ffffff;
-    --bg-subtle:      #f6f8fb;
-    --bg-muted:       #f1f5f9;
-    /* Kopfzeile der Tabellen. War ein rgba-Literal am th. */
-    --table-head-bg:  rgba(248,250,252,0.95);
-    /* Leerzustands-Symbol. War #cbd5e1 als Literal; im Dunkelmodus zu hell. */
-    --placeholder:    #cbd5e1;
-    /* Eingabefeld, auch im Fokus (dort stand Literal "white"). */
-    --field-bg:       #ffffff;
+    /* Backgrounds. Papier statt Weiss. */
+    --bg-main:        #f5f3ee;
+    --bg-card:        #fffefb;
+    --bg-subtle:      #efece4;
+    --bg-muted:       #e9e5db;
+    /* Kopfzeile der Tabellen. */
+    --table-head-bg:  #efece4;
+    /* Leerzustands-Symbol. */
+    --placeholder:    #c2beb2;
+    /* Eingabefeld, auch im Fokus. */
+    --field-bg:       #fffefb;
     /* Grund der Piktogrammkacheln. Bleibt in beiden Modi weiss - die
        Gefahrstoff-Kennzeichnung darf nicht invertiert werden. */
     --pictogram-bg:   #ffffff;
     /* Schleier hinter Dialogen. */
-    --overlay:        rgba(10,15,30,0.65);
+    --overlay:        rgba(28,28,26,0.6);
 
     /* Nav */
-    --nav-bg:         rgba(255,255,255,0.95);
+    --nav-bg:         rgba(255,254,251,0.95);
 
-    /* Text.
-       --text-light war #8993a4 und erreichte auf dem Seitengrund (#f8fafc)
-       nur 2,96:1 - unter dem AA-Minimum von 4,5:1 und selbst unter den 3:1
-       für grafische Elemente. Es wird nicht nur für Symbole benutzt, sondern
-       auch als Text (Platzhalter in locations.html, .doc-btn-missing), und
-       war dort schlicht zu blass. #64748b ist Slate-500 aus derselben Rampe
-       wie --border (#dfe1e6), die Suchfeldsymbole (#94a3b8) und #cbd5e1 und
-       erreicht 4,55:1 auf #f8fafc sowie 4,76:1 auf weißen Karten. */
-    --text-main:      #172b4d;
-    --text-muted:     #5e6c84;
-    --text-light:     #64748b;
+    /* Text. Tinte auf Papier; --text-muted und --text-light sind warme Grautoene
+       aus derselben Familie wie --border. */
+    --text-main:      #1c1c1a;
+    --text-muted:     #5f5e57;
+    --text-light:     #7a7870;
 
     /* Borders */
-    --border:         #dfe1e6;
+    --border:         #ddd9cd;
 
-    /* Spacing */
-    --radius-sm:      6px;
-    --radius:         8px;
-    --radius-lg:      12px;
+    /* Spacing. "Amt & Akte" ist kaum gerundet - fast ueberall 2px. */
+    --radius-sm:      2px;
+    --radius:         2px;
+    --radius-lg:      3px;
     --radius-full:    9999px;
 
-    /* Shadows (Soft & Crisp) */
-    --shadow-sm:      0 1px 2px rgba(9,30,66,0.05);
-    --shadow:         0 2px 4px rgba(9,30,66,0.05), 0 0 1px rgba(9,30,66,0.1);
-    --shadow-lg:      0 8px 16px rgba(9,30,66,0.08), 0 0 1px rgba(9,30,66,0.1);
-    --shadow-hover:   0 12px 24px rgba(9,30,66,0.10), 0 0 1px rgba(9,30,66,0.1);
-    --shadow-primary: 0 8px 16px rgba(0,82,204,0.20);
-    --shadow-modal:   0 32px 64px rgba(0,0,0,0.25);
+    /* Schatten entfallen: die Tiefe kommt aus Linien und Rahmen (Aktenlook).
+       Die Tokens bleiben bestehen, damit die Regeln unveraendert bleiben. */
+    --shadow-sm:      none;
+    --shadow:         none;
+    --shadow-lg:      0 1px 0 rgba(28,28,26,0.06);
+    --shadow-hover:   0 1px 0 rgba(28,28,26,0.10);
+    --shadow-primary: none;
+    --shadow-modal:   0 18px 40px rgba(28,28,26,0.28);
 
     /* Anmeldeseite: Glasflächen und ihr Grund. Eigene Tokens - das Motiv ist
        einmalig und braucht im Dunkelmodus andere Werte. */
-    --auth-card-bg:     rgba(255,255,255,0.65);
-    --auth-card-border: rgba(255,255,255,0.8);
-    --auth-input-bg:    rgba(255,255,255,0.8);
+    --auth-card-bg:     rgba(255,254,251,0.72);
+    --auth-card-border: rgba(221,217,205,0.9);
+    --auth-input-bg:    rgba(255,255,255,0.7);
 
     /* Typography */
-    --font:           'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Schriften. Source Sans 3 fuer den Fliesstext, Source Serif 4 fuer die
+       Ueberschriften ("Amt & Akte" - die Ueberschrift soll wie in einem
+       Verzeichnis gesetzt sein). Beide lokal ausgeliefert (schriften.css),
+       kein externer Aufruf. Fallback bleibt die Systemkette. */
+    --font:           'Source Sans 3', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display:   'Source Serif 4', Georgia, 'Times New Roman', serif;
 
     /* Schriftgrößen. Vorher standen dreizehn verschiedene Werte im Code
        (0,7 · 0,72 · 0,73 · 0,75 · 0,76 · 0,8 · 0,82 · 0,83 · 0,85 · 0,875 ·
@@ -171,82 +162,92 @@
 :root[data-theme="dark"] {
     color-scheme: dark;
 
-    /* Grundflaechen */
-    --bg-main:        #0f172a;
-    --bg-card:        #1e293b;
-    --bg-subtle:      #253247;
-    --bg-muted:       #334155;
-    --table-head-bg:  rgba(30,41,59,0.92);
-    --field-bg:       #0f172a;
+    /* Grundflaechen - dunkles Papier statt Blauschwarz, damit der Dunkelmodus
+       zur hellen Fassung passt (dieselbe warme Neutralitaet). */
+    --bg-main:        #191816;
+    --bg-card:        #232220;
+    --bg-subtle:      #2c2b28;
+    --bg-muted:       #35332f;
+    --table-head-bg:  #2c2b28;
+    --field-bg:       #191816;
     --overlay:        rgba(0,0,0,0.75);
 
     /* Text */
-    --text-main:      #e6edf7;
-    --text-muted:     #a7b4c6;
-    --text-light:     #94a3b8;
-    --placeholder:    #475569;
+    --text-main:      #e9e7e0;
+    --text-muted:     #b2afa5;
+    --text-light:     #918e84;
+    --placeholder:    #55524b;
 
     /* Rahmen */
-    --border:         #334155;
-    --border-strong:  #475569;
+    --border:         #3b3934;
+    --border-strong:  #4f4c45;
 
     /* Navigation */
-    --nav-bg:         rgba(15,23,42,0.92);
+    --nav-bg:         rgba(25,24,22,0.93);
 
     /* Toenungen: auf dunklem Grund braucht es mehr Alpha, sonst verschwinden
        sie. Die Grundtoene selbst bleiben. */
-    --primary-light:  rgba(59,130,246,0.22);
-    --primary-soft:   rgba(59,130,246,0.40);
-    --primary-glow:   rgba(59,130,246,0.45);
-    --success-light:  rgba(52,211,153,0.20);
-    --success-soft:   rgba(52,211,153,0.40);
-    --danger-light:   rgba(248,113,113,0.20);
-    --danger-soft:    rgba(248,113,113,0.40);
-    --warning-light:  rgba(251,191,36,0.20);
-    --warning-glow:   rgba(251,191,36,0.28);
-    --accent-light:   rgba(34,211,238,0.22);
-    --bg-hover:       rgba(148,163,184,0.10);
-    --bg-tint:        rgba(148,163,184,0.07);
+    --primary-light:  rgba(96,146,196,0.20);
+    --primary-soft:   rgba(96,146,196,0.36);
+    --primary-glow:   rgba(96,146,196,0.40);
+    --success-light:  rgba(63,157,111,0.18);
+    --success-soft:   rgba(63,157,111,0.36);
+    --danger-light:   rgba(209,103,127,0.18);
+    --danger-soft:    rgba(209,103,127,0.36);
+    --warning-light:  rgba(201,163,78,0.18);
+    --warning-glow:   rgba(201,163,78,0.26);
+    --accent-light:   rgba(90,150,175,0.20);
+    --bg-hover:       rgba(180,175,165,0.08);
+    --bg-tint:        rgba(180,175,165,0.05);
 
     /* Text auf getoenten Flaechen wird hell. --on-solid (gefuellter Knopf) und
        --ink-bright (fester dunkler Text auf hellem Grund) bleiben wie im
        Hell-Modus - deshalb sind sie eigene Tokens. */
-    --on-primary:     #8ec5ff;
-    --on-success:     #6ee7b7;
-    --on-danger:      #fca5a5;
-    --on-warning:     #fcd34d;
-    --on-accent:      #67e8f9;
-    --on-muted:       #0f172a;
+    --on-primary:     #a8c8e8;
+    --on-success:     #7fd1a8;
+    --on-danger:      #e8a3b3;
+    --on-warning:     #ddc07a;
+    --on-accent:      #8fc9dd;
+    --on-muted:       #191816;
     /* --primary als Text/Icon/Rahmen wird hell, sonst waere es auf dem
-       dunklen Grund unlesbar. Die Füllfarbe --primary bleibt dunkel. */
-    --primary-ink:    #7cb0ff;
+       dunklen Grund unlesbar. */
+    --primary-ink:    #8fb4d9;
+    /* Die Fuellfarbe wird hier ebenfalls heller - das dunkle Marine des
+       Hell-Modus haette sich vom dunklen Papier kaum abgehoben. Weisser Text
+       darauf bleibt ueber 4,5:1. */
+    --primary:        #3a6ea5;
+    --primary-hover:  #2f5c8c;
+    --success:        #3f9d6f;
+    --danger:         #d1677f;
+    --warning:        #c9a34e;
+    --warning-hover:  #b08d3e;
+    --danger-hover:   #b85169;
 
-    /* Schatten: das helle Blau-Schwarz des Hell-Modus ist auf dunklem Grund
-       unsichtbar. */
-    --shadow-sm:      0 1px 2px rgba(0,0,0,0.40);
-    --shadow:         0 2px 4px rgba(0,0,0,0.40), 0 0 1px rgba(0,0,0,0.5);
-    --shadow-lg:      0 8px 16px rgba(0,0,0,0.50), 0 0 1px rgba(0,0,0,0.5);
-    --shadow-hover:   0 12px 24px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.5);
-    --shadow-primary: 0 8px 16px rgba(59,130,246,0.35);
-    --shadow-modal:   0 32px 64px rgba(0,0,0,0.6);
+    /* Schatten entfallen wie im Hell-Modus (Aktenlook). */
+    --shadow-sm:      none;
+    --shadow:         none;
+    --shadow-lg:      0 1px 0 rgba(0,0,0,0.4);
+    --shadow-hover:   0 1px 0 rgba(0,0,0,0.5);
+    --shadow-primary: none;
+    --shadow-modal:   0 18px 40px rgba(0,0,0,0.6);
 
     /* Anmeldeseite */
-    --auth-card-bg:     rgba(30,41,59,0.72);
-    --auth-card-border: rgba(148,163,184,0.22);
-    --auth-input-bg:    rgba(15,23,42,0.6);
+    --auth-card-bg:     rgba(35,34,32,0.75);
+    --auth-card-border: rgba(80,78,72,0.5);
+    --auth-input-bg:    rgba(25,24,22,0.6);
 }
 
 /* Die Anmeldeseite traegt ihre Verlaeufe als Literale; hier dunkel gesetzt. */
 :root[data-theme="dark"] body.auth-page {
     background-image:
-        radial-gradient(circle at 10% 10%, rgba(34,211,238,0.10) 0%, transparent 40%),
-        radial-gradient(circle at 90% 90%, rgba(59,130,246,0.12) 0%, transparent 40%),
-        radial-gradient(circle at 50% 50%, #16233b 0%, var(--bg-main) 100%);
+        radial-gradient(circle at 10% 10%, rgba(96,146,196,0.10) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(90,150,175,0.10) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, #201f1d 0%, var(--bg-main) 100%);
 }
 :root[data-theme="dark"] body.auth-page::before {
     background:
-        radial-gradient(circle at 20% 30%, rgba(59,130,246,0.10) 0%, transparent 60%),
-        radial-gradient(circle at 80% 70%, rgba(34,211,238,0.10) 0%, transparent 60%);
+        radial-gradient(circle at 20% 30%, rgba(96,146,196,0.09) 0%, transparent 60%),
+        radial-gradient(circle at 80% 70%, rgba(90,150,175,0.09) 0%, transparent 60%);
 }
 
 /* GHS-Piktogramme behalten ihren weissen Grund - die Gefahrstoff-
@@ -408,9 +409,9 @@ main.container { padding: 1.5rem 1.5rem 2rem; }
 /* ============================================================
    TYPOGRAPHY
    ============================================================ */
-h1,h2,h3,h4 { font-weight: 700; color: var(--text-main); line-height: 1.25; }
-h1 { font-size: var(--fs-h1); letter-spacing: -0.025em; }
-h2 { font-size: var(--fs-h2); letter-spacing: -0.02em; }
+h1,h2,h3,h4 { font-family: var(--font-display); font-weight: 600; color: var(--text-main); line-height: 1.25; }
+h1 { font-size: var(--fs-h1); letter-spacing: -0.01em; }
+h2 { font-size: var(--fs-h2); letter-spacing: -0.01em; }
 h3 { font-size: var(--fs-h3); margin-bottom: 0.75rem; }
 h4 { font-size: var(--fs-h4); }
 
@@ -427,7 +428,8 @@ h4 { font-size: var(--fs-h4); }
 /* Kopfbereich einer Seite: Symbol in einem farbigen Feld.
    Die Farbvarianten ersetzen die Inline-Farbtrios der einzelnen Seiten. */
 .page-icon {
-    background: var(--primary-light);
+    background: transparent;
+    border: 1px solid var(--border);
     color: var(--primary-ink);
     width: 40px;
     height: 40px;
@@ -437,10 +439,10 @@ h4 { font-size: var(--fs-h4); }
     justify-content: center;
     flex-shrink: 0;
 }
-.page-icon-warning { background: var(--warning-light); color: var(--on-warning); }
-.page-icon-success { background: var(--success-light); color: var(--on-success); }
-.page-icon-danger  { background: var(--danger-light);  color: var(--on-danger); }
-.page-icon-accent  { background: var(--accent-light);  color: var(--on-accent); }
+.page-icon-warning { background: transparent; color: var(--on-warning); }
+.page-icon-success { background: transparent; color: var(--on-success); }
+.page-icon-danger  { background: transparent;  color: var(--on-danger); }
+.page-icon-accent  { background: transparent;  color: var(--on-accent); }
 
 /* Die Substitutionsprüfung war die letzte Kategorie mit eigener Farbe
    (#f3e8ff/#6b21a8, ein Violett aus fremder Palette). Jetzt der zweite Ton
@@ -461,7 +463,8 @@ h4 { font-size: var(--fs-h4); }
 .empty-hint h3 { color: var(--text-main); margin-bottom: 0.5rem; }
 .empty-hint p  { margin: 0; }
 .empty-hint-icon {
-    background: var(--bg-muted);
+    background: transparent;
+    border: 1px solid var(--border);
     width: 80px;
     height: 80px;
     border-radius: var(--radius-full);
@@ -472,7 +475,7 @@ h4 { font-size: var(--fs-h4); }
 }
 .empty-hint-icon i { font-size: 2.5rem; color: var(--text-light); }
 /* Gute Nachricht statt Leere: "keine offenen Fristen" */
-.empty-hint-icon.is-success { background: var(--success-light); }
+.empty-hint-icon.is-success { background: transparent; border-color: var(--success-soft); }
 .empty-hint-icon.is-success i { color: var(--success); }
 
 /* Hinweiskasten: "hier ist noch nichts", gestrichelt umrandet */
@@ -773,7 +776,7 @@ h4 { font-size: var(--fs-h4); }
 
 /* Primary */
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    background: var(--primary);
     color: var(--on-solid);
     /* war rgba(99,102,241,…) - ein Indigo-Schatten unter einem blauen Knopf */
     box-shadow: 0 4px 12px var(--primary-glow);
@@ -832,7 +835,7 @@ h4 { font-size: var(--fs-h4); }
 
 /* Danger */
 .btn-danger {
-    background: linear-gradient(135deg, var(--danger), var(--danger-hover));
+    background: var(--danger);
     color: var(--on-solid);
     box-shadow: 0 4px 12px var(--danger-soft);
 }
@@ -844,7 +847,7 @@ h4 { font-size: var(--fs-h4); }
    (color: black) überhaupt lesbar. Jetzt wie die Knöpfe darüber, mit dunkler
    Schrift: Weiß erreicht auf --warning (#ffab00) nur 1,9:1. */
 .btn-warning {
-    background: linear-gradient(135deg, var(--warning), var(--warning-hover));
+    background: var(--warning);
     color: var(--ink-bright);
     box-shadow: 0 4px 12px var(--warning-glow);
 }
@@ -858,7 +861,7 @@ h4 { font-size: var(--fs-h4); }
 /* Icon button */
 .btn-icon {
     padding: 0.5rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
     background: none;
     border: none;
     cursor: pointer;
@@ -972,7 +975,7 @@ h4 { font-size: var(--fs-h4); }
    darunter. Stand als Inline-Stil in move_copy.html. */
 .card-hero {
     padding: 1.5rem;
-    background: linear-gradient(135deg, var(--primary-light), transparent);
+    background: var(--primary-light);
     border-bottom: 1px solid var(--border);
     text-align: center;
 }
@@ -992,7 +995,7 @@ h4 { font-size: var(--fs-h4); }
 .card-tinted {
     /* Die beiden hellen Töne waren Reste der Indigo-Palette (#fafbff/#f0f4ff).
        Jetzt aus --bg-tint abgeleitet, damit sie zur Palette gehören. */
-    background: linear-gradient(135deg, var(--bg-tint) 0%, var(--bg-card) 100%);
+    background: var(--bg-tint);
 }
 
 /* ============================================================
@@ -1189,7 +1192,7 @@ h4 { font-size: var(--fs-h4); }
     align-items: center;
     gap: 0.3rem;
     padding: 0.28rem 0.65rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
     font-size: var(--fs-xs);
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -1317,8 +1320,9 @@ h4 { font-size: var(--fs-h4); }
     width: 2rem;
     height: 2rem;
     border-radius: var(--radius-full);
-    background: var(--primary-light);
-    color: var(--primary-ink);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
     font-size: 0.8rem;
     font-weight: 700;
     flex-shrink: 0;
@@ -1670,9 +1674,9 @@ input[type="file"]:hover { border-color: var(--text-light); }
 body.auth-page {
     background: var(--bg-main);
     background-image:
-        radial-gradient(circle at 10% 10%, rgba(0, 184, 217, 0.10) 0%, transparent 40%),
-        radial-gradient(circle at 90% 90%, rgba(0, 82, 204, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 50% 50%, #f2f7fd 0%, var(--bg-main) 100%);
+        radial-gradient(circle at 10% 10%, rgba(90, 150, 175, 0.10) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(30, 58, 95, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, #efece4 0%, var(--bg-main) 100%);
     background-attachment: fixed;
     min-height: 100vh;
     display: flex;
@@ -1698,8 +1702,8 @@ body.auth-page::before {
     inset: 0;
     /* Abstrakte Molekül-artige, sehr sanfte Formen (CSS Magic) */
     background:
-        radial-gradient(circle at 20% 30%, rgba(0, 82, 204, 0.07) 0%, transparent 60%),
-        radial-gradient(circle at 80% 70%, rgba(0, 184, 217, 0.07) 0%, transparent 60%);
+        radial-gradient(circle at 20% 30%, rgba(30, 58, 95, 0.07) 0%, transparent 60%),
+        radial-gradient(circle at 80% 70%, rgba(90, 150, 175, 0.07) 0%, transparent 60%);
     pointer-events: none;
     animation: auraPulse 10s ease-in-out infinite alternate;
 }
@@ -1735,7 +1739,7 @@ body.auth-page::before {
     width: 4rem;
     height: 4rem;
     /* Blau und Teal aus der Palette, wie die Marke in der Navigationsleiste. */
-    background: linear-gradient(135deg, var(--primary), var(--accent-hover));
+    background: var(--primary);
     border-radius: 16px;
     display: flex;
     align-items: center;
@@ -1792,7 +1796,7 @@ body.auth-page::before {
     font-size: 1rem;
     font-weight: 600;
     margin-top: 1rem;
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    background: var(--primary);
     color: var(--on-solid);
     border: none;
     border-radius: 12px;
@@ -1868,7 +1872,7 @@ body.auth-page::before {
     align-items: center;
     gap: 1.25rem;
     padding: 1.75rem;
-    background: linear-gradient(135deg, var(--bg-tint), var(--bg-card));
+    background: var(--bg-tint);
     border-bottom: 1px solid var(--border);
 }
 .profile-hero-info h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
@@ -2007,7 +2011,7 @@ body.auth-page::before {
     background: var(--bg-muted);
     color: var(--text-muted);
     padding: 0.1rem 0.4rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
 }
 /* Zugewiesene (nicht eigene) Bereiche heben sich leicht ab. */
 .count-chip--assigned { background: var(--bg-subtle); }
@@ -2086,14 +2090,14 @@ body.auth-page::before {
     font-size: 0.8rem;
 }
 .section-header h3 { margin: 0; font-size: var(--fs-base); }
-.icon-info    { background: var(--primary-light);    color: var(--primary-ink); }
-.icon-danger  { background: var(--danger-light);  color: var(--danger); }
-.icon-success { background: var(--success-light); color: var(--success); }
-.icon-primary { background: var(--primary-light); color: var(--primary-ink); }
+.icon-info    { background: transparent;    color: var(--primary-ink); }
+.icon-danger  { background: transparent;  color: var(--danger); }
+.icon-success { background: transparent; color: var(--success); }
+.icon-primary { background: transparent; color: var(--primary-ink); }
 /* Die Glocke im Profil ("Nachrichten & Freigaben") stand auf .icon-warning -
    die Klasse war benutzt, aber nie definiert. Die anderen Abschnittssymbole
    hatten ihre getoente Flaeche, dieses eine blieb nackt. */
-.icon-warning { background: var(--warning-light); color: var(--on-warning); }
+.icon-warning { background: transparent; color: var(--on-warning); }
 
 /* ============================================================
    FOOTER
@@ -2357,10 +2361,14 @@ footer i { color: var(--primary-ink); }
 /* ============================================================
    UTILITIES
    ============================================================ */
+/* Zahlen und Kennungen. Frueher eine Monospace-Schrift (JetBrains Mono, die
+   nie lokal lag und auf Courier zurueckfiel). "Amt & Akte" setzt den Text
+   durchgehend in der Grundschrift; die Zahlen stehen nur noch auf gleicher
+   Breite (tabular-nums), damit Spalten sauber untereinander liegen. */
 .font-mono {
-    font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-    font-size: 0.9em;
-    letter-spacing: 0.02em;
+    font-family: var(--font);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
 }
 
 /* Hilfsklassen der Gefahrstoff-Übersicht (index.html).

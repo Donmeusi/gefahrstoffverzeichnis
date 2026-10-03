@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.25 – Neues Erscheinungsbild: „Amt & Akte" (Oktober 2026)
+
+* **Warum:** Die Oberfläche trug den vertrauten Dashboard-Baukasten-Look — Inter, Atlassian-Blau, überall Schlagschatten und Farbverläufe, jede Überschrift mit farbiger Symbol-Kachel. Für ein Verzeichnis, das man nachschlägt, wirkt das beliebig. Auf Wunsch des Betreibers wurde ein eigenständiger Entwurf gesetzt; drei Richtungen standen zur Wahl, gewählt wurde „Amt & Akte".
+* **Schrift:** Source Sans 3 für den Fließtext, Source Serif 4 für die Überschriften. Beide werden **lokal ausgeliefert** (`static/fonts/schriften.css`, kein externer Aufruf — wie zuvor Inter). Zahlen und Kennungen stehen auf gleicher Breite (`tabular-nums`), damit Spalten sauber untereinander liegen.
+* **Farbe:** Papierweiß statt Reinweiß, Tinte statt Blauschwarz, ein gedecktes **Marine** als Akzent, gedämpfte Statusfarben (Purpur, Waldgrün, Ocker statt Signalrot/-grün/-bernstein).
+* **Form:** Radien von 6–12 px auf 2–3 px; **Schlagschatten entfallen** (die Tiefe kommt jetzt aus Linien und Rahmen), ebenso die **Farbverläufe** — die Knöpfe sind flach. Die farbigen Symbol-Kacheln und die Pillen-Abzeichen sind ersetzt (Symbole stehen ohne Kachel, Abzeichen sind eckig).
+* **Dunkelmodus:** auf dunkles Papier umgestellt statt Blauschwarz, passend zur hellen Fassung; die Füllfarbe wird dort heller, sonst hätte sich der Knopf nicht abgehoben.
+* **Unberührt:** Die Druckansichten (Betriebsanweisung, Standortaushang, QR-Aushang) behalten ihre eigene, vorgegebene Gestaltung.
+* **Nachgemessen:** 120 Tests grün, Prüfsumme der Datenbank unverändert, kein Überlauf von 320 bis 1920 px; die berechneten Werte des Prüfskripts sind auf die neue Palette nachgezogen.
+
 ### v3.24 – Nicht freigegebene CMR-Stoffe waren für den Administrator unsichtbar (Oktober 2026)
 
 * **⚠️ Der Fehler:** Ein CMR-Stoff wird mit `is_approved = False` angelegt und wartet auf Freigabe. Die Berechtigungsabfrage `get_gefahrstoff_query()` filterte `is_approved` aber für **jeden** weg — auch für den Administrator. Der Link aus der Freigabeliste im Profil lief dadurch in „Keine Berechtigung, diesen Gefahrstoff anzusehen": Wer freigeben sollte, konnte den Stoff nicht einmal ansehen. Jetzt sehen Administrator und Moderator nicht freigegebene Stoffe; für reguläre Benutzer bleiben sie bis zur Freigabe unsichtbar (so steht es auch in der Meldung beim Anlegen).
