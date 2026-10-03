@@ -767,6 +767,16 @@ h4 { font-size: var(--fs-base); }
    Breite, siehe SYSTEMANSICHT. */
 .card-form { max-width: 640px; margin: 0 auto; }
 
+/* Kopfbereich einer Karte: getoente Flaeche, zentriert, mit Trennlinie
+   darunter. Stand als Inline-Stil in move_copy.html. */
+.card-hero {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--primary-light), transparent);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+}
+.card-hero h2 { font-size: 1.25rem; color: var(--primary-hover); margin-bottom: 0.4rem; }
+
 /* Karte, deren Inhalt bis an den Rand reicht (die Tabelle in users.html).
    Dann zeichnet nur der Scrollbereich den Rahmen - sonst laege ein Rahmen im
    Rahmen, dieselbe Ueberlegung wie bei .content-card weiter oben. */
@@ -2426,6 +2436,9 @@ a.kpi-card { text-decoration: none; }
 
 /* Auswahlfeld: volle Zeilenbreite waere hier zu breit. */
 .select-narrow { max-width: 300px; display: inline-block; }
+/* Mehrzeiliges Auswahlfeld (size="7"): rundum gleiche Polsterung statt der
+   asymmetrischen der globalen select-Regel. */
+.select-list { padding: 0.5rem; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
