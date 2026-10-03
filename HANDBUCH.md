@@ -76,19 +76,28 @@ ab:
 | **Historie** | Systemhistorie (nur Administrator) |
 | **Profil** | Eigenes Passwort, offene Freigaben |
 
-Auf schmalen Bildschirmen — auf dem Tablet oder Telefon unter etwa 1340 Pixel —
+Auf schmalen Bildschirmen — auf dem Tablet oder Telefon unter etwa 1375 Pixel —
 klappt die Navigation zu einem Menüknopf zusammen.
+
+**Hell und dunkel:** Rechts in der Kopfzeile sitzt ein kleiner Knopf mit einem
+Mond- (oder Sonnen-)Symbol. Er schaltet die Oberfläche zwischen der hellen und
+der dunklen Darstellung um; die Wahl wird im Browser gemerkt. Ohne eigene Wahl
+folgt die Anwendung der Einstellung Ihres Betriebssystems. **Ausdrucke sind
+davon nicht betroffen** — die Betriebsanweisung und der Standortaushang werden
+immer hell gedruckt.
 
 ### 3.2 Das Dashboard
 
-* **Kennzahlen:** Anzahl Gefahrstoffe, Anzahl Standorte und *veraltete SDBs*.
-  Die dritte Kachel ist anklickbar und führt zur Fristenliste.
+* **Kopfzeile:** Unter dem Seitentitel stehen die Zahl der Gefahrstoffe und die
+  Zahl der *belegten* Standorte. Die fälligen Fristen stehen im Menüpunkt
+  **Fristen** (mit Zähler) und in der Fristenliste.
 * **Standort-Spalte links:** die Hierarchie Ihrer Bereiche. Ein Klick filtert die
   Tabelle auf diesen Standort.
 * **Suche und Filter:** Suchfeld (Name, CAS-Nummer, H-Sätze), Filter nach
   Signalwort und Piktogrammen.
 * **Zwei Ansichten:** Tabelle (Liste) und Kacheln — die Wahl wird im Browser
-  gemerkt.
+  gemerkt. In der Tabellenansicht lassen sich über **Spalten** einzelne Spalten
+  ausblenden; der Name bleibt immer sichtbar.
 * **Export:** Die **gefilterte** Ansicht als Excel-Tabelle oder PDF.
 
 ### 3.3 Was Sie sehen — und was nicht
@@ -336,10 +345,11 @@ Verzeichnis unbrauchbar. Die Zahl steht unter der Substitutions-Kachel
 („12 noch nie geprüft") und zählt **nicht** in die Kachelzahl hinein — diese
 bleibt die Zahl der Zeilen, damit Kachel und Liste zusammenpassen.
 
-Die Kachel **„Veraltete SDBs"** auf dem Dashboard zählt nur die veralteten
-Sicherheitsdatenblätter. Oben auf der Fristenseite stehen zusätzlich die
-fehlenden Dokumente, die offenen Substitutionsprüfungen und die fälligen
-Inventuren.
+Die Kachel **„Veraltete SDBs"** auf dem Dashboard ist entfallen — die Fristen
+stehen als Menüpunkt in der Kopfzeile (mit Zähler). Oben auf der Fristenseite
+stehen die veralteten Sicherheitsdatenblätter, die fehlenden Dokumente, die
+offenen Substitutionsprüfungen und die fälligen Inventuren, jeweils als Kachel
+mit der Zahl der Zeilen.
 
 ### 8.3 Woher die Intervalle kommen — bitte genau lesen
 
@@ -544,7 +554,7 @@ Weil „noch nie geprüft" als Zahl geführt wird, nicht als Zeile
 Nein. Ändern ja (Abschnitt 2.3), zurücksetzen muss ein Administrator.
 
 **Warum ist die Schrift im Menü kleiner als sonst?**
-Auf Bildschirmen zwischen 1340 und 1750 Pixel verdichtet die Anwendung die
+Auf Bildschirmen zwischen 1375 und 1785 Pixel verdichtet die Anwendung die
 Navigation, damit sie ohne Umbruch passt. Darunter klappt sie zum Menüknopf
 zusammen.
 
@@ -576,8 +586,11 @@ Diese Anwendung wird laufend weiterentwickelt. Die vollständige Änderungsliste
 steht in `CHANGELOG.md`; die Datenschutz-Dokumentation in
 `DATENSCHUTZ_UND_TOM.md`.
 
-**Die wichtigsten Schritte bis Version 3.20:**
+**Die wichtigsten Schritte bis Version 3.23:**
 
+* **v3.23** — *Aussehen:* umschaltbarer Dunkelmodus, Zebra-Tabellen, sichtbarer Feinschliff (Ausdrucke bleiben hell)
+* **v3.22** — Startseite entzerrt: eine Kennzahl, Filter- und Ansichtsleiste getrennt, eine Hauptaktion, Spaltenauswahl
+* **v3.21** — Barrierefreiheit (Tastatur, Vorleseprogramme) und eine einheitliche Gestaltungssprache (Inline-Stile 445 → 12, eigene Farbwerte 49 → 0)
 * **v3.20** — *Betrieb, nicht Bedienung:* Anwendungsserver auf Waitress umgestellt, interaktiver Debugger standardmäßig aus
 * **v3.19** — Substitutionsprüfung als Frist (Feld „Zuletzt geprüft am")
 * **v3.18** — Fristenseite als Arbeitsliste; Kennzahlen und Listen aus einer Regel

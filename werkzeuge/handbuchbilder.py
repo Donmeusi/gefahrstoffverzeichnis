@@ -23,6 +23,7 @@ Auge identisch. Wer keine solchen Diffs im Repo will, macht die Bilder nur
 dann neu, wenn sich die Oberfläche tatsächlich geändert hat.
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -237,6 +238,13 @@ def aufnahmen_machen(m, aceton_id, lager_id, arbeitsverzeichnis):
         # Statische Dateien auf file:// umbiegen: die Seite wird aus einer
         # Datei geladen, nicht über den Server, sonst fehlen CSS und Schriften.
         html = antwort.get_data(as_text=True)
+        # Hell-Modus erzwingen. base.html setzt data-theme per Inline-Script aus
+        # localStorage bzw. der Systemvorliebe; Headless-Chrome meldet "dark" -
+        # die Handbuchbilder sollen aber die helle Oberfläche zeigen. Also das
+        # Script entfernen und das Attribut fest auf hell setzen.
+        html = re.sub(r"<script>\s*\(function \(\) \{.*?gsv_theme.*?\}\)\(\);\s*</script>",
+                      '', html, count=1, flags=re.S)
+        html = html.replace('<html lang="de">', '<html lang="de" data-theme="light">')
         html = html.replace('href="/static/', f'href="file://{REPO}/static/')
         html = html.replace('src="/static/', f'src="file://{REPO}/static/')
         quelle = os.path.join(arbeitsverzeichnis, f'{name}.html')

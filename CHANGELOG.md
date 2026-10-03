@@ -2,6 +2,32 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.23 – Aussehens-Runde: Feinschliff und umschaltbarer Dunkelmodus (Oktober 2026)
+
+* **Der Dunkelmodus ist umschaltbar.** Ein Knopf in der Kopfzeile wechselt zwischen hell und dunkel; die Wahl liegt im Browser (`localStorage`) und übersteht das Neuladen. Ohne eigene Wahl folgt die Anwendung der Systemvorliebe. Der Modus wird **vor** dem Laden gesetzt (Inline-Script als erstes Element im `<head>`) — sonst blitzt beim Öffnen kurz die helle Fassung auf. Die Kopfzeile färbt auch die nativen Bedienelemente mit (Auswahlfelder, Kästchen, Scrollbalken).
+* **⚠️ Die Druckansichten bleiben in beiden Modi hell.** Betriebsanweisung, Standortaushang und QR-Aushang sind Ausdrucke mit eigener, vorgegebener Gestaltung. Sie laden das Anwendungs-Stylesheet nicht und haben keinen Zugriff auf den Umschalter — das ist so gewollt.
+* **⚠️ Ein Fund des Kontrast-Checks:** Das Blau der Anwendung (`--primary`) diente zugleich als Füllfarbe der Knöpfe und als Text- und Symbolfarbe. Im Dunkelmodus war der Text darauf **1,6:1** — praktisch unlesbar (der aktive Menüpunkt, das Öffnen-Symbol der Dokumentenlisten). Text und Rahmen zeigen jetzt auf ein eigenes Token, das im Dunkelmodus hell wird; die Füllung bleibt dunkel, damit weiße Knopfschrift lesbar bleibt.
+* **Zwei sichtbare Fehler behoben:** Der Zusammenlagerungshinweis in der Detailansicht stand als **Zeile** — Titel und Aufzählung nebeneinander statt untereinander. Und `--bg-subtle` war weiß wie eine Karte, sodass ein halbes Dutzend „getönter" Flächen unsichtbar war (Hinweisstreifen, die Kachel des aktiven Ansichtsknopfes, die Chips „zugewiesener Bereich"). Eine Glocke im Profil stand auf einer Klasse, die es nie gab.
+* **Feinschliff:** Tabellen haben ein Zebra-Muster, der aktuelle Menüpunkt ist markiert, ein deaktivierter Knopf sieht inaktiv aus. Die 404- und 500-Seite waren ungestyltes Fremd-Markup (Bootstrap-Klassen, die es im Projekt nirgends gibt und deren Icon-Schrift gar nicht geladen wird) und sind jetzt normale Leerzustände.
+* **⚠️ Zwei Menü-Schwellen verschoben.** Der neue Knopf kostet rund 40 px in der Kopfzeile. Ohne Anpassung lief die Navigation bei 1340 und 1751 px über den Rand; die Schwellen stehen jetzt bei **1375 und 1785 px** (vorher 1340/1750).
+* **Aufgeräumt:** sieben nie benutzte oder doppelte Farbvariablen entfernt. `--info`, `--info-light` und `--gold` waren wertgleich mit einem Nachbarn — semantisch Verschiedenes sah dadurch identisch aus (zwei Abzeichentypen unterschieden sich nur im Namen).
+* **Nachgemessen:** kein waagerechter Überlauf von 320 bis 1920 px, auch an den neuen Schwellen; Kontrast im Dunkelmodus durchweg über 4,5:1; 119 Tests grün, Prüfsumme der Datenbank unverändert.
+
+### v3.22 – Informationsarchitektur der Startseite (Oktober 2026)
+
+* **Die Startseite wurde entzerrt.** Aus drei Kennzahl-Kacheln wurde **eine** — die anderen wiederholten nur, was die Kopfzeile ohnehin zeigt; „Standorte" war zudem falsch beschriftet (es zählte die *belegten* Unterbereiche). Die Zahlen stehen jetzt in der Unterzeile des Seitentitels.
+* **Filter und Ansicht getrennt:** Die Filter stehen links, die Ansichtssteuerung (Tabelle/Kacheln, Spaltenauswahl) rechts. Vorher war es umgekehrt — der Umschalter filtert nichts.
+* **Eine Hauptaktion:** Im Kopfbereich ist „Neuer Gefahrstoff" der einzige kräftige Knopf; Excel und PDF sind neutrale Umrissknöpfe geworden. Drei gleich laute Knöpfe sind keiner.
+* **Spaltenauswahl:** Sechs Spalten der Übersichtstabelle lassen sich ausblenden; „Name" bleibt immer sichtbar, weil sie den Link trägt. Die Wahl wird im Browser gemerkt. Damit lässt sich die Tabelle auch unter 1280 px ohne waagerechtes Scrollen lesen — bei 1000 px Breite geht der Überlauf von 156 auf 0 px.
+* **Die Fristen-Kachel ist wieder entfallen.** Sie führte zur Fristenliste, die als Menüpunkt in der Kopfzeile (mit Zähler) ohnehin erreichbar ist. Damit steht die Fristenzahl wieder an genau einer Stelle. (Der zugehörige Test prüft jetzt die Liste allein.)
+
+### v3.21 – Barrierefreiheit und Kohärenz der Oberfläche (September–Oktober 2026)
+
+* **Bedienbarkeit:** Sprungmarke „Zum Inhalt springen" als erstes Element, `scope="col"` an allen Tabellenköpfen, sichtbare Fokusringe für die Tastaturbedienung (`:focus-visible`), eine versteckte Beschriftung an jeder Tabelle. Die Piktogramm-Auswahl war mit der Tastatur **nicht** bedienbar (die Kästchen waren auf Größe 0 gesetzt) und ist es jetzt. Beschriftungen für Such- und Filterfelder. `--text-light` erreichte auf dem Seitengrund nur 2,96:1 und war als Text zu blass; es steht jetzt bei 4,55:1.
+* **Kohärenz:** Alle 14 Seiten von Inline-Stilen auf Klassen und Farbvariablen umgestellt — **445 → 12** (die verbliebenen sind Absicht: sie schalten `display` per JavaScript). Eigene Farbwerte in App-Seiten: **49 → 0**. Dreizehn Schriftgrößen wurden auf drei Stufen vereinheitlicht (der Tabellenkopf war mit 11,2 px zu klein).
+* **Dabei gefunden:** vier nie definierte Farbvariablen (`--dark`, `--glass-border`, `--bg-color`, `--text`) und mehrere nie definierte Klassen (`.content-card`, `.glass-card`, `.form-control`). Solche Deklarationen sind ungültig und fallen still weg — die Systemansicht stand dadurch als einzige Seite ohne Kartengestaltung auf dem Seitenhintergrund. Ebenso fehlten den Eingabetypen `date` und `url` in der globalen Feldregel, weshalb Datumsfelder im Browser-Standard erschienen.
+* **Nachgemessen:** kein waagerechter Überlauf von 320 bis 1920 px (vorher 125 px zwischen 320 und 600 px), für Admin- und Leser-Rolle getrennt.
+
 ### v3.20 – Produktionsserver in beiden Startwegen, Debugger standardmäßig aus (September 2026)
 
 * **⚠️ Der Container startete den Entwicklungsserver.** `docker-entrypoint.sh` endete mit `exec flask run --host=0.0.0.0 --port=5000` — dem eingebauten Server von Flask. Waitress lag mit `run_prod.py` bereit, wurde aber von **keinem** Startweg aufgerufen. Beide zeigen jetzt dorthin: der Container über `exec python run_prod.py`, die native Aktualisierung (`update.sh`) über `FLASK_ENV=production nohup python run_prod.py`.
