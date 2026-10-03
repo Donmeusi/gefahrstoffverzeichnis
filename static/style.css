@@ -2263,6 +2263,36 @@ a.kpi-card { text-decoration: none; }
     cursor: pointer;
 }
 .alert-link { font-weight: 600; margin-left: 0.5rem; }
+
+/* ============================================================
+   FRISTEN
+   ============================================================ */
+/* Die Kachelreihe und ihr Innenleben. Die Kachel selbst ist
+   .content-card + .cell-tile: .content-card bringt Flaesche, Rahmen und
+   Rundung schon mit, .cell-tile die Groesse - es ist ausdruecklich als
+   "Kennzahlkachel in der Fristenliste" kommentiert. Die Inline-Stile in
+   fristen.html wiederholten beides nur. */
+.tile-row  { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+.tile-body { display: flex; align-items: center; gap: 0.6rem; }
+/* Zeile "N noch nie geprueft" unter der Substitutionskachel. */
+.tile-note { margin-top: 0.4rem; }
+
+/* Zeilentitel der Fristenliste. Die Klasse stand im HTML, war aber nie
+   definiert. Die Farbe war #0f172a (Slate-900) - jetzt --text-main, dieselbe
+   wie bei .table-link. */
+.frist-objekt {
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: var(--fs-base);
+    text-decoration: none;
+}
+
+/* Kopfzelle der Aktionsspalte. .data-table th polstert mit 0,9rem oben und
+   unten, hier waren es 1rem - deshalb eigener Wert.
+   Zwei Klassen statt einer: .data-table th ist (0,1,1) und schluege eine
+   einzelne Klasse (0,1,0) - dieselbe Falle wie bei
+   .inventur-amount-input. Als Inline-Stil war das egal. */
+.data-table th.col-action { width: 220px; text-align: right; padding: 1rem 1.5rem; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen

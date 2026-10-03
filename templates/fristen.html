@@ -20,23 +20,23 @@
    Sicherheitsdatenblätter, hier stehen zusätzlich fehlende Dokumente und
    fällige Inventuren. Ohne diese Zeile wären die beiden Zahlen nicht
    vergleichbar. #}
-<div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
-    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <div style="display:flex; align-items:center; gap:0.6rem;">
+<div class="tile-row">
+    <div class="content-card cell-tile">
+        <div class="tile-body">
             <i class="fa-solid fa-file-pdf text-danger"></i>
             <span class="tile-value">{{ uebersicht.sdb_faellig }}</span>
             <span class="text-muted text-sm">SDB veraltet</span>
         </div>
     </div>
-    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <div style="display:flex; align-items:center; gap:0.6rem;">
+    <div class="content-card cell-tile">
+        <div class="tile-body">
             <i class="fa-solid fa-triangle-exclamation text-danger"></i>
             <span class="tile-value">{{ uebersicht.sdb_fehlend }}</span>
             <span class="text-muted text-sm">SDB fehlt oder ohne Datum</span>
         </div>
     </div>
-    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <div style="display:flex; align-items:center; gap:0.6rem;">
+    <div class="content-card cell-tile">
+        <div class="tile-body">
             <i class="fa-solid fa-flask-vial text-accent"></i>
             <span class="tile-value">{{ uebersicht.substitution }}</span>
             <span class="text-muted text-sm">Substitutionsprüfung</span>
@@ -46,14 +46,14 @@
            trotzdem sichtbar - und sie zählt nicht in die Kachelzahl hinein,
            damit diese weiterhin zur Liste passt. #}
         {% if uebersicht.subst_ungeprueft %}
-        <div style="margin-top:0.4rem; font-size:0.78rem; color:#94a3b8;">
-            <i class="fa-solid fa-circle-info" style="margin-right:3px;"></i>
+        <div class="tile-note text-xs text-light">
+            <i class="fa-solid fa-circle-info icon-leading"></i>
             {{ uebersicht.subst_ungeprueft }} noch nie geprüft
         </div>
         {% endif %}
     </div>
-    <div class="content-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <div style="display:flex; align-items:center; gap:0.6rem;">
+    <div class="content-card cell-tile">
+        <div class="tile-body">
             <i class="fa-solid fa-clipboard-check text-primary"></i>
             <span class="tile-value">{{ uebersicht.inventur }}</span>
             <span class="text-muted text-sm">Inventur fällig</span>
@@ -61,7 +61,7 @@
     </div>
 </div>
 
-<div class="content-card" style="padding:0; overflow:hidden;">
+<div class="content-card">
     <div class="table-responsive">
     <table class="data-table" id="fristenTable">
         <caption class="sr-only">Offene Fristen</caption>
@@ -71,14 +71,14 @@
                 <th scope="col">Kategorie</th>
                 <th scope="col">Fällig seit</th>
                 <th scope="col">Ort</th>
-                <th scope="col" style="width:220px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
+                <th scope="col" class="col-action">Aktion</th>
             </tr>
         </thead>
         <tbody>
             {% for e in eintraege %}
             <tr class="frist-row">
                 <td>
-                    <a href="{{ e.objekt_link }}" class="frist-objekt" style="color:#0f172a; font-weight:600; font-size:1.05rem; text-decoration:none;">
+                    <a href="{{ e.objekt_link }}" class="frist-objekt">
                         {{ e.objekt }}
                     </a>
                 </td>
@@ -109,11 +109,11 @@
                         <span class="badge badge-info">Inventur fällig</span>
                     {% endif %}
                 </td>
-                <td style="padding:1rem 1.5rem; white-space:nowrap;">
+                <td class="nowrap">
                     {% if e.faellig_seit %}
                         <span class="text-muted">{{ e.faellig_seit.strftime('%d.%m.%Y') }}</span>
                         {% if e.tage_ueberfaellig is not none %}
-                            <br><span style="font-size:0.8rem; color:#94a3b8;">vor {{ e.tage_ueberfaellig }} Tagen</span>
+                            <br><span class="text-xs text-light">vor {{ e.tage_ueberfaellig }} Tagen</span>
                         {% endif %}
                     {% else %}
                         <span class="text-muted text-sm">noch nie erfasst</span>
@@ -135,8 +135,8 @@
             {% else %}
             <tr>
                 <td colspan="5" class="empty-hint">
-                    <div style="background:#f0fdf4; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
-                        <i class="fa-solid fa-circle-check" style="font-size:2.5rem; color:#16a34a;"></i>
+                    <div class="empty-hint-icon is-success">
+                        <i class="fa-solid fa-circle-check"></i>
                     </div>
                     <h3>Keine offenen Fristen</h3>
                     <p>Alle Sicherheitsdatenblätter sind aktuell und die Inventuren sind durchgeführt.</p>
