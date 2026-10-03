@@ -11,7 +11,7 @@
     <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
 </div>
 
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+<div class="row">
     <!-- Passwort ändern -->
     <div class="card">
         <div class="card-body">
@@ -92,7 +92,7 @@
                 <dd><strong>{{ current_user.username }}</strong></dd>
 
                 <dt>Benutzer-ID</dt>
-                <dd><span style="font-family:monospace; color:var(--text-muted);">#{{ current_user.id }}</span></dd>
+                <dd><span class="font-mono text-muted">#{{ current_user.id }}</span></dd>
 
                 <dt>Rolle</dt>
                 <dd>
@@ -104,9 +104,8 @@
                 </dd>
             </dl>
 
-            <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
-                <a href="{{ url_for('logout') }}" class="btn btn-outline w-100"
-                   style="border-color:var(--danger-light); color:var(--danger);"
+            <div class="card-divider">
+                <a href="{{ url_for('logout') }}" class="btn btn-outline w-100 btn-outline-danger-quiet"
                    onclick="return confirm('Wirklich ausloggen?');">
                     <i class="fa-solid fa-right-from-bracket"></i> Abmelden
                 </a>
@@ -116,18 +115,18 @@
 </div>
 
 {% if current_user.role in ['admin', 'moderator'] %}
-<div class="card" style="margin-top:1.5rem;">
+<div class="card mt-4">
     <div class="card-body">
         <div class="section-header">
             <i class="fa-solid fa-bell icon-warning"></i>
             <h3>Nachrichten & Freigaben</h3>
             {% if pending_approvals_count > 0 %}
-            <span class="badge badge-danger" style="margin-left:0.5rem;">{{ pending_approvals_count }}</span>
+            <span class="badge badge-danger ml-2">{{ pending_approvals_count }}</span>
             {% endif %}
         </div>
         
         {% if pending_gefahrstoffe %}
-        <div class="table-responsive" style="margin-top: 1rem;">
+        <div class="table-responsive mt-3">
             {# .table war nirgends im Stylesheet definiert - diese Tabelle stand
                deshalb im Browser-Standard und sah anders aus als alle übrigen.
                .data-table ist die Klasse, die alle anderen Tabellen nutzen. #}
@@ -138,7 +137,7 @@
                         <th scope="col">Stoffname</th>
                         <th scope="col">CAS / EG</th>
                         <th scope="col">Standort</th>
-                        <th scope="col" style="text-align: right;">Aktionen</th>
+                        <th scope="col" class="cell-right">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -146,25 +145,25 @@
                     <tr>
                         <td>
                             <strong>{{ stoff.name }}</strong>
-                            <div style="font-size:0.8rem; color:var(--danger); margin-top:0.2rem;">
+                            <div class="field-note text-danger">
                                 <i class="fa-solid fa-triangle-exclamation"></i> CMR-Stoff (Prüfung erforderlich)
                             </div>
                         </td>
                         <td>
                             <div class="text-sm">CAS: {{ stoff.cas_nummer or '-' }}</div>
-                            <div style="font-size:0.85rem; color:var(--text-muted);">EG: {{ stoff.eg_nummer or '-' }}</div>
+                            <div class="text-sm text-muted">EG: {{ stoff.eg_nummer or '-' }}</div>
                         </td>
                         <td>{{ stoff.unterbereich.get_full_path() if stoff.unterbereich else 'Kein Standort' }}</td>
                         <td>
-                            <div style="display:flex; gap:0.5rem; justify-content: flex-end;">
+                            <div class="actions-end">
                                 <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline btn-sm" target="_blank" title="Stoffdetails öffnen"><i class="fa-solid fa-eye"></i> Prüfen</a>
-                                <form action="{{ url_for('approve_stoff', id=stoff.id) }}" method="POST" style="display:inline;">
+                                <form action="{{ url_for('approve_stoff', id=stoff.id) }}" method="POST">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-check"></i> Freigeben</button>
                                 </form>
-                                <form action="{{ url_for('reject_stoff', id=stoff.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Stoff wirklich ablehnen und löschen?');">
+                                <form action="{{ url_for('reject_stoff', id=stoff.id) }}" method="POST" onsubmit="return confirm('Stoff wirklich ablehnen und löschen?');">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger-light); color:var(--danger);"><i class="fa-solid fa-xmark"></i> Ablehnen</button>
+                                    <button type="submit" class="btn btn-outline btn-sm btn-outline-danger-quiet"><i class="fa-solid fa-xmark"></i> Ablehnen</button>
                                 </form>
                             </div>
                         </td>
@@ -177,7 +176,7 @@
         {# var(--bg-color) gab es im Stylesheet nicht - der Hintergrund dieses
            Kastens fiel damit still weg. #}
         <div class="hint-box">
-            <i class="fa-solid fa-inbox" style="font-size:2.5rem; opacity:0.3; margin-bottom:1rem; display:block;"></i>
+            <i class="fa-solid fa-inbox"></i>
             <p>Keine ausstehenden Freigaben oder neuen Nachrichten.</p>
         </div>
         {% endif %}
@@ -186,7 +185,7 @@
 {% endif %}
 
 {% if getattr(current_user, 'is_admin', False) %}
-<div class="card" style="margin-top:1.5rem;">
+<div class="card mt-4">
     <div class="card-body">
         <div class="section-header">
             <i class="fa-solid fa-server icon-primary"></i>

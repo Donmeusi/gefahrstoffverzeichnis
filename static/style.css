@@ -329,6 +329,17 @@ h4 { font-size: var(--fs-base); }
     border-radius: var(--radius);
     margin-top: 1rem;
 }
+/* Das Symbol im Hinweiskasten. Die Werte standen als Inline-Stil an jedem
+   einzelnen <i> (profile.html). */
+.hint-box > i { font-size: 2.5rem; opacity: 0.3; margin-bottom: 1rem; display: block; }
+
+/* Trennlinie ueber einem nachgestellten Block in einer Karte (etwa dem
+   Abmelden-Knopf im Profil). */
+.card-divider {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
 
 /* Panel in der Systemansicht (Rohwerte, Update-Bereich) */
 .info-panel {
@@ -355,6 +366,7 @@ h4 { font-size: var(--fs-base); }
 .mb-3 { margin-bottom: 1rem !important; }
 .mb-4 { margin-bottom: 1.5rem !important; }
 .m-4  { margin: 1.5rem !important; }
+.ml-2 { margin-left: 0.5rem !important; }
 .p-3  { padding: 1rem !important; }
 .p-4  { padding: 1.5rem !important; }
 .w-100 { width: 100% !important; }
@@ -609,7 +621,7 @@ h4 { font-size: var(--fs-base); }
 /* Loeschen als leiser Knopf in einer Tabellenzeile: roter Rahmen in der
    hellen Toenung, damit die Zeile nicht von einem kraeftigen Knopf
    beherrscht wird. Der Inline-Wert dazu stand nur in users.html. */
-.btn-outline-danger-quiet { border-color: var(--danger-light); }
+.btn-outline-danger-quiet { border-color: var(--danger-light); color: var(--danger); }
 
 /* Danger */
 .btn-danger {
@@ -937,6 +949,8 @@ h4 { font-size: var(--fs-base); }
 .actions { display: flex; gap: 0.4rem; align-items: center; }
 /* Zweite Aktionszeile unter der Rollenauswahl in derselben Tabellenzelle. */
 .actions--spaced { margin-top: 0.4rem; }
+/* Knopfreihe am rechten Rand einer Tabellenzelle (Spalte "Aktionen"). */
+.actions-end { display: flex; gap: 0.5rem; justify-content: flex-end; }
 
 /* ============================================================
    BADGES
