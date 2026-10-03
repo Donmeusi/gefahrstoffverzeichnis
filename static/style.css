@@ -2045,6 +2045,43 @@ a.kpi-card { text-decoration: none; }
     font-size: var(--fs-sm);
     padding: 0.4rem 0;
 }
+
+/* Der hinterlegte Dokumentstand im Bearbeiten-Formular: Dateiname und
+   Löschmarke. Der Kasten stand mit denselben Werten dreimal als Inline-Stil
+   in edit.html (SDB, BA, GB). */
+.doc-current {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.doc-current-file {
+    font-size: var(--fs-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+/* Dateinamen sind lang und enthalten keine Leerzeichen - ohne den Umbruch
+   schieben sie die Zeile über den Rand. */
+.doc-current-file a { word-break: break-all; }
+
+/* Die Löschmarke sitzt in einem <label>; dessen Regel setzt display:block,
+   font-weight:600 und margin-bottom - alles drei muss hier zurück. */
+.doc-delete {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0;
+    font-weight: normal;
+    font-size: var(--fs-sm);
+    color: var(--danger);
+    cursor: pointer;
+}
+.doc-delete input[type="checkbox"] { width: 14px; height: 14px; margin: 0; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
@@ -2066,6 +2103,13 @@ a.kpi-card { text-decoration: none; }
 /* Hinweis hinter einer Feldbeschriftung: "(Auto-Fill aus SDB)", "(Optional)" */
 .label-hint { font-weight: 400; color: var(--text-light); }
 .label-hint-sm { font-weight: 400; color: var(--text-muted); font-size: var(--fs-sm); }
+
+/* Folgefeld unter einem Auswahlfeld. Die drei Blöcke (Ersatzstoff, Begründung,
+   "Zuletzt geprüft am") trugen denselben Inline-Abstand in edit.html und
+   add.html. Der erste und zweite werden per JavaScript ein- und ausgeblendet;
+   ihr display:none bleibt deshalb als Inline-Stil stehen - JavaScript setzt
+   es dort ausdrücklich auf 'block' bzw. 'none'. */
+.field-sub { margin-top: 0.625rem; }
 
 /* Kasten "Daten aus SDB importieren" */
 .import-box {
