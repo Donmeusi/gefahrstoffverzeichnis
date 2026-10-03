@@ -37,9 +37,8 @@
             {% if current_user.is_admin or unterbereich.bereich.owner_id == current_user.id %}
             {# Der Name nennt den Unterbereich: sonst heißen alle Löschknöpfe
                einer Liste gleich und man hört nicht, welcher gemeint ist. #}
-            <button type="submit" class="btn-icon" title="Unterbereich löschen"
-                    aria-label="Unterbereich {{ unterbereich.name }} löschen"
-                    class="text-danger text-xs">
+            <button type="submit" class="btn-icon text-danger text-xs" title="Unterbereich löschen"
+                    aria-label="Unterbereich {{ unterbereich.name }} löschen">
                 <i class="fa-solid fa-times" aria-hidden="true"></i>
             </button>
             {% endif %}

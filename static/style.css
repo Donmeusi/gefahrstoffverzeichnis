@@ -11,12 +11,17 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-    /* Core palette - Clinical & Clean */
+    /* Core palette - Clinical & Clean.
+       Hier standen bis zur Aussehens-Runde ausserdem --info (== --primary),
+       --info-light (== --primary-light), --gold (== --warning) und --accent.
+       Alle vier waren wertgleich mit einem Nachbarn oder nirgends benutzt;
+       semantisch verschiedene Dinge sahen dadurch identisch aus (.badge-info
+       war .badge-mod). Die Klassen behielten ihre Namen, nur die
+       Token-Referenzen zeigen jetzt auf den Grundton. */
     --primary:        #0052cc;
     --primary-hover:  #0747a6;
     --primary-light:  rgba(0,82,204,0.12);
     --primary-glow:   rgba(0,82,204,0.35);
-    --accent:         #00b8d9;
     --accent-hover:   #008da6;
     --success:        #00875a;
     --success-light:  rgba(0,135,90,0.12);
@@ -24,11 +29,8 @@
     --danger-light:   rgba(222,53,11,0.12);
     --warning:        #ffab00;
     --warning-light:  rgba(255,171,0,0.12);
-    --info:           #0052cc;
-    --info-light:     rgba(0,82,204,0.12);
-    --gold:           #ffab00;
-    --gold-dark:      #ff8b00;
-    --gold-light:     rgba(255,171,0,0.15);
+    --warning-hover:  #ff8b00;
+    --warning-glow:   rgba(255,171,0,0.15);
 
     /* Ableitungen der Grundtöne.
        Die -light-Varianten sind für Flächen gedacht; als Textfarbe darauf sind
@@ -52,15 +54,20 @@
     --bg-hover:       rgba(0,82,204,0.05);
     --bg-tint:        rgba(0,82,204,0.04);
 
-    /* Backgrounds */
+    /* Backgrounds.
+       --bg-subtle war weiss wie --bg-card. Damit war jede damit getoente
+       Flaeche unsichtbar: der Hinweisstreifen (.card-intro), der Fussbereich,
+       .framed-box, .view-controls, die Kachel des aktiven Ansichtsknopfes und
+       die "zugewiesenen" Bereichschips. Die Chips hoben sich laut Kommentar
+       "leicht ab" - taten es aber nicht. Jetzt eine eigene, leicht kuehlere
+       Stufe zwischen --bg-main und Weiss. */
     --bg-main:        #f8fafc;
     --bg-card:        #ffffff;
-    --bg-subtle:      #ffffff;
+    --bg-subtle:      #f6f8fb;
     --bg-muted:       #f1f5f9;
 
     /* Nav */
     --nav-bg:         rgba(255,255,255,0.95);
-    --nav-text:       #0f172a;
 
     /* Text.
        --text-light war #8993a4 und erreichte auf dem Seitengrund (#f8fafc)
@@ -76,13 +83,11 @@
 
     /* Borders */
     --border:         #dfe1e6;
-    --border-focus:   var(--primary);
 
     /* Spacing */
     --radius-sm:      6px;
     --radius:         8px;
     --radius-lg:      12px;
-    --radius-xl:      16px;
     --radius-full:    9999px;
 
     /* Shadows (Soft & Crisp) */
@@ -108,7 +113,6 @@
 
     /* Transitions */
     --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
-    --transition-slow: 0.3s cubic-bezier(0.4,0,0.2,1);
 
     /* Ring */
     --ring:           0 0 0 3px var(--primary-glow);
@@ -235,6 +239,15 @@ main {
     margin: 0 auto;
     width: 100%;
 }
+
+/* .container (0,1,0) schlaegt main (0,0,1): die senkrechte Polsterung von main
+   kam nie an, und die 1600px waren wirkungslos. Folge: Seiten ohne Kopfbereich
+   (die Fehlerseiten) klebten direkt unter der Navigationsleiste. Diese Regel
+   hat .containers Spezifitaet und holt das senkrechte Polster zurueck; seitlich
+   und in der Breite bleibt alles wie gehabt (die 1280er-Deckelung ist gewollt,
+   siehe .data-table--dense). Oben genau 1.5rem - der Wert, den die Kopfbereiche
+   vorher ueber margin-top beisteuerten (die haben ihn jetzt abgegeben). */
+main.container { padding: 1.5rem 1.5rem 2rem; }
 
 /* Grid utilities */
 .row {
@@ -634,9 +647,9 @@ h4 { font-size: var(--fs-base); }
    (color: black) überhaupt lesbar. Jetzt wie die Knöpfe darüber, mit dunkler
    Schrift: Weiß erreicht auf --warning (#ffab00) nur 1,9:1. */
 .btn-warning {
-    background: linear-gradient(135deg, var(--warning), var(--gold-dark));
+    background: linear-gradient(135deg, var(--warning), var(--warning-hover));
     color: var(--text-main);
-    box-shadow: 0 4px 12px var(--gold-light);
+    box-shadow: 0 4px 12px var(--warning-glow);
 }
 .btn-warning:hover {
     transform: translateY(-2px);
@@ -669,7 +682,7 @@ h4 { font-size: var(--fs-base); }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 1.5rem;
+    margin-top: 0;
     margin-bottom: 2rem;
     flex-wrap: wrap;
     gap: 1rem;
@@ -719,7 +732,7 @@ h4 { font-size: var(--fs-base); }
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
-    margin-top: 1.5rem;
+    margin-top: 0;
     margin-bottom: 1.5rem;
 }
 /* Die Seitenüberschrift trägt ihr Symbol in einem Feld (.page-icon) und muss
@@ -988,8 +1001,8 @@ h4 { font-size: var(--fs-base); }
 .badge-danger  { background: var(--danger-light);  color: var(--on-danger); }
 .badge-warning { background: var(--warning-light); color: var(--on-warning); }
 .badge-success { background: var(--success-light); color: var(--on-success); }
-.badge-info    { background: var(--info-light);    color: var(--on-primary); }
-.badge-admin   { background: var(--gold-light);    color: var(--on-warning); }
+.badge-info    { background: var(--primary-light);    color: var(--on-primary); }
+.badge-admin   { background: var(--warning-glow);    color: var(--on-warning); }
 .badge-mod     { background: var(--primary-light); color: var(--on-primary); }
 .badge-neutral { background: var(--bg-muted);      color: var(--text-muted); }
 /* Rolle "Lesen". Der Inline-Wert #64748b ist genau --text-light. */
@@ -1006,7 +1019,7 @@ h4 { font-size: var(--fs-base); }
     padding: 1px 5px;
     margin-left: 3px;
 }
-.role-admin { background: var(--gold-light);    color: var(--on-warning); }
+.role-admin { background: var(--warning-glow);    color: var(--on-warning); }
 .role-mod   { background: var(--primary-light); color: var(--on-primary); }
 .role-leser { background: var(--bg-muted);      color: var(--text-muted); }
 
@@ -1228,13 +1241,20 @@ input[type="file"]:hover { border-color: var(--text-light); }
 .alert-error,
 .alert-danger  { background: var(--danger-light);  color: var(--on-danger);  border-color: var(--danger);  }
 .alert-warning { background: var(--warning-light); color: var(--on-warning); border-color: var(--warning); }
-.alert-info    { background: var(--info-light);    color: var(--on-primary); border-color: var(--info);    }
+.alert-info    { background: var(--primary-light);    color: var(--on-primary); border-color: var(--primary);    }
 
 /* Titel und Aufzählung in einem Hinweiskasten. Die Werte standen als
    Inline-Stile in view.html (Zusammenlagerungsverbot). Ohne die Einrückung
    stünde die Liste am Rand, weil der Reset (Zeile 120) padding: 0 setzt. */
 .alert > h4 { margin-bottom: 0.5rem; }
 .alert > ul { padding-left: 1.5rem; }
+/* Mehrzeiliger Hinweis mit Titel UND Aufzählung (nur view.html:39). Die Basis
+   .alert ist eine Zeile - Symbol, Text, alles nebeneinander. Ohne diese Klasse
+   standen h4 und ul als Flex-Kinder nebeneinander statt untereinander, und die
+   Regeln darüber (margin-bottom am h4) liefen ins Leere, weil sie eine
+   senkrechte Angabe auf ein waagerechtes Element setzen. Nicht global
+   umstellen: dann stapelten alle einzeiligen Alerts ihr Symbol über den Text. */
+.alert--stack { flex-direction: column; align-items: flex-start; gap: 0.25rem; }
 
 /* ============================================================
    PICTOGRAMS
@@ -1321,6 +1341,15 @@ input[type="file"]:hover { border-color: var(--text-light); }
 .placeholder-icon { font-size: 3.5rem; color: #cbd5e1; margin-bottom: 1rem; display: block; }
 .empty-state h2 { color: var(--text-muted); margin-bottom: 0.5rem; }
 .empty-state p  { color: var(--text-muted); margin-bottom: 1.5rem; font-size: var(--fs-sm); }
+
+/* Fehlerseiten (404/500). Die Vorlagen waren Bootstrap-Markup - glass-card,
+   display-1, col-md-6, bi-Icons -, von dem im Projekt nichts definiert ist und
+   dessen Icon-Font gar nicht geladen wird. Die Karte stand ohne Gestaltung auf
+   dem Seitenhintergrund, die Zahl als Inline-Wert. Jetzt dieselbe Karte wie
+   jeder Leerzustand, die Zahl als Klasse. */
+.error-page { max-width: 560px; margin: 3rem auto; }
+.error-code { font-size: 4rem; font-weight: 800; line-height: 1; color: var(--text-light); margin-bottom: 0.5rem; }
+.error-code--danger { color: var(--danger); }
 
 /* ============================================================
    MODAL
@@ -1601,9 +1630,9 @@ body.auth-page::before {
     justify-content: center;
     font-weight: 800;
 }
-.avatar-admin { background: var(--gold-light);  color: var(--on-warning); }
+.avatar-admin { background: var(--warning-glow);  color: var(--on-warning); }
 .avatar-mod   { background: var(--primary-light); color: var(--on-primary); }
-.avatar-user  { background: var(--info-light);  color: var(--on-primary); }
+.avatar-user  { background: var(--primary-light);  color: var(--on-primary); }
 
 /* ============================================================
    PROFILE CARD
@@ -1765,10 +1794,14 @@ body.auth-page::before {
     font-size: 0.8rem;
 }
 .section-header h3 { margin: 0; font-size: var(--fs-base); }
-.icon-info    { background: var(--info-light);    color: var(--info); }
+.icon-info    { background: var(--primary-light);    color: var(--primary); }
 .icon-danger  { background: var(--danger-light);  color: var(--danger); }
 .icon-success { background: var(--success-light); color: var(--success); }
 .icon-primary { background: var(--primary-light); color: var(--primary); }
+/* Die Glocke im Profil ("Nachrichten & Freigaben") stand auf .icon-warning -
+   die Klasse war benutzt, aber nie definiert. Die anderen Abschnittssymbole
+   hatten ihre getoente Flaeche, dieses eine blieb nackt. */
+.icon-warning { background: var(--warning-light); color: var(--on-warning); }
 
 /* ============================================================
    FOOTER
@@ -2058,7 +2091,7 @@ a.kpi-card { text-decoration: none; }
 
 .kpi-icon.primary { background: var(--primary-light); color: var(--primary); }
 .kpi-icon.danger { background: var(--danger-light); color: var(--danger); }
-.kpi-icon.info { background: var(--info-light); color: var(--info); }
+.kpi-icon.info { background: var(--primary-light); color: var(--primary); }
 
 .kpi-content {
     display: flex;
@@ -2476,7 +2509,7 @@ a.kpi-card { text-decoration: none; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
-   auf var(--primary) bzw. var(--info) - und --info ist derselbe Wert. */
+   auf demselben Blau, das inzwischen nur noch --primary heisst. */
 .icon-fixed { width: 16px; text-align: center; color: var(--primary); }
 .card-title-warn { color: var(--danger); font-size: 0.8em; }
 
@@ -2574,7 +2607,7 @@ a.kpi-card { text-decoration: none; }
 .section-badge-danger  { background: var(--danger-light);  color: var(--on-danger); }
 .section-badge-success { background: var(--success-light); color: var(--on-success); }
 .section-badge-warning { background: var(--warning-light); color: var(--on-warning); }
-.section-badge-info    { background: var(--info-light);    color: var(--on-primary); }
+.section-badge-info    { background: var(--primary-light);    color: var(--on-primary); }
 
 /* Farbmuster in der SDB-Legende. Die beiden Paare waren als Hex-Werte
    hinterlegt (#fef08a/#eab308 und #fecaca/#ef4444) und meinten genau das,

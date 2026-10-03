@@ -121,10 +121,10 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <select name="role" onchange="this.form.submit()"
                                             class="role-select">
-                                        <option value="admin"     {% if user.role == 'admin' %}selected{% endif %}>👑 Admin</option>
-                                        <option value="moderator" {% if user.role == 'moderator' %}selected{% endif %}>🛡️ Moderator</option>
-                                        <option value="benutzer"  {% if user.role == 'benutzer' %}selected{% endif %}>👤 Benutzer</option>
-                                        <option value="lesen"     {% if user.role == 'lesen' %}selected{% endif %}>👁️ Lesen</option>
+                                        <option value="admin"     {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                        <option value="moderator" {% if user.role == 'moderator' %}selected{% endif %}>Moderator</option>
+                                        <option value="benutzer"  {% if user.role == 'benutzer' %}selected{% endif %}>Benutzer</option>
+                                        <option value="lesen"     {% if user.role == 'lesen' %}selected{% endif %}>Lesen</option>
                                     </select>
                                 </form>
                                 {% endif %}
