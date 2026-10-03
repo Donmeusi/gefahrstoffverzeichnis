@@ -13,9 +13,20 @@
         <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Achtung</span>
         {% endif %}
         {# CMR-Stoffe sind vor der Freigabe nur für Moderator/Admin sichtbar.
-           Ohne dieses Zeichen sähe der Stoff wie ein freigegebener aus. #}
+           Das Abzeichen ist zugleich der Freigabe-Knopf: wer den Stoff hier
+           sehen darf, darf ihn auch freigeben. Danach bleibt die Seite stehen
+           (next), statt ins Profil zu springen. #}
         {% if not stoff.is_approved %}
-        <span class="badge badge-info"><i class="fa-solid fa-hourglass-half"></i> Wartet auf Freigabe</span>
+        <form action="{{ url_for('approve_stoff', id=stoff.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="next" value="{{ url_for('view_stoff', id=stoff.id) }}"/>
+            <button type="submit" class="badge badge-info badge-action"
+                    title="Diesen Stoff jetzt freigeben">
+                <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
+                Wartet auf Freigabe
+                <span class="badge-cta"><i class="fa-solid fa-check" aria-hidden="true"></i> jetzt freigeben</span>
+            </button>
+        </form>
         {% endif %}
     </div>
     {% if current_user.can_write %}

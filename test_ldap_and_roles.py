@@ -122,6 +122,16 @@ class TestLdapAndRoles(unittest.TestCase):
         self.assertIn('CMR-Teststoff', res.get_data(as_text=True))
         # ... und er ist in der Übersicht als ungeprüft gekennzeichnet.
         self.assertIn('Wartet auf Freigabe', self.client.get('/').get_data(as_text=True))
+
+        # Freigabe direkt aus der Detailansicht heraus (der Knopf am Abzeichen):
+        # danach bleibt die Seite stehen statt ins Profil zu springen.
+        antwort = self.client.post(f'/approve/{stoff_id}',
+                                   data={'next': f'/view/{stoff_id}'})
+        self.assertEqual(antwort.status_code, 302)
+        self.assertIn(f'/view/{stoff_id}', antwort.headers['Location'])
+        with app.app_context():
+            self.assertTrue(Gefahrstoff.query.get(stoff_id).is_approved,
+                            'Der Stoff muss nach der Freigabe freigegeben sein')
         self.client.get('/logout')
 
         # Ein regulärer Benutzer sieht ihn nicht.

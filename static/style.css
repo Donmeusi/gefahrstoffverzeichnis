@@ -1209,6 +1209,28 @@ h4 { font-size: var(--fs-h4); }
 /* Rolle "Lesen". Der Inline-Wert #64748b ist genau --text-light. */
 .badge-muted   { background: var(--text-light);    color: var(--on-muted); }
 
+/* Freigabe-Abzeichen als Knopf: ein CMR-Stoff wartet auf Freigabe, und wer ihn
+   ansehen darf, darf ihn hier auch freigeben. Ein <button> bringt eigenen
+   Rahmen und eigene Schrift mit - hier auf die Abzeichen-Optik zurueckgesetzt.
+   Die Aktion steht als abgesetzter Zusatz daneben, damit der Knopf nicht fuer
+   eine reine Statusanzeige gehalten wird. */
+.badge-action {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter var(--transition);
+}
+.badge-action:hover { filter: brightness(0.94); }
+.badge-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-left: 0.25rem;
+    padding-left: 0.45rem;
+    border-left: 1px solid currentColor;
+    opacity: 0.85;
+}
+
 /* Rollen-Abzeichen in der Navigationsleiste (base.html). Sie trugen ihre
    Farben als Inline-Styles und waren weiße Schrift auf hsl(38,95%,50%)
    (Admin, rund 2,1:1) und auf hsl(217,91%,60%) (Mod, rund 3,1:1) - beides

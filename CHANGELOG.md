@@ -6,7 +6,8 @@ Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokument
 
 * **⚠️ Der Fehler:** Ein CMR-Stoff wird mit `is_approved = False` angelegt und wartet auf Freigabe. Die Berechtigungsabfrage `get_gefahrstoff_query()` filterte `is_approved` aber für **jeden** weg — auch für den Administrator. Der Link aus der Freigabeliste im Profil lief dadurch in „Keine Berechtigung, diesen Gefahrstoff anzusehen": Wer freigeben sollte, konnte den Stoff nicht einmal ansehen. Jetzt sehen Administrator und Moderator nicht freigegebene Stoffe; für reguläre Benutzer bleiben sie bis zur Freigabe unsichtbar (so steht es auch in der Meldung beim Anlegen).
 * **Kennzeichnung ergänzt:** Nicht freigegebene Stoffe wären sonst nicht von freigegebenen zu unterscheiden. In der Detailansicht steht jetzt ein Abzeichen „Wartet auf Freigabe", in der Übersicht ein Sanduhr-Symbol am Namen.
-* **Neuer Test** (jetzt 120): Ein Administrator bekommt die Ansicht eines nicht freigegebenen Stoffes (HTTP 200) samt Kennzeichnung, ein regulärer Benutzer nicht (Umleitung).
+* **Das Abzeichen ist zugleich der Freigabe-Knopf.** Wer den Stoff ansehen darf, kann ihn hier direkt freigeben — ohne den Umweg über die Freigabeliste im Profil. Danach bleibt die Detailseite stehen (die Freigabeliste leitet weiterhin zu sich selbst zurück).
+* **Neuer Test** (jetzt 120): Ein Administrator bekommt die Ansicht eines nicht freigegebenen Stoffes (HTTP 200) samt Kennzeichnung und kann ihn von dort freigeben; ein regulärer Benutzer bekommt eine Umleitung.
 
 ### v3.23 – Aussehens-Runde: Feinschliff und umschaltbarer Dunkelmodus (Oktober 2026)
 

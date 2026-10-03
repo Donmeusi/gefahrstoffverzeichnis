@@ -76,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.32"
+APP_VERSION = "2.0.33"
 
 @app.context_processor
 def inject_globals():
@@ -2267,6 +2267,11 @@ def approve_stoff(id):
     db.session.commit()
     log_audit_event('APPROVE', 'Gefahrstoff', stoff.id, {'name': stoff.name})
     flash(f'Gefahrstoff "{stoff.name}" wurde freigegeben.', 'success')
+    # Wurde von der Detailseite freigegeben, dort bleiben; sonst zurueck zur
+    # Freigabeliste. Nur relative Pfade (kein offenes Weiterleiten).
+    ziel = request.form.get('next', '')
+    if ziel.startswith('/'):
+        return redirect(ziel)
     return redirect(url_for('profile'))
 
 @app.route('/reject/<int:id>', methods=['POST'])
