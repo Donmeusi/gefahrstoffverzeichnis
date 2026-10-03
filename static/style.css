@@ -1853,52 +1853,114 @@ body.auth-page::before {
 .profile-hero-info p { color: var(--text-muted); font-size: var(--fs-sm); margin: 0; }
 
 /* ============================================================
-   LOCATION CARDS
+   STANDORTE (Baum)
    ============================================================ */
-.bereich-card-new {
-    background: var(--bg-card);
+/* Bereich und seine Unterbereiche als Baum. Der Bereichskopf ist ruhig
+   getoent statt eines blauen Balkens (der machte aus jedem Bereich einen
+   Abschnitt); die Ebenen sind an einer senkrechten Linie zu erkennen. Die
+   Stoffzahl ist ein Link in die Inventur, die Aktionssymbole treten im
+   Ruhezustand zurueck und werden beim Ueberfahren deutlich. */
+.standort-tree { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem; }
+
+.tree-bereich {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
-    margin-bottom: 1rem;
-    transition: box-shadow var(--transition);
 }
-.bereich-card-new:hover { box-shadow: var(--shadow); }
-
-.bereich-header {
+.tree-bereich-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.9rem 1.25rem;
-    background: linear-gradient(90deg, var(--primary-light), transparent);
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    background: var(--bg-subtle);
     border-bottom: 1px solid var(--border);
 }
-.bereich-header h4 { margin: 0; font-size: var(--fs-base); color: var(--primary-hover); display: flex; align-items: center; gap: 0.5rem; }
+.tree-bereich-name {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--text-main);
+}
+.tree-bereich-name > i { color: var(--primary-ink); }
 
-.unterbereich-list { padding: 0.5rem 1.25rem 0.75rem; display: flex; flex-direction: column; gap: 0.3rem; }
+/* Die Kinder eines Knotens. Die senkrechte Linie zeigt die Ebene; sie sitzt
+   nur an verschachtelten Knoten, die oberste Ebene liegt direkt in der
+   Bereichskarte. */
+.tree-children { padding: 0.45rem 0.75rem 0.6rem 1.1rem; display: flex; flex-direction: column; gap: 0.1rem; }
+.tree-node > .tree-children { padding-left: 1.6rem; margin-left: 0.9rem; border-left: 1px solid var(--border); }
 
-.unterbereich-item {
+.tree-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
     padding: 0.4rem 0.5rem;
     border-radius: var(--radius-sm);
-    font-size: var(--fs-sm);
     transition: background var(--transition);
 }
-.unterbereich-item:hover { background: var(--bg-muted); }
-/* Eingerueckte Zeile: zeigt die Verschachtelungstiefe an. Die Einrueckung
-   selbst kommt als margin-left aus der Vorlage (sie haengt an der Ebene),
-   hier nur die Kante. */
-.unterbereich-item--nested { border-left: 2px solid var(--border); }
+.tree-row:hover { background: var(--bg-hover); }
+.tree-label { display: flex; align-items: center; gap: 0.55rem; min-width: 0; font-size: var(--fs-sm); color: var(--text-main); }
+.tree-label > i { color: var(--text-light); font-size: 0.85em; }
 
-/* "Noch keine Unterbereiche angelegt" - gleiche Polsterung wie .unterbereich-list. */
-.unterbereich-empty {
-    padding: 0.5rem 1.25rem 0.75rem;
+.tree-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    flex-shrink: 0;
+    opacity: 0.45;
+    transition: opacity var(--transition);
+}
+.tree-row:hover .tree-actions,
+.tree-actions:focus-within { opacity: 1; }
+/* Auf Geraeten ohne Zeiger (Tablet, Telefon) gibt es kein Ueberfahren - dort
+   bleiben die Aktionssymbole sichtbar, sonst waeren sie nur zu erahnen. */
+@media (hover: none) {
+    .tree-actions { opacity: 1; }
+}
+
+.tree-empty {
+    padding: 0.6rem 1.25rem;
     color: var(--text-light);
     font-size: var(--fs-sm);
-    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
+.tree-empty > i { opacity: 0.7; }
+
+/* Anklickbare Stoffzahl: fuehrt in die Schnell-Inventur. */
+.chip-link { text-decoration: none; transition: background var(--transition), color var(--transition); }
+.chip-link:hover { background: var(--primary-light); color: var(--primary-ink); }
+
+/* Umschalter "Bereich / Unterbereich" ueber dem Anlegeformular. Als echte
+   Radioknoepfe (Tastatur, Vorleseprogramm), die Kaestchen selbst versteckt. */
+.tab-switch {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    background: var(--bg-muted);
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+}
+.tab-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.tab-switch label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+.tab-switch input:checked + label { background: var(--bg-card); color: var(--primary-ink); box-shadow: var(--shadow-sm); }
+.tab-switch input:focus-visible + label { box-shadow: var(--ring); }
+.tab-switch input:disabled + label { opacity: 0.5; cursor: not-allowed; }
 
 /* Gruppenkopf in einem Auswahlfeld ("Bereich" ueber den Unterbereichen). */
 .option-strong { font-weight: bold; }
@@ -1909,7 +1971,6 @@ body.auth-page::before {
 /* Name des Gefahrstoffs in der Liste. Die Klasse ist zugleich der Haken, ueber
    den filterTable() die Zeile findet - sie darf nicht entfallen. */
 .stoff-name { font-size: var(--fs-base); }
-.unterbereich-item span { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
 /* War nur als .unterbereich-item .count-chip definiert. In users.html steht
    die Klasse ausserhalb dieses Kontexts und war dort wirkungslos - die
    Kacheln hatten deshalb gar keine Gestaltung. */

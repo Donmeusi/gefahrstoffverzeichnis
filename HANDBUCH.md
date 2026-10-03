@@ -198,7 +198,12 @@ Standorte sind hierarchisch: **Bereiche** (z. B. „Laborgebäude A") enthalten
 können weitere Unterbereiche enthalten. Bereiche können einer Moderatorin oder
 einem Moderator als „Besitzer" zugeordnet werden.
 
-Bereiche und Unterbereiche legen Sie unter **Standorte** an (ab Moderator).
+Bereiche und Unterbereiche legen Sie unter **Standorte** an (ab Moderator). Oben
+wählen Sie mit einem Umschalter, ob Sie einen **Bereich** oder einen
+**Unterbereich** anlegen; ein Unterbereich braucht dabei einen übergeordneten
+Standort. Darunter stehen die vorhandenen Standorte als Baum — die
+Verschachtelung ist an der Einrückung zu erkennen. Ein Klick auf die Stoffzahl
+eines Unterbereichs öffnet dessen Schnell-Inventur.
 
 ### 5.2 QR-Codes
 
