@@ -1651,6 +1651,13 @@ body.auth-page::before {
 
 /* Gruppenkopf in einem Auswahlfeld ("Bereich" ueber den Unterbereichen). */
 .option-strong { font-weight: bold; }
+
+/* ============================================================
+   SICHERHEITSDATENBLAETTER
+   ============================================================ */
+/* Name des Gefahrstoffs in der Liste. Die Klasse ist zugleich der Haken, ueber
+   den filterTable() die Zeile findet - sie darf nicht entfallen. */
+.stoff-name { font-size: var(--fs-base); }
 .unterbereich-item span { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
 /* War nur als .unterbereich-item .count-chip definiert. In users.html steht
    die Klasse ausserhalb dieses Kontexts und war dort wirkungslos - die
@@ -2287,7 +2294,6 @@ a.kpi-card { text-decoration: none; }
     border-bottom: 1px solid var(--border);
     background: var(--bg-subtle);
 }
-.user-cell { display: flex; align-items: center; gap: 0.75rem; }
 .user-name { font-size: var(--fs-sm); }
 /* "(Du)" hinter dem eigenen Namen. */
 .user-self { font-size: var(--fs-xs); color: var(--text-muted); margin-left: 0.4rem; }
@@ -2325,6 +2331,8 @@ a.kpi-card { text-decoration: none; }
 /* Eine Zeile aus Symbolen und Text, mittig. Hieß zuerst .tile-body, wird
    aber auch ausserhalb der Kacheln gebraucht (Standortliste). */
 .inline-row { display: flex; align-items: center; gap: 0.6rem; }
+/* Weiterer Abstand - hiess in users.html zuvor .user-cell. */
+.inline-row--wide { gap: 0.75rem; }
 /* Zeile "N noch nie geprueft" unter der Substitutionskachel. */
 .tile-note { margin-top: 0.4rem; }
 
@@ -2344,6 +2352,8 @@ a.kpi-card { text-decoration: none; }
    einzelne Klasse (0,1,0) - dieselbe Falle wie bei
    .inventur-amount-input. Als Inline-Stil war das egal. */
 .data-table th.col-action { width: 220px; text-align: right; padding: 1rem 1.5rem; }
+/* Schmalere Aktionsspalte (Sicherheitsdatenblaetter hat nur einen Knopf). */
+.data-table th.col-action--sm { width: 150px; }
 
 /* ============================================================
    SYSTEMANSICHT

@@ -18,7 +18,7 @@
 
 {# table-responsive: waagerechter Scrollbereich für die Tabelle auf schmalen
    Bildschirmen, siehe style.css. #}
-<div class="content-card" style="padding:0; overflow:hidden;">
+<div class="content-card">
     <div class="table-responsive">
     <table class="data-table" id="sdbTable">
         <caption class="sr-only">Sicherheitsdatenblaetter je Gefahrstoff</caption>
@@ -27,22 +27,22 @@
                 <th scope="col">Gefahrstoff</th>
                 <th scope="col">Standort</th>
                 <th scope="col">SDB Datum & Status</th>
-                <th scope="col" style="width: 150px; text-align:right; padding:1rem 1.5rem;">Aktion</th>
+                <th scope="col" class="col-action col-action--sm">Aktion</th>
             </tr>
         </thead>
         <tbody>
             {% for stoff in gefahrstoffe %}
             <tr class="sdb-row">
                 <td>
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <i class="fa-solid fa-file-shield" style="color:#16a34a; font-size:1.2rem;"></i>
-                        <strong class="stoff-name" style="color:#0f172a; font-size:1.05rem;">{{ stoff.name }}</strong>
+                    <div class="inline-row inline-row--wide">
+                        <i class="fa-solid fa-file-shield text-success icon-lg"></i>
+                        <strong class="stoff-name">{{ stoff.name }}</strong>
                     </div>
                 </td>
                 <td>
                     {% if stoff.unterbereich %}
                         <span class="badge badge-neutral">
-                            <i class="fa-solid fa-location-dot" style="margin-right:4px; color:#94a3b8;"></i>
+                            <i class="fa-solid fa-location-dot text-light icon-leading"></i>
                             {{ stoff.unterbereich.bereich.name }} &raquo; {{ stoff.unterbereich.name }}
                         </span>
                     {% else %}
@@ -57,17 +57,17 @@
                        noch Beschriftung und Farbe. #}
                     {% set stufe = sdb_stufen[stoff.id] %}
                     {% if stufe == 'dringend' %}
-                        <span class="badge" style="background-color:#fecaca; color:#ef4444; border:1px solid #ef4444;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Dringend aktualisieren)</span>
+                        <span class="badge badge-danger">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Dringend aktualisieren)</span>
                     {% elif stufe == 'pruefen' %}
-                        <span class="badge" style="background-color:#fef08a; color:#eab308; border:1px solid #eab308;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktualisierung prüfen)</span>
+                        <span class="badge badge-warning">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktualisierung prüfen)</span>
                     {% elif stufe == 'ohne_datum' %}
                         <span class="badge badge-neutral">Kein Datum erfasst</span>
                     {% else %}
-                        <span class="badge" style="background-color:#dcfce7; color:#16a34a; border:1px solid #16a34a;">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktuell)</span>
+                        <span class="badge badge-success">{{ stoff.sdb_datum.strftime('%d.%m.%Y') }} (Aktuell)</span>
                     {% endif %}
                 </td>
                 <td class="cell-right">
-                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="btn btn-outline btn-sm" target="_blank" title="Sicherheitsdatenblatt öffnen" style="color:#0ea5e9; border-color:#e0f2fe; background:#f0f9ff;">
+                    <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="btn btn-outline btn-sm btn-outline-info" target="_blank" title="Sicherheitsdatenblatt öffnen">
                         <i class="fa-solid fa-external-link-alt"></i> Öffnen
                     </a>
                 </td>
@@ -75,8 +75,8 @@
             {% else %}
             <tr>
                 <td colspan="4" class="empty-hint">
-                    <div style="background:#f8fafc; width:80px; height:80px; border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem auto;">
-                        <i class="fa-solid fa-folder-open" style="font-size:2.5rem; color:#cbd5e1;"></i>
+                    <div class="empty-hint-icon">
+                        <i class="fa-solid fa-folder-open"></i>
                     </div>
                     <h3>Keine Sicherheitsdatenblätter</h3>
                     <p>In deinen Bereichen wurden bisher keine Sicherheitsdatenblätter hinterlegt.</p>
