@@ -354,6 +354,7 @@ h4 { font-size: var(--fs-base); }
 .mb-2 { margin-bottom: 0.5rem !important; }
 .mb-3 { margin-bottom: 1rem !important; }
 .mb-4 { margin-bottom: 1.5rem !important; }
+.m-4  { margin: 1.5rem !important; }
 .p-3  { padding: 1rem !important; }
 .p-4  { padding: 1.5rem !important; }
 .w-100 { width: 100% !important; }
@@ -605,6 +606,11 @@ h4 { font-size: var(--fs-base); }
 .btn-outline-ba  { border-color: var(--primary-soft); }
 .btn-outline-gb  { border-color: var(--success-soft); }
 
+/* Loeschen als leiser Knopf in einer Tabellenzeile: roter Rahmen in der
+   hellen Toenung, damit die Zeile nicht von einem kraeftigen Knopf
+   beherrscht wird. Der Inline-Wert dazu stand nur in users.html. */
+.btn-outline-danger-quiet { border-color: var(--danger-light); }
+
 /* Danger */
 .btn-danger {
     background: linear-gradient(135deg, var(--danger), var(--danger-hover));
@@ -737,6 +743,16 @@ h4 { font-size: var(--fs-base); }
 }
 
 .card-body { padding: 2rem; }
+
+/* Karte, deren Inhalt bis an den Rand reicht (die Tabelle in users.html).
+   Dann zeichnet nur der Scrollbereich den Rahmen - sonst laege ein Rahmen im
+   Rahmen, dieselbe Ueberlegung wie bei .content-card weiter oben. */
+.card-body--flush { padding: 0; }
+.card-body--flush .table-responsive {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
 
 /* Subtle tinted cards */
 .card-tinted {
@@ -919,6 +935,8 @@ h4 { font-size: var(--fs-base); }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
 .actions { display: flex; gap: 0.4rem; align-items: center; }
+/* Zweite Aktionszeile unter der Rollenauswahl in derselben Tabellenzelle. */
+.actions--spaced { margin-top: 0.4rem; }
 
 /* ============================================================
    BADGES
@@ -945,6 +963,8 @@ h4 { font-size: var(--fs-base); }
 .badge-admin   { background: var(--gold-light);    color: var(--on-warning); }
 .badge-mod     { background: var(--primary-light); color: var(--on-primary); }
 .badge-neutral { background: var(--bg-muted);      color: var(--text-muted); }
+/* Rolle "Lesen". Der Inline-Wert #64748b ist genau --text-light. */
+.badge-muted   { background: var(--text-light);    color: white; }
 
 /* Rollen-Abzeichen in der Navigationsleiste (base.html). Sie trugen ihre
    Farben als Inline-Styles und waren weiße Schrift auf hsl(38,95%,50%)
@@ -1584,7 +1604,10 @@ body.auth-page::before {
 }
 .unterbereich-item:hover { background: var(--bg-muted); }
 .unterbereich-item span { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
-.unterbereich-item .count-chip {
+/* War nur als .unterbereich-item .count-chip definiert. In users.html steht
+   die Klasse ausserhalb dieses Kontexts und war dort wirkungslos - die
+   Kacheln hatten deshalb gar keine Gestaltung. */
+.count-chip {
     font-size: var(--fs-xs);
     font-weight: 600;
     background: var(--bg-muted);
@@ -1592,6 +1615,8 @@ body.auth-page::before {
     padding: 0.1rem 0.4rem;
     border-radius: var(--radius-full);
 }
+/* Zugewiesene (nicht eigene) Bereiche heben sich leicht ab. */
+.count-chip--assigned { background: var(--bg-subtle); }
 
 /* ============================================================
    VIEW DETAIL
@@ -1976,6 +2001,7 @@ a.kpi-card { text-decoration: none; }
 .text-main    { color: var(--text-main) !important; }
 .text-accent  { color: var(--on-accent) !important; }
 .icon-lg      { font-size: 1.2rem; }
+.icon-sm      { font-size: 0.75em; }
 .font-medium  { font-weight: 500; }
 .text-xs      { font-size: var(--fs-xs); }
 .text-sm      { font-size: var(--fs-sm); }
@@ -2200,6 +2226,43 @@ a.kpi-card { text-decoration: none; }
 .inventur-actions strong { font-size: var(--fs-base); }
 .inventur-actions p { font-size: var(--fs-xs); color: var(--text-muted); }
 .inventur-actions-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ============================================================
+   BENUTZERVERWALTUNG
+   ============================================================ */
+/* Die Knopfreihe im Seitenkopf. .page-header-actions ist dieselbe Zeile mit
+   0,5rem Abstand wie in view.html; hier standen 0,75rem. */
+/* Hinweisstreifen am Kopf einer Karte, vor dem eigentlichen Inhalt. */
+.card-intro {
+    padding: 1rem 1.75rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-subtle);
+}
+.user-cell { display: flex; align-items: center; gap: 0.75rem; }
+.user-name { font-size: var(--fs-sm); }
+/* "(Du)" hinter dem eigenen Namen. */
+.user-self { font-size: var(--fs-xs); color: var(--text-muted); margin-left: 0.4rem; }
+/* "Alle Bereiche", "Keine Bereiche zugewiesen", "Geschützt". */
+.cell-note { font-size: var(--fs-sm); color: var(--text-muted); font-style: italic; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+/* Steht einmal in einer Flex-Zeile (width:100% spannt sie auf) und einmal
+   direkt in der Zelle (dort braucht es display:block). */
+.chip-row-label {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    width: 100%;
+    display: block;
+    margin-bottom: 0.2rem;
+}
+.role-select {
+    font-size: var(--fs-xs);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    background: var(--bg-card);
+    cursor: pointer;
+}
+.alert-link { font-weight: 600; margin-left: 0.5rem; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
