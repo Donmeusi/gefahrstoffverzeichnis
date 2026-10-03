@@ -758,6 +758,11 @@ h4 { font-size: var(--fs-base); }
 
 .card-body { padding: 2rem; }
 
+/* Schmale, mittige Karte fuer ein einzelnes Formular (Benutzer anlegen und
+   bearbeiten). Die Systemansicht nutzt .card-narrow - gleicher Zweck, andere
+   Breite, siehe SYSTEMANSICHT. */
+.card-form { max-width: 640px; margin: 0 auto; }
+
 /* Karte, deren Inhalt bis an den Rand reicht (die Tabelle in users.html).
    Dann zeichnet nur der Scrollbereich den Rahmen - sonst laege ein Rahmen im
    Rahmen, dieselbe Ueberlegung wie bei .content-card weiter oben. */
@@ -1044,6 +1049,9 @@ h4 { font-size: var(--fs-base); }
    FORMS
    ============================================================ */
 .form-grid { display: flex; flex-direction: column; gap: 2rem; }
+/* Enger gestellte Fassung: die Benutzerformulare sind kurz, 2rem zwischen den
+   Feldern wirken dort zu weit. */
+.form-grid--tight { gap: 1.25rem; }
 
 .form-section {
     padding-bottom: 1.75rem;
@@ -2338,6 +2346,40 @@ a.kpi-card { text-decoration: none; }
 
 /* Git-Zeichen in der Markenfarbe (offizielles Orange, kein App-Ton). */
 .icon-git { color: #f1502f; }
+
+/* ============================================================
+   BENUTZERFORMULARE
+   ============================================================ */
+/* Kasten mit Rahmen um eine Liste. Dieselben Werte standen sechsmal als
+   Inline-Stil in create_user.html und edit_user.html. */
+.framed-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    background: var(--bg-subtle);
+}
+/* Auswahlfassung: erlaubt Rollen und scrollt, wenn die Liste lang wird. */
+.framed-box--scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Eine auswaehlbare Zeile (Bereich mit Kaestchen). Die Schriftgroesse kommt
+   aus der label-Regel, hier nur die Anordnung. */
+.pick-item { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
+.pick-item input[type="checkbox"] { width: 15px; height: 15px; }
+
+/* Eine Zeile in der reinen Info-Fassung des Kastens. */
+.framed-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+    font-size: var(--fs-sm);
+}
 
 /* Commit-Kennung in der Versionspruefung */
 .version-code {
