@@ -17,6 +17,12 @@
 <div class="page-header">
     <div>
         <h1><i class="fa-solid fa-table-list h1-icon" aria-hidden="true"></i> Gefahrstoff-Übersicht</h1>
+        {# Die Zahlen, die frueher zwei eigene Kacheln hatten, stehen hier -
+           eine Zeile statt zweier Karten ueber der Tabelle.
+           "belegte Standorte" ist woertlich zu nehmen: gezaehlt werden die
+           Unterbereiche, in denen etwas steht, nicht die vorhandenen. Ein
+           Stoff ohne Unterbereich (nur mit Lagerort) zaehlt nicht mit; die
+           Zahl entfaellt dann ganz, statt eine irreführende 0 zu zeigen. #}
         <p class="text-muted subline">
             {% if aktiver_unterbereich %}
                 Standort: <strong>{{ aktiver_unterbereich.get_full_path() }}</strong>
@@ -25,15 +31,23 @@
             {% else %}
                 Alle Standorte
             {% endif %}
-            · <strong>{{ gefahrstoffe|length }}</strong> Stoff(e)
+            · <strong>{{ gefahrstoffe|length }}</strong> {{ 'Stoff' if gefahrstoffe|length == 1 else 'Stoffe' }}
+            {%- if stats_locations %}
+            · <strong>{{ stats_locations }}</strong> {{ 'belegter Standort' if stats_locations == 1 else 'belegte Standorte' }}
+            {%- endif %}
         </p>
     </div>
+    {# Eine Hauptaktion: "Neuer Gefahrstoff" ist der einzige kräftige Knopf.
+       Die beiden Exporte trugen Grün und Rot und machten den Kopfbereich zu
+       einer Reihe gleich lauter Knöpfe - drei laute sind keiner. Sie sind
+       jetzt neutrale Umrissknöpfe; Symbol und Beschriftung sagen weiter, was
+       sie exportieren. #}
     <div class="btn-row">
         {% if current_user.role != 'lesen' %}
-        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm btn-outline-success">
+        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm">
             <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Excel
         </a>
-        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm btn-outline-danger">
+        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm">
             <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF
         </a>
         {% endif %}
@@ -69,33 +83,24 @@
     </aside>
 
     <!-- Main Content -->
-    <div class="main-content">
+    {# Ohne Klassennamen: "main-content" stand nur hier und war im Stylesheet
+       nie definiert. Das div bleibt, weil .index-grid zwei Kinder braucht. #}
+    <div>
         {% if gefahrstoffe %}
-        <!-- KPI Dashboard -->
-        <div class="kpi-dashboard">
-            <div class="kpi-card">
-                <div class="kpi-icon primary">
-                    <i class="fa-solid fa-flask"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ stats_total }}</span>
-                    <span class="kpi-label">Gefahrstoffe</span>
-                </div>
-            </div>
-            
-            <div class="kpi-card">
-                <div class="kpi-icon info">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ stats_locations }}</span>
-                    <span class="kpi-label">Standorte</span>
-                </div>
-            </div>
+        {# Nur noch eine Kachel. Von den drei alten sagte keine etwas, aus dem
+           eine Handlung folgt:
+             "Gefahrstoffe" wiederholte die Zahl, die in der Unterzeile steht
+                (und die beim Filtern live mitlaeuft), und
+             "Standorte" zaehlte in Wahrheit die belegten Unterbereiche, nicht
+                die vorhandenen Standorte.
+           Beide Zahlen stehen jetzt in der Unterzeile. Was bleibt, ist die
+           einzige, die irgendwohin fuehrt.
 
-            {# Die Kachel war eine Sackgasse: sie nannte eine Zahl, aber man
-               konnte nicht sehen, welche Stoffe betroffen sind. Sie ist jetzt
-               der Einstieg in die Fristenliste. #}
+           ⚠️ Das Markup dieser Kachel ist nicht frei: test_fristen.py liest
+           "kpi-value">N</span>" gefolgt von "kpi-label">Veraltete SDBs" aus
+           dem HTML der Startseite. Klassenfolge und Beschriftung nicht
+           aendern. #}
+        <div class="kpi-dashboard">
             <a class="kpi-card" href="{{ url_for('fristen') }}" title="Offene Fristen ansehen">
                 <div class="kpi-icon {% if stats_expired_sdb > 0 %}danger{% else %}primary{% endif %}">
                     <i class="fa-solid fa-file-pdf"></i>

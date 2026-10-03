@@ -76,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.21"
+APP_VERSION = "2.0.22"
 
 @app.context_processor
 def inject_globals():
@@ -1099,9 +1099,11 @@ def index():
     bereiche = get_accessible_bereiche()
     gefahrstoffe = query.order_by(Gefahrstoff.name).all()
     
-    # KPIs berechnen
-    stats_total = len(gefahrstoffe)
-
+    # KPIs berechnen.
+    # Die Gesamtzahl stand hier als stats_total und speiste eine eigene
+    # Kachel - die wiederholte nur, was die Kopf-Unterzeile ohnehin mit
+    # {{ gefahrstoffe|length }} zeigt. Die Kachel ist entfallen.
+    #
     # Veraltete SDBs - dieselbe Regel wie in der Fristenliste (sdb_status),
     # damit Kachel und Liste nicht auseinanderlaufen. Vorher rechnete diese
     # Stelle das Alter selbst aus.
@@ -1125,7 +1127,6 @@ def index():
                            aktiver_unterbereich=aktiver_unterbereich,
                            today=today,
                            sdb_stufen=sdb_stufen,
-                           stats_total=stats_total,
                            stats_expired_sdb=stats_expired_sdb,
                            stats_locations=stats_locations)
 

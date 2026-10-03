@@ -1993,9 +1993,19 @@ footer i { color: var(--primary); }
 /* ============================================================
    KPI DASHBOARD
    ============================================================ */
+/* Die Startseite hat nur noch eine Kachel (die einzige Zahl, aus der eine
+   Handlung folgt - sie fuehrt in die Fristenliste). Mit "1fr" haette das
+   Raster sie ueber die ganze Breite gedehnt; die Obergrenze haelt sie in
+   Kachelbreite. justify-content: start, damit sie links sitzt und nicht in
+   einer leeren Spur schwebt. Bei mehreren Kacheln wuerden sie umbrechen,
+   statt sich zu strecken.
+
+   Der 600px-Block weiter unten setzt wieder 1fr - auf dem Telefon soll die
+   Kachel die Zeile fuellen. */
 .kpi-dashboard {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+    justify-content: start;
     gap: 1.25rem;
     margin-bottom: 2rem;
 }
