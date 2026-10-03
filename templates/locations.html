@@ -11,23 +11,24 @@
 {% endmacro %}
 
 {% macro render_unterbereich_list(unterbereich, level) %}
-<div class="unterbereich-item" style="margin-left: {{ level * 1.5 }}rem; {% if level > 0 %}border-left: 2px solid var(--border); padding-left: 0.5rem;{% endif %} margin-bottom: 0.5rem;">
+<div class="unterbereich-item mb-2{% if level > 0 %} unterbereich-item--nested{% endif %}"
+     style="margin-left: {{ level * 1.5 }}rem;">
     <span>
-        <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size:0.75em;"></i>
+        <i class="fa-solid fa-level-up-alt fa-rotate-90 text-light icon-sm"></i>
         {{ unterbereich.name }}
         <span class="count-chip">{{ unterbereich.gefahrstoffe|length }} Stoff(e)</span>
     </span>
     {# Diese Schaltflaechen bestehen nur aus einem Symbol; ihr Name kam bisher
        ausschliesslich aus title. aria-label liefert denselben Text als
        zugaenglichen Namen, title bleibt fuer den Mauszeiger-Tooltip. #}
-    <div style="display: flex; gap: 0.6rem; align-items: center;">
-        <a href="{{ url_for('location_inventur', id=unterbereich.id) }}" class="btn-icon" title="Schnell-Inventur durchführen" aria-label="Schnell-Inventur durchführen" style="color:var(--success); font-size:0.95rem;">
+    <div class="inline-row">
+        <a href="{{ url_for('location_inventur', id=unterbereich.id) }}" class="btn-icon text-success text-sm" title="Schnell-Inventur durchführen" aria-label="Schnell-Inventur durchführen">
             <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
         </a>
-        <a href="{{ url_for('location_print', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="Schrank-Aushang (A4) drucken" aria-label="Schrank-Aushang (A4) drucken" style="color:var(--primary); font-size:0.9rem;">
+        <a href="{{ url_for('location_print', id=unterbereich.id) }}" target="_blank" class="btn-icon text-primary text-sm" title="Schrank-Aushang (A4) drucken" aria-label="Schrank-Aushang (A4) drucken">
             <i class="fa-solid fa-print" aria-hidden="true"></i>
         </a>
-        <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="QR-Code generieren" aria-label="QR-Code generieren" style="color:var(--text-light); font-size:0.9rem;">
+        <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon text-light text-sm" title="QR-Code generieren" aria-label="QR-Code generieren">
             <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
         </a>
         <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST"
@@ -38,7 +39,7 @@
                einer Liste gleich und man hört nicht, welcher gemeint ist. #}
             <button type="submit" class="btn-icon" title="Unterbereich löschen"
                     aria-label="Unterbereich {{ unterbereich.name }} löschen"
-                    style="color:var(--danger); font-size:0.8rem;">
+                    class="text-danger text-xs">
                 <i class="fa-solid fa-times" aria-hidden="true"></i>
             </button>
             {% endif %}
@@ -59,7 +60,7 @@
 </div>
 
 <!-- Forms grid -->
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2rem;">
+<div class="row mb-5">
     <!-- Neuen Bereich -->
     <div class="card">
         <div class="card-body">
@@ -103,7 +104,7 @@
                     <select id="parent_selection" name="parent_selection" required>
                         <option value="" disabled selected>Bitte wählen…</option>
                         {% for bereich in bereiche %}
-                        <option value="B_{{ bereich.id }}" style="font-weight:bold;">{{ bereich.name }}</option>
+                        <option value="B_{{ bereich.id }}" class="option-strong">{{ bereich.name }}</option>
                         {% for unter in bereich.unterbereiche %}
                             {% if not unter.parent_id %}
                                 {{ render_unterbereich_options(unter, 1) }}
@@ -140,27 +141,27 @@
         </div>
 
         {% if bereiche %}
-        <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+        <div class="stack-sm mt-2">
             {% for bereich in bereiche %}
             <div class="bereich-card-new">
                 <div class="bereich-header">
                     <h4>
                         <i class="fa-solid fa-building"></i>
                         {{ bereich.name }}
-                        <span class="count-chip" style="margin-left:0.5rem;">{{ bereich.unterbereiche|length }} Unterbereich(e)</span>
+                        <span class="count-chip ml-2">{{ bereich.unterbereiche|length }} Unterbereich(e)</span>
                     </h4>
                     <form action="{{ url_for('delete_bereich', id=bereich.id) }}" method="POST"
                           onsubmit="return confirm('Bereich und alle Unterbereiche wirklich löschen?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         {% if current_user.is_admin or bereich.owner_id == current_user.id %}
                         <button type="submit" class="btn-icon text-danger" title="Bereich löschen"
-                                aria-label="Bereich {{ bereich.name }} löschen" style="color:var(--danger);">
+                                aria-label="Bereich {{ bereich.name }} löschen">
                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                         </button>
                         {% else %}
                         {# Das Schloss sagt "keine Berechtigung" allein ueber das
                            Symbol. Fuer Vorleseprogramme steht der Satz daneben. #}
-                        <span style="font-size:0.75rem; color:var(--text-light); font-style:italic;">
+                        <span class="text-xs text-light text-italic">
                             <i class="fa-solid fa-lock" aria-hidden="true"></i>
                             <span class="sr-only">Keine Berechtigung zum Löschen</span>
                         </span>
@@ -177,7 +178,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div style="padding:0.5rem 1.25rem 0.75rem; color:var(--text-light); font-size:0.85rem; font-style:italic;">
+                <div class="unterbereich-empty">
                     Noch keine Unterbereiche angelegt.
                 </div>
                 {% endif %}

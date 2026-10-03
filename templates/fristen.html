@@ -22,21 +22,21 @@
    vergleichbar. #}
 <div class="tile-row">
     <div class="content-card cell-tile">
-        <div class="tile-body">
+        <div class="inline-row">
             <i class="fa-solid fa-file-pdf text-danger"></i>
             <span class="tile-value">{{ uebersicht.sdb_faellig }}</span>
             <span class="text-muted text-sm">SDB veraltet</span>
         </div>
     </div>
     <div class="content-card cell-tile">
-        <div class="tile-body">
+        <div class="inline-row">
             <i class="fa-solid fa-triangle-exclamation text-danger"></i>
             <span class="tile-value">{{ uebersicht.sdb_fehlend }}</span>
             <span class="text-muted text-sm">SDB fehlt oder ohne Datum</span>
         </div>
     </div>
     <div class="content-card cell-tile">
-        <div class="tile-body">
+        <div class="inline-row">
             <i class="fa-solid fa-flask-vial text-accent"></i>
             <span class="tile-value">{{ uebersicht.substitution }}</span>
             <span class="text-muted text-sm">Substitutionsprüfung</span>
@@ -53,7 +53,7 @@
         {% endif %}
     </div>
     <div class="content-card cell-tile">
-        <div class="tile-body">
+        <div class="inline-row">
             <i class="fa-solid fa-clipboard-check text-primary"></i>
             <span class="tile-value">{{ uebersicht.inventur }}</span>
             <span class="text-muted text-sm">Inventur fällig</span>
