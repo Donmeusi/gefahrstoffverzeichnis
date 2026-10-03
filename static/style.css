@@ -2116,6 +2116,25 @@ footer i { color: var(--primary-ink); }
        umbrechen und schrumpfen. */
     .btn { white-space: normal; max-width: 100%; }
     .d-none-mobile { display: none !important; }
+
+    /* Tabellen: engere Polsterung, sonst passen die verbleibenden Spalten auf
+       dem Telefon nicht ohne Wischen (die Zellen trugen je 1,5rem links und
+       rechts). Die Aktionsspalte ist hier kein 220px-Block mehr, sondern nimmt
+       nur ihren Knopf ein - sonst schoebe sie die Tabelle wieder auf. */
+    .data-table th,
+    .data-table td { padding-left: 0.6rem; padding-right: 0.6rem; }
+    .data-table td { font-size: var(--fs-sm); }
+    /* Lange Abzeichen ("SDB dringend aktualisieren") und Knopfbeschriftungen
+       dürfen hier umbrechen - sonst halten sie die Spalte breit. */
+    .badge { white-space: normal; }
+    .data-table th.col-action {
+        width: auto;
+        padding: 0.9rem 0.6rem;
+    }
+    /* Standortliste der Übersicht: auf dem Telefon nimmt sie sonst den halben
+       Schirm ein und schiebt Filter und Tabelle weit nach unten. Begrenzt und
+       scrollbar. (sticky spielt einspaltig keine Rolle.) */
+    .sidebar-locations { max-height: 45vh; overflow-y: auto; }
     .hp-list { max-height: 50vh; }
     
     .detail-grid { grid-template-columns: 1fr; gap: 0.25rem 0; margin-bottom: 1rem; }

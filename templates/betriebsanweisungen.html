@@ -25,7 +25,7 @@
         <thead>
             <tr>
                 <th scope="col">Gefahrstoff</th>
-                <th scope="col">Standort</th>
+                <th scope="col" class="d-none-mobile">Standort</th>
                 <th scope="col" class="col-action col-action--sm">Aktion</th>
             </tr>
         </thead>
@@ -38,7 +38,7 @@
                         <strong class="stoff-name">{{ stoff.name }}</strong>
                     </div>
                 </td>
-                <td>
+                <td class="d-none-mobile">
                     {% if stoff.unterbereich %}
                         <span class="badge badge-neutral">
                             <i class="fa-solid fa-location-dot text-light icon-leading"></i>
@@ -49,8 +49,8 @@
                     {% endif %}
                 </td>
                 <td class="cell-right">
-                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="btn btn-outline btn-sm btn-outline-info" target="_blank" title="Betriebsanweisung öffnen">
-                        <i class="fa-solid fa-external-link-alt"></i> Öffnen
+                    <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="btn btn-outline btn-sm btn-outline-info" target="_blank" title="Betriebsanweisung öffnen" aria-label="Betriebsanweisung öffnen">
+                        <i class="fa-solid fa-external-link-alt" aria-hidden="true"></i><span class="d-none-mobile"> Öffnen</span>
                     </a>
                 </td>
             </tr>

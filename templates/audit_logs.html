@@ -27,7 +27,7 @@
                 <th scope="col">Zeitstempel</th>
                 <th scope="col">Benutzer</th>
                 <th scope="col">Aktion</th>
-                <th scope="col">Details</th>
+                <th scope="col" class="d-none-mobile">Details</th>
             </tr>
         </thead>
         <tbody>
@@ -103,7 +103,7 @@
                        stünde dort "System #None". #}
                     <small class="text-light">{{ log.entity_type }}{% if log.entity_id is not none %} #{{ log.entity_id }}{% endif %}</small>
                 </td>
-                <td>
+                <td class="d-none-mobile">
                     <code class="detail-code">{{ log.details }}</code>
                 </td>
             </tr>

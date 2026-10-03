@@ -69,8 +69,8 @@
             <tr>
                 <th scope="col">Objekt</th>
                 <th scope="col">Kategorie</th>
-                <th scope="col">Fällig seit</th>
-                <th scope="col">Ort</th>
+                <th scope="col" class="d-none-mobile">Fällig seit</th>
+                <th scope="col" class="d-none-mobile">Ort</th>
                 <th scope="col" class="col-action">Aktion</th>
             </tr>
         </thead>
@@ -109,7 +109,7 @@
                         <span class="badge badge-info">Inventur fällig</span>
                     {% endif %}
                 </td>
-                <td class="nowrap">
+                <td class="nowrap d-none-mobile">
                     {% if e.faellig_seit %}
                         <span class="text-muted">{{ e.faellig_seit.strftime('%d.%m.%Y') }}</span>
                         {% if e.tage_ueberfaellig is not none %}
@@ -119,15 +119,18 @@
                         <span class="text-muted text-sm">noch nie erfasst</span>
                     {% endif %}
                 </td>
-                <td>
+                <td class="d-none-mobile">
                     <span class="text-muted text-sm">{{ e.ort }}</span>
                 </td>
                 <td class="cell-right">
                     {# aktion_link ist nur für schreibberechtigte Rollen gesetzt -
                        die Rolle "lesen" sieht hier bewusst keinen Knopf. #}
                     {% if e.aktion_link %}
-                        <a href="{{ e.aktion_link }}" class="btn btn-primary btn-sm">
-                            <i class="fa-solid fa-arrow-right"></i> {{ e.aktion_text }}
+                        {# Auf schmalen Bildschirmen nur das Symbol - die lange
+                           Beschriftung ("SDB-Datum eintragen") hielte die
+                           Aktionsspalte breit. aria-label traegt den Text. #}
+                        <a href="{{ e.aktion_link }}" class="btn btn-primary btn-sm" aria-label="{{ e.aktion_text }}">
+                            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i><span class="d-none-mobile"> {{ e.aktion_text }}</span>
                         </a>
                     {% endif %}
                 </td>

@@ -184,7 +184,7 @@
                 <thead>
                     <tr>
                         <th scope="col">Name</th>
-                        <th scope="col" data-col="cas">CAS / EG-Nr.</th>
+                        <th scope="col" class="d-none-mobile" data-col="cas">CAS / EG-Nr.</th>
                         <th scope="col" class="d-none-mobile" data-col="standort">Standort</th>
                         <th scope="col" data-col="signalwort">Signalwort</th>
                         <th scope="col" data-col="piktogramme">Piktogramme</th>
@@ -208,7 +208,7 @@
                                 </span>
                             </a>
                         </td>
-                        <td class="text-sm nowrap" data-col="cas">
+                        <td class="text-sm nowrap d-none-mobile" data-col="cas">
                             <div class="stack-xs">
                                 {% if stoff.cas_nummer %}
                                 <div class="font-mono"><span class="text-muted unit-label">CAS</span>{{ stoff.cas_nummer }}</div>
@@ -505,8 +505,8 @@ function filterItems() {
 // absichtlich: sie traegt den Zeilentitel und den Link und bleibt sichtbar.
 const SPALTEN = ['cas', 'standort', 'signalwort', 'piktogramme', 'menge', 'dokumente'];
 const SPALTEN_SCHLUESSEL = 'gefahrstoffe_spalten';
-// Diese drei blendet .d-none-mobile unter 600px ohnehin aus (siehe style.css).
-const SPALTEN_MOBIL_AUS = ['standort', 'menge', 'dokumente'];
+// Diese blendet .d-none-mobile unter 600px ohnehin aus (siehe style.css).
+const SPALTEN_MOBIL_AUS = ['cas', 'standort', 'menge', 'dokumente'];
 
 // Gespeichert wird, was AUSGEBLENDET ist - nicht was sichtbar ist. Eine
 // spaeter ergaenzte Spalte fehlt in der Liste und ist damit von selbst
