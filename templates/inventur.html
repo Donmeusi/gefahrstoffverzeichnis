@@ -140,13 +140,9 @@ function updateInventurCard(id) {
     const chk = document.getElementById('chk_' + id);
     const card = document.getElementById('card_' + id);
     if (chk && card) {
-        if (chk.checked) {
-            card.style.borderColor = 'var(--success)';
-            card.style.backgroundColor = 'rgba(34, 197, 94, 0.05)';
-        } else {
-            card.style.borderColor = 'var(--border)';
-            card.style.backgroundColor = '';
-        }
+        // Als Klasse statt als Inline-Farbe: Inline-Werte gewinnen gegen jede
+        // Regel und haetten den Dunkelmodus uebergangen.
+        card.classList.toggle('is-checked', chk.checked);
     }
     updateProgress();
 }

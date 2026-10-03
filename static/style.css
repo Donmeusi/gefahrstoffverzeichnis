@@ -54,6 +54,19 @@
     --bg-hover:       rgba(0,82,204,0.05);
     --bg-tint:        rgba(0,82,204,0.04);
 
+    /* Text auf Flächen, die in beiden Modi dieselbe Farbe behalten.
+       Nicht --text-main nehmen: das wird im Dunkelmodus hell und kippt den
+       Kontrast auf einem gefüllten Knopf oder einem hellen Abzeichen. */
+    --on-solid:       #ffffff;   /* gefüllter Knopf (Primär/Danger/Verlauf) */
+    --ink-bright:     #172b4d;   /* fester dunkler Text auf heller Fläche */
+    --on-muted:       #ffffff;   /* Text auf --text-light (.badge-muted) */
+    /* --primary als TEXT, ICON oder Rahmen. Nicht --primary selbst nehmen:
+       das ist die dunkle Füllfarbe der gefüllten Knöpfe und bleibt in beiden
+       Modi dunkel (weisser Text darauf soll lesbar bleiben). Als Text auf dem
+       Seitengrund war es im Dunkelmodus unlesbar (1,6:1) - der Kontrast-Check
+       hat es gefunden. Im Hell-Modus derselbe Wert. */
+    --primary-ink:    #0052cc;
+
     /* Backgrounds.
        --bg-subtle war weiss wie --bg-card. Damit war jede damit getoente
        Flaeche unsichtbar: der Hinweisstreifen (.card-intro), der Fussbereich,
@@ -69,6 +82,13 @@
     --table-head-bg:  rgba(248,250,252,0.95);
     /* Leerzustands-Symbol. War #cbd5e1 als Literal; im Dunkelmodus zu hell. */
     --placeholder:    #cbd5e1;
+    /* Eingabefeld, auch im Fokus (dort stand Literal "white"). */
+    --field-bg:       #ffffff;
+    /* Grund der Piktogrammkacheln. Bleibt in beiden Modi weiss - die
+       Gefahrstoff-Kennzeichnung darf nicht invertiert werden. */
+    --pictogram-bg:   #ffffff;
+    /* Schleier hinter Dialogen. */
+    --overlay:        rgba(10,15,30,0.65);
 
     /* Nav */
     --nav-bg:         rgba(255,255,255,0.95);
@@ -100,6 +120,13 @@
     --shadow-lg:      0 8px 16px rgba(9,30,66,0.08), 0 0 1px rgba(9,30,66,0.1);
     --shadow-hover:   0 12px 24px rgba(9,30,66,0.10), 0 0 1px rgba(9,30,66,0.1);
     --shadow-primary: 0 8px 16px rgba(0,82,204,0.20);
+    --shadow-modal:   0 32px 64px rgba(0,0,0,0.25);
+
+    /* Anmeldeseite: Glasflächen und ihr Grund. Eigene Tokens - das Motiv ist
+       einmalig und braucht im Dunkelmodus andere Werte. */
+    --auth-card-bg:     rgba(255,255,255,0.65);
+    --auth-card-border: rgba(255,255,255,0.8);
+    --auth-input-bg:    rgba(255,255,255,0.8);
 
     /* Typography */
     --font:           'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -132,6 +159,107 @@
 }
 
 /* ============================================================
+   DUNKELMODUS
+   ============================================================ */
+/* data-theme wird in base.html gesetzt - von einem Inline-Script VOR dem
+   Stylesheet, damit beim Laden nichts hell aufblitzt - und ueber den Knopf in
+   der Navigationsleiste umgeschaltet (localStorage-Schluessel gsv_theme).
+   Der Hell-Modus steht unveraendert in :root; hier werden nur Tokens
+   ueberschrieben. color-scheme faerbt die nativen Bedienelemente mit (Auswahl-
+   felder, Kaestchen, Scrollbalken) - ohne das blieben sie hell. */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Grundflaechen */
+    --bg-main:        #0f172a;
+    --bg-card:        #1e293b;
+    --bg-subtle:      #253247;
+    --bg-muted:       #334155;
+    --table-head-bg:  rgba(30,41,59,0.92);
+    --field-bg:       #0f172a;
+    --overlay:        rgba(0,0,0,0.75);
+
+    /* Text */
+    --text-main:      #e6edf7;
+    --text-muted:     #a7b4c6;
+    --text-light:     #94a3b8;
+    --placeholder:    #475569;
+
+    /* Rahmen */
+    --border:         #334155;
+    --border-strong:  #475569;
+
+    /* Navigation */
+    --nav-bg:         rgba(15,23,42,0.92);
+
+    /* Toenungen: auf dunklem Grund braucht es mehr Alpha, sonst verschwinden
+       sie. Die Grundtoene selbst bleiben. */
+    --primary-light:  rgba(59,130,246,0.22);
+    --primary-soft:   rgba(59,130,246,0.40);
+    --primary-glow:   rgba(59,130,246,0.45);
+    --success-light:  rgba(52,211,153,0.20);
+    --success-soft:   rgba(52,211,153,0.40);
+    --danger-light:   rgba(248,113,113,0.20);
+    --danger-soft:    rgba(248,113,113,0.40);
+    --warning-light:  rgba(251,191,36,0.20);
+    --warning-glow:   rgba(251,191,36,0.28);
+    --accent-light:   rgba(34,211,238,0.22);
+    --bg-hover:       rgba(148,163,184,0.10);
+    --bg-tint:        rgba(148,163,184,0.07);
+
+    /* Text auf getoenten Flaechen wird hell. --on-solid (gefuellter Knopf) und
+       --ink-bright (fester dunkler Text auf hellem Grund) bleiben wie im
+       Hell-Modus - deshalb sind sie eigene Tokens. */
+    --on-primary:     #8ec5ff;
+    --on-success:     #6ee7b7;
+    --on-danger:      #fca5a5;
+    --on-warning:     #fcd34d;
+    --on-accent:      #67e8f9;
+    --on-muted:       #0f172a;
+    /* --primary als Text/Icon/Rahmen wird hell, sonst waere es auf dem
+       dunklen Grund unlesbar. Die Füllfarbe --primary bleibt dunkel. */
+    --primary-ink:    #7cb0ff;
+
+    /* Schatten: das helle Blau-Schwarz des Hell-Modus ist auf dunklem Grund
+       unsichtbar. */
+    --shadow-sm:      0 1px 2px rgba(0,0,0,0.40);
+    --shadow:         0 2px 4px rgba(0,0,0,0.40), 0 0 1px rgba(0,0,0,0.5);
+    --shadow-lg:      0 8px 16px rgba(0,0,0,0.50), 0 0 1px rgba(0,0,0,0.5);
+    --shadow-hover:   0 12px 24px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.5);
+    --shadow-primary: 0 8px 16px rgba(59,130,246,0.35);
+    --shadow-modal:   0 32px 64px rgba(0,0,0,0.6);
+
+    /* Anmeldeseite */
+    --auth-card-bg:     rgba(30,41,59,0.72);
+    --auth-card-border: rgba(148,163,184,0.22);
+    --auth-input-bg:    rgba(15,23,42,0.6);
+}
+
+/* Die Anmeldeseite traegt ihre Verlaeufe als Literale; hier dunkel gesetzt. */
+:root[data-theme="dark"] body.auth-page {
+    background-image:
+        radial-gradient(circle at 10% 10%, rgba(34,211,238,0.10) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(59,130,246,0.12) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, #16233b 0%, var(--bg-main) 100%);
+}
+:root[data-theme="dark"] body.auth-page::before {
+    background:
+        radial-gradient(circle at 20% 30%, rgba(59,130,246,0.10) 0%, transparent 60%),
+        radial-gradient(circle at 80% 70%, rgba(34,211,238,0.10) 0%, transparent 60%);
+}
+
+/* GHS-Piktogramme behalten ihren weissen Grund - die Gefahrstoff-
+   Kennzeichnung wird nicht invertiert. In Tabellen und der Detailsicht lagen
+   die schwarzen Glyphen sonst auf dunklem Grund. Nur im Dunkelmodus, der
+   Hell-Modus bleibt unberuehrt. */
+:root[data-theme="dark"] .pictogram-display img {
+    background: var(--pictogram-bg);
+    border-radius: 4px;
+    padding: 2px;
+}
+
+/* ============================================================
    RESET & BASE
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -155,7 +283,7 @@ body {
 }
 
 a {
-    color: var(--primary);
+    color: var(--primary-ink);
     text-decoration: none;
     transition: color var(--transition);
 }
@@ -222,7 +350,7 @@ button:focus-visible,
     top: 0.75rem;
     z-index: 300;               /* über der Navigationsleiste (z-index: 200) */
     background: var(--bg-card);
-    color: var(--primary);
+    color: var(--primary-ink);
     font-weight: 600;
     font-size: 0.9rem;
     padding: 0.75rem 1.25rem;
@@ -291,7 +419,7 @@ h4 { font-size: var(--fs-h4); }
 .text-center  { text-align: center !important; }
 .text-danger  { color: var(--danger) !important; }
 .text-success { color: var(--success) !important; }
-.text-primary { color: var(--primary) !important; }
+.text-primary { color: var(--primary-ink) !important; }
 
 /* ============================================================
    SPACING UTILITIES
@@ -300,7 +428,7 @@ h4 { font-size: var(--fs-h4); }
    Die Farbvarianten ersetzen die Inline-Farbtrios der einzelnen Seiten. */
 .page-icon {
     background: var(--primary-light);
-    color: var(--primary);
+    color: var(--primary-ink);
     width: 40px;
     height: 40px;
     border-radius: var(--radius);
@@ -444,7 +572,7 @@ h4 { font-size: var(--fs-h4); }
        durchsichtiger Schriftfarbe. Zwei Probleme: das Cyan erreichte auf Weiß
        nur rund 2,4:1, und wenn background-clip: text fehlt, ist der ganze
        Schriftzug durchsichtig. Jetzt eine Farbe aus der Palette. */
-    color: var(--primary);
+    color: var(--primary-ink);
     transition: opacity var(--transition);
 }
 
@@ -482,7 +610,7 @@ h4 { font-size: var(--fs-h4); }
 }
 
 .nav-links a:hover {
-    color: var(--primary);
+    color: var(--primary-ink);
     background: var(--primary-light);
 }
 
@@ -492,7 +620,7 @@ h4 { font-size: var(--fs-h4); }
    ist eng (Schwellen bei 1340/1750px), ein fetter Punkt wuerde ihn breiter
    machen und die gemessenen Schwellen verschieben. */
 .nav-links a[aria-current="page"] {
-    color: var(--primary);
+    color: var(--primary-ink);
     background: var(--primary-light);
 }
 
@@ -508,6 +636,26 @@ h4 { font-size: var(--fs-h4); }
     color: var(--text-light);
     font-size: 1.25rem;
 }
+
+/* Umschalter fuer den Dunkelmodus. Liegt ausserhalb von .nav-links (das klappt
+   unter 1340px zu) und wird per margin-left:auto nach rechts geschoben - so
+   steht er neben Menueknopf und Navigation, ohne den Knopf in die Mitte zu
+   setzen (space-between haette das getan). */
+.theme-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    transition: all var(--transition);
+}
+.theme-toggle:hover { color: var(--primary-ink); background: var(--primary-light); }
 
 /* Zwischenbereich 1340–1750 px: Die vollständige Navigation braucht rund
    1380 px (nachgemessen), verdichtet ~1307 px. Ohne Verdichtung lief sie
@@ -531,12 +679,16 @@ h4 { font-size: var(--fs-h4); }
 
    Mit diesen Schwellen nachgeprüft: von 320 bis 2560 px kein Überlauf mehr.
 
-   Folge, die man kennen sollte: unter 1340 px zeigt die Seite jetzt das
-   Hamburger-Menü, also auch bei 1280 px - vorher blieb die Navigation dort
-   sichtbar. Wer das zurückhaben will, muss den Balken an anderer Stelle
+   ⚠️ Beide Schwellen sind mit dem Dunkelmodus-Knopf gewandert
+   (1340->1375, 1750->1785). Der Knopf sitzt neben dem Menueknopf und kostet
+   rund 40 px; die Leiste lief dadurch bei den alten Schwellen 17 bzw. 13 px
+   ueber den Rand. Nachgemessen mit messen.py bei 1374/1375/1376/1784/1785/1786.
+
+   Folge, die man kennen sollte: unter 1360 px zeigt die Seite jetzt das
+   Hamburger-Menü. Wer das zurückhaben will, muss den Balken an anderer Stelle
    entlasten (das längste Element ist "Sicherheitsdatenblätter" mit rund
    150 px) oder auf den Navigationseintrag verzichten. */
-@media (min-width: 1340px) and (max-width: 1750px) {
+@media (min-width: 1375px) and (max-width: 1785px) {
     .navbar-brand { font-size: 1.05rem; }
     .nav-links { gap: 0; }
     .nav-links a {
@@ -547,7 +699,7 @@ h4 { font-size: var(--fs-h4); }
     .nav-links .btn { margin-left: 0.1rem; }
 }
 
-@media (max-width: 1339px) {
+@media (max-width: 1374px) {
     .nav-toggle { display: flex; align-items: center; }
     .nav-links {
         display: none;
@@ -607,20 +759,29 @@ h4 { font-size: var(--fs-h4); }
     cursor: not-allowed;
     box-shadow: none;
 }
+/* Kurze Erfolgsmeldung am Autofill-Knopf (autofill.js). Die drei Farben
+   standen als Inline-Werte im Skript; als Klasse tragen sie der Dunkelmodus
+   und die Tokens mit. */
+.btn.is-ok {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--on-solid);
+}
+
 .btn:disabled:hover,
 .btn[disabled]:hover { transform: none; }
 
 /* Primary */
 .btn-primary {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    color: white;
+    color: var(--on-solid);
     /* war rgba(99,102,241,…) - ein Indigo-Schatten unter einem blauen Knopf */
     box-shadow: 0 4px 12px var(--primary-glow);
 }
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-primary);
-    color: white;
+    color: var(--on-solid);
     filter: brightness(1.08);
 }
 .btn-primary:active { transform: translateY(0); filter: brightness(0.95); }
@@ -648,11 +809,11 @@ h4 { font-size: var(--fs-h4); }
    neutrale Umrissknöpfe.
    Muss nach .btn-outline stehen: gleiche Spezifität, sonst gewinnt dessen
    grauer Rahmen. */
-.btn-outline-info { border-color: var(--primary); color: var(--primary); }
+.btn-outline-info { border-color: var(--primary-ink); color: var(--primary-ink); }
 .btn-outline-info:hover {
     background: var(--primary-light);
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: var(--primary-ink);
+    color: var(--primary-ink);
 }
 
 /* Dokumentknöpfe der Detailsicht. Sie waren der letzte Ort mit festen
@@ -672,10 +833,10 @@ h4 { font-size: var(--fs-h4); }
 /* Danger */
 .btn-danger {
     background: linear-gradient(135deg, var(--danger), var(--danger-hover));
-    color: white;
+    color: var(--on-solid);
     box-shadow: 0 4px 12px var(--danger-soft);
 }
-.btn-danger:hover { transform: translateY(-2px); filter: brightness(1.08); color: white; }
+.btn-danger:hover { transform: translateY(-2px); filter: brightness(1.08); color: var(--on-solid); }
 
 /* Warnung.
    Die Klasse war in view.html benutzt, aber nie definiert - der Knopf hing
@@ -684,7 +845,7 @@ h4 { font-size: var(--fs-h4); }
    Schrift: Weiß erreicht auf --warning (#ffab00) nur 1,9:1. */
 .btn-warning {
     background: linear-gradient(135deg, var(--warning), var(--warning-hover));
-    color: var(--text-main);
+    color: var(--ink-bright);
     box-shadow: 0 4px 12px var(--warning-glow);
 }
 .btn-warning:hover {
@@ -899,10 +1060,10 @@ h4 { font-size: var(--fs-h4); }
    gewann damit gegen die 0,9em hier - der Wert ist jetzt hier festgehalten,
    damit die Angleichung an .icon-sm (0,75em) ihn nicht still veraendert. */
 .location-link i { flex: 0 0 auto; width: 18px; text-align: center; font-size: 0.8em; }
-.location-link:hover { background: var(--primary-light); color: var(--primary); }
+.location-link:hover { background: var(--primary-light); color: var(--primary-ink); }
 .location-link.active {
     background: var(--primary-light);
-    color: var(--primary);
+    color: var(--primary-ink);
     font-weight: 600;
 }
 
@@ -940,9 +1101,9 @@ h4 { font-size: var(--fs-h4); }
 }
 .search-bar:focus {
     outline: none;
-    border-color: var(--primary);
+    border-color: var(--primary-ink);
     box-shadow: var(--ring);
-    background: white;
+    background: var(--field-bg);
 }
 
 /* Links das Polster für das Lupensymbol.
@@ -1046,7 +1207,7 @@ h4 { font-size: var(--fs-h4); }
 .badge-mod     { background: var(--primary-light); color: var(--on-primary); }
 .badge-neutral { background: var(--bg-muted);      color: var(--text-muted); }
 /* Rolle "Lesen". Der Inline-Wert #64748b ist genau --text-light. */
-.badge-muted   { background: var(--text-light);    color: white; }
+.badge-muted   { background: var(--text-light);    color: var(--on-muted); }
 
 /* Rollen-Abzeichen in der Navigationsleiste (base.html). Sie trugen ihre
    Farben als Inline-Styles und waren weiße Schrift auf hsl(38,95%,50%)
@@ -1081,7 +1242,7 @@ h4 { font-size: var(--fs-h4); }
 .nav-count {
     margin-left: 6px;
     background: var(--danger-hover);
-    color: #fff;
+    color: var(--on-solid);
     border-radius: var(--radius-full);
     padding: 1px 7px;
     font-size: 0.72rem;
@@ -1096,7 +1257,7 @@ h4 { font-size: var(--fs-h4); }
     height: 18px;
     padding: 0 4px;
     background: var(--danger-hover);
-    color: #fff;
+    color: var(--on-solid);
     border-radius: var(--radius-full);
     font-size: 0.7rem;
     font-weight: 700;
@@ -1135,7 +1296,7 @@ h4 { font-size: var(--fs-h4); }
     height: 2rem;
     border-radius: var(--radius-full);
     background: var(--primary-light);
-    color: var(--primary);
+    color: var(--primary-ink);
     font-size: 0.8rem;
     font-weight: 700;
     flex-shrink: 0;
@@ -1196,8 +1357,8 @@ select {
 input:focus,
 select:focus {
     outline: none;
-    border-color: var(--primary);
-    background: white;
+    border-color: var(--primary-ink);
+    background: var(--field-bg);
     box-shadow: var(--ring);
 }
 
@@ -1231,7 +1392,7 @@ input[type="file"]::file-selector-button {
 }
 
 input[type="file"]::file-selector-button:hover { background: var(--border); }
-input[type="file"]:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+input[type="file"]:focus { outline: none; border-color: var(--primary-ink); box-shadow: var(--ring); }
 input[type="file"]:hover { border-color: var(--text-light); }
 
 .form-text { display: block; margin-top: 0.3rem; font-size: var(--fs-xs); color: var(--text-muted); }
@@ -1261,7 +1422,7 @@ input[type="file"]:hover { border-color: var(--text-light); }
     font-size: 0.95rem;
     transition: color var(--transition);
 }
-.password-toggle:hover { color: var(--primary); }
+.password-toggle:hover { color: var(--primary-ink); }
 
 /* ============================================================
    ALERTS / FLASH
@@ -1281,7 +1442,7 @@ input[type="file"]:hover { border-color: var(--text-light); }
 .alert-error,
 .alert-danger  { background: var(--danger-light);  color: var(--on-danger);  border-color: var(--danger);  }
 .alert-warning { background: var(--warning-light); color: var(--on-warning); border-color: var(--warning); }
-.alert-info    { background: var(--primary-light);    color: var(--on-primary); border-color: var(--primary);    }
+.alert-info    { background: var(--primary-light);    color: var(--on-primary); border-color: var(--primary-ink);    }
 
 /* Titel und Aufzählung in einem Hinweiskasten. Die Werte standen als
    Inline-Stile in view.html (Zusammenlagerungsverbot). Ohne die Einrückung
@@ -1344,10 +1505,13 @@ input[type="file"]:hover { border-color: var(--text-light); }
     border-radius: var(--radius-sm);
     transition: all var(--transition);
     padding: 0.2rem;
-    background: white;
+    background: var(--pictogram-bg);
     box-shadow: var(--shadow-sm);
 }
 .pictogram-item input:checked ~ .pictogram-img {
+    /* --primary, nicht --primary-ink: der Grund dieser Kachel bleibt in beiden
+       Modi weiss (--pictogram-bg), ein im Dunkelmodus heller Rahmen waere
+       darauf unsichtbar. */
     border-color: var(--primary);
     background: var(--primary-light);
     box-shadow: 0 0 0 3px var(--primary-soft);
@@ -1397,7 +1561,7 @@ input[type="file"]:hover { border-color: var(--text-light); }
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10,15,30,0.65);
+    background: var(--overlay);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     z-index: 1000;
@@ -1415,7 +1579,7 @@ input[type="file"]:hover { border-color: var(--text-light); }
     display: flex;
     flex-direction: column;
     border-radius: var(--radius-lg);
-    box-shadow: 0 32px 64px rgba(0,0,0,0.25);
+    box-shadow: var(--shadow-modal);
     animation: modalPop 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
     border: 1px solid var(--border);
 }
@@ -1471,7 +1635,7 @@ input[type="file"]:hover { border-color: var(--text-light); }
     transition: background var(--transition);
 }
 .hp-item:hover { background: var(--bg-hover); }
-.hp-item input[type="checkbox"] { margin-top: 0.2rem; width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--primary); }
+.hp-item input[type="checkbox"] { margin-top: 0.2rem; width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--primary-ink); }
 .hp-item span { font-size: var(--fs-sm); line-height: 1.4; color: var(--text-main); }
 
 /* ============================================================
@@ -1526,13 +1690,13 @@ body.auth-page::before {
 .auth-card {
     width: 100%;
     max-width: 440px;
-    background: rgba(255, 255, 255, 0.65);
+    background: var(--auth-card-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--auth-card-border);
     border-radius: 24px;
-    box-shadow: 
-        0 20px 40px -10px rgba(15, 23, 42, 0.05), 
+    box-shadow:
+        0 20px 40px -10px rgba(15, 23, 42, 0.05),
         0 0 0 1px rgba(255,255,255,0.5) inset;
     padding: 3rem 2.5rem;
     animation: modalPop 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
@@ -1555,7 +1719,7 @@ body.auth-page::before {
     align-items: center;
     justify-content: center;
     font-size: 1.75rem;
-    color: white;
+    color: var(--on-solid);
     margin-bottom: 1.25rem;
     box-shadow: 0 10px 25px -5px var(--primary-glow);
 }
@@ -1584,7 +1748,7 @@ body.auth-page::before {
 
 .auth-card input[type="text"],
 .auth-card input[type="password"] {
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--auth-input-bg);
     border-color: var(--border-strong);
     color: var(--text-main);
     border-radius: 12px;
@@ -1595,8 +1759,8 @@ body.auth-page::before {
 .auth-card input::placeholder { color: var(--text-light); }
 
 .auth-card input:focus {
-    background: #ffffff;
-    border-color: var(--primary);
+    background: var(--field-bg);
+    border-color: var(--primary-ink);
     box-shadow: var(--ring);
 }
 
@@ -1607,7 +1771,7 @@ body.auth-page::before {
     font-weight: 600;
     margin-top: 1rem;
     background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-    color: white;
+    color: var(--on-solid);
     border: none;
     border-radius: 12px;
     box-shadow: 0 8px 16px -4px var(--primary-glow);
@@ -1627,7 +1791,7 @@ body.auth-page::before {
 }
 
 .auth-footer-link a {
-    color: var(--primary);
+    color: var(--primary-ink);
     font-weight: 600;
     text-decoration: none;
     transition: color 0.2s ease;
@@ -1642,7 +1806,7 @@ body.auth-page::before {
 }
 
 .auth-card .password-toggle:hover {
-    color: var(--primary);
+    color: var(--primary-ink);
 }
 
 /* ============================================================
@@ -1834,10 +1998,10 @@ body.auth-page::before {
     font-size: 0.8rem;
 }
 .section-header h3 { margin: 0; font-size: var(--fs-base); }
-.icon-info    { background: var(--primary-light);    color: var(--primary); }
+.icon-info    { background: var(--primary-light);    color: var(--primary-ink); }
 .icon-danger  { background: var(--danger-light);  color: var(--danger); }
 .icon-success { background: var(--success-light); color: var(--success); }
-.icon-primary { background: var(--primary-light); color: var(--primary); }
+.icon-primary { background: var(--primary-light); color: var(--primary-ink); }
 /* Die Glocke im Profil ("Nachrichten & Freigaben") stand auf .icon-warning -
    die Klasse war benutzt, aber nie definiert. Die anderen Abschnittssymbole
    hatten ihre getoente Flaeche, dieses eine blieb nackt. */
@@ -1862,7 +2026,7 @@ footer .footer-inner {
     justify-content: center;
     gap: 0.75rem;
 }
-footer i { color: var(--primary); }
+footer i { color: var(--primary-ink); }
 
 /* ============================================================
    RESPONSIVE
@@ -1946,11 +2110,11 @@ footer i { color: var(--primary); }
     transition: all var(--transition);
 }
 
-.view-btn:hover { color: var(--primary); }
+.view-btn:hover { color: var(--primary-ink); }
 
 .view-btn.active {
     background: var(--bg-card);
-    color: var(--primary);
+    color: var(--primary-ink);
     box-shadow: var(--shadow-sm);
 }
 
@@ -2129,9 +2293,9 @@ a.kpi-card { text-decoration: none; }
     flex-shrink: 0;
 }
 
-.kpi-icon.primary { background: var(--primary-light); color: var(--primary); }
+.kpi-icon.primary { background: var(--primary-light); color: var(--primary-ink); }
 .kpi-icon.danger { background: var(--danger-light); color: var(--danger); }
-.kpi-icon.info { background: var(--primary-light); color: var(--primary); }
+.kpi-icon.info { background: var(--primary-light); color: var(--primary-ink); }
 
 .kpi-content {
     display: flex;
@@ -2167,7 +2331,7 @@ a.kpi-card { text-decoration: none; }
    Sie ersetzen Inline-Stile, die dort mehrfach standen oder Farben direkt
    im HTML trugen. Die Namen sagen, was gemeint ist, nicht wie es aussieht. */
 .btn-row      { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.h1-icon      { color: var(--primary); margin-right: 0.4rem; }
+.h1-icon      { color: var(--primary-ink); margin-right: 0.4rem; }
 .subline      { margin-top: 0.2rem; font-size: var(--fs-sm); }
 .text-main    { color: var(--text-main) !important; }
 .text-accent  { color: var(--on-accent) !important; }
@@ -2194,7 +2358,7 @@ a.kpi-card { text-decoration: none; }
     flex-wrap: wrap;
     line-height: 1.3;
 }
-.row-caret { font-size: 0.7em; color: var(--primary); opacity: 0.7; }
+.row-caret { font-size: 0.7em; color: var(--primary-ink); opacity: 0.7; }
 
 /* "CAS"/"EG" vor der Nummer */
 .unit-label { font-size: var(--fs-xs); margin-right: 4px; }
@@ -2209,7 +2373,7 @@ a.kpi-card { text-decoration: none; }
    Leerzeichen am vorigen Namen (main.py, get_full_path) und steht nicht mehr
    allein am Zeilenanfang. */
 .standort-zelle     { display: flex; align-items: flex-start; gap: 0.4rem; line-height: 1.4; }
-.standort-zelle i   { color: var(--primary); font-size: 0.8em; margin-top: 0.25em; }
+.standort-zelle i   { color: var(--primary-ink); font-size: 0.8em; margin-top: 0.25em; }
 .standort-zelle span { overflow-wrap: break-word; min-width: 0; }
 
 /* Die Standortzelle hatte zwischenzeitlich eine Mindestbreite von 14rem. Die
@@ -2293,6 +2457,12 @@ a.kpi-card { text-decoration: none; }
 .inventur-card {
     border-left: 4px solid var(--border);
     transition: border-color 0.2s, background 0.2s;
+}
+/* Abgehakter Stoff. Wird von updateInventurCard() per Klasse gesetzt (vorher
+   als Inline-Farbe im Skript, die den Dunkelmodus uebergangen haette). */
+.inventur-card.is-checked {
+    border-left-color: var(--success);
+    background: var(--success-light);
 }
 .inventur-card .card-body { padding: 1rem 1.25rem; }
 
@@ -2550,7 +2720,7 @@ a.kpi-card { text-decoration: none; }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
    auf demselben Blau, das inzwischen nur noch --primary heisst. */
-.icon-fixed { width: 16px; text-align: center; color: var(--primary); }
+.icon-fixed { width: 16px; text-align: center; color: var(--primary-ink); }
 .card-title-warn { color: var(--danger); font-size: 0.8em; }
 
 /* Werkzeugleiste der Übersicht: links die Ansichtsumschaltung, rechts Filter */
@@ -2570,7 +2740,7 @@ a.kpi-card { text-decoration: none; }
 /* Der Marker des <summary> verschwindet - es sieht wie ein Knopf aus. */
 .column-picker > summary { list-style: none; cursor: pointer; }
 .column-picker > summary::-webkit-details-marker { display: none; }
-.column-picker[open] > summary { border-color: var(--primary); color: var(--primary); }
+.column-picker[open] > summary { border-color: var(--primary-ink); color: var(--primary-ink); }
 .column-picker-panel {
     position: absolute;
     top: calc(100% + 0.4rem);
@@ -2626,7 +2796,7 @@ a.kpi-card { text-decoration: none; }
     margin-bottom: 2rem;
 }
 .import-head  { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-.import-title { margin: 0; color: var(--primary); font-size: 1.1rem; }
+.import-title { margin: 0; color: var(--primary-ink); font-size: 1.1rem; }
 .import-hint  { margin: 0.2rem 0 0 0; font-size: var(--fs-sm); color: var(--text-muted); }
 
 /* Rückmeldung des SDB-Imports. Das Skript setzt nur noch die Klasse; die

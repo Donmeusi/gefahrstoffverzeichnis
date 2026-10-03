@@ -4,6 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    {# Der Dunkelmodus wird VOR dem Stylesheet gesetzt - sonst blitzt beim Laden
+       kurz die helle Fassung auf (die Seite wird erst hell gerendert und dann
+       umgefaerbt). Gespeicherte Wahl gewinnt, sonst die Systemvorliebe. #}
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('gsv_theme');
+          if (t !== 'dark' && t !== 'light') {
+            t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { /* Privatmodus: localStorage gesperrt */ }
+      })();
+    </script>
     <title>{% block title %}Gefahrstoff-App{% endblock %}</title>
     {# Schrift und Icons werden lokal ausgeliefert. Früher kamen beide von
        externen CDNs (Google Fonts, cdnjs) - das widersprach der eigenen
@@ -28,6 +43,15 @@
             <a href="{{ url_for('index') }}" class="navbar-brand nowrap">
                 <i class="fa-solid fa-flask"></i> Gefahrstoff-App
             </a>
+
+            {# Der Umschalter liegt AUSSERHALB von .nav-links: das wird unterhalb
+               1340px zu einem Klappmenue, der Knopf waere dort also nur nach dem
+               Aufklappen erreichbar. Hier sitzt er neben dem Menueknopf und
+               bleibt immer sichtbar. #}
+            <button class="theme-toggle" id="themeToggle" type="button"
+                    aria-label="Dunkelmodus umschalten" aria-pressed="false">
+                <i class="fa-solid fa-moon" aria-hidden="true"></i>
+            </button>
 
             {# aria-expanded meldet den Zustand des ausklappbaren Menues; ohne das
                hört man nur "Schaltfläche" und weiß nicht, ob das Menü offen ist. #}
@@ -155,6 +179,33 @@
             this.setAttribute('aria-expanded', offen ? 'true' : 'false');
             this.setAttribute('aria-label', offen ? 'Navigation schließen' : 'Navigation öffnen');
         });
+
+        // Dunkelmodus: Knopf schaltet um und merkt sich die Wahl. Den Modus
+        // selbst setzt schon das Inline-Script im <head> (ohne Aufblitzen);
+        // hier wird nur der Knopf in den passenden Zustand gebracht.
+        (function () {
+            const knopf = document.getElementById('themeToggle');
+            if (!knopf) return;  // Seiten ohne Navigationsleiste (Anmeldung)
+            const ikone = knopf.querySelector('i');
+            function malen(modus) {
+                document.documentElement.setAttribute('data-theme', modus);
+                const dunkel = modus === 'dark';
+                knopf.setAttribute('aria-pressed', dunkel ? 'true' : 'false');
+                ikone.className = dunkel ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
+            malen(document.documentElement.getAttribute('data-theme') || 'light');
+            knopf.addEventListener('click', function () {
+                const neu = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                try { localStorage.setItem('gsv_theme', neu); } catch (e) {}
+                malen(neu);
+            });
+            // Systemwechsel greift nur, solange keine eigene Wahl gespeichert ist.
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                let gespeichert = null;
+                try { gespeichert = localStorage.getItem('gsv_theme'); } catch (err) {}
+                if (!gespeichert) malen(e.matches ? 'dark' : 'light');
+            });
+        })();
     </script>
     {% block scripts %}{% endblock %}
 </body>
