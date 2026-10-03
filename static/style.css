@@ -142,7 +142,7 @@
     --fs-sm:          0.9rem;    /* Nebentexte, Knöpfe, Beschriftungen */
     --fs-base:        1rem;      /* Fließtext, Tabellen, Eingabefelder */
     --fs-lg:          1.4rem;    /* Kachelwerte (.tile-value) */
-    --fs-xl:          1.8rem;    /* Kennzahl (.kpi-value) */
+    --fs-xl:          1.8rem;    /* groesste Kennzahl im Fliesstext */
     /* Überschriften. Sie standen als Rohwerte direkt in den h1..h4-Regeln;
        jetzt eine benannte Staffel, damit die Verhältnisse sichtbar sind.
        Die Werte sind unverändert. */
@@ -2054,8 +2054,7 @@ footer i { color: var(--primary-ink); }
     
     .detail-grid { grid-template-columns: 1fr; gap: 0.25rem 0; margin-bottom: 1rem; }
     .detail-grid dt { white-space: normal; margin-top: 0.5rem; }
-    .kpi-dashboard { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-    
+
     /* Stack form rows dynamically if needed.
        :not(.sr-only) ist nötig, seit die Filter- und Suchfelder versteckte
        Beschriftungen haben: die sind position:absolute, und "width:100%"
@@ -2233,45 +2232,11 @@ footer i { color: var(--primary-ink); }
 .doc-btn-missing { background: var(--bg-subtle); color: var(--text-light); border: 1px dashed var(--border); }
 
 /* ============================================================
-   KPI DASHBOARD
+   (Die KPI-Kacheln der Startseite sind am 03.10.2026 entfallen - die letzte,
+   "Veraltete SDBs", wiederholte nur den Fristen-Menuepunkt. .kpi-dashboard,
+   .kpi-card, .kpi-icon, .kpi-content, .kpi-value und .kpi-label waren danach
+   unbenutzt und sind entfernt.)
    ============================================================ */
-/* Die Startseite hat nur noch eine Kachel (die einzige Zahl, aus der eine
-   Handlung folgt - sie fuehrt in die Fristenliste). Mit "1fr" haette das
-   Raster sie ueber die ganze Breite gedehnt; die Obergrenze haelt sie in
-   Kachelbreite. justify-content: start, damit sie links sitzt und nicht in
-   einer leeren Spur schwebt. Bei mehreren Kacheln wuerden sie umbrechen,
-   statt sich zu strecken.
-
-   Der 600px-Block weiter unten setzt wieder 1fr - auf dem Telefon soll die
-   Kachel die Zeile fuellen. */
-.kpi-dashboard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
-    justify-content: start;
-    gap: 1.25rem;
-    margin-bottom: 2rem;
-}
-
-.kpi-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    padding: 1.5rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-
-/* Eine Kachel ist ein Link auf die Fristenliste - Links sind unterstrichen,
-   die Kachel soll das nicht sein. */
-a.kpi-card { text-decoration: none; }
 
 /* "Keine Ergebnisse für diese Suche" - das Skript schaltet den Hinweis ein
    und aus, die Gestaltung gehört hierher. */
@@ -2281,42 +2246,6 @@ a.kpi-card { text-decoration: none; }
     color: var(--text-muted);
 }
 .no-results i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; }
-
-.kpi-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    flex-shrink: 0;
-}
-
-.kpi-icon.primary { background: var(--primary-light); color: var(--primary-ink); }
-.kpi-icon.danger { background: var(--danger-light); color: var(--danger); }
-.kpi-icon.info { background: var(--primary-light); color: var(--primary-ink); }
-
-.kpi-content {
-    display: flex;
-    flex-direction: column;
-}
-
-.kpi-value {
-    font-size: var(--fs-xl);
-    font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.1;
-    margin-bottom: 0.25rem;
-}
-
-.kpi-label {
-    font-size: var(--fs-sm);
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
 
 /* ============================================================
    UTILITIES

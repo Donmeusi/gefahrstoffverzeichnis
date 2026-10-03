@@ -76,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.27"
+APP_VERSION = "2.0.28"
 
 @app.context_processor
 def inject_globals():
@@ -1104,30 +1104,26 @@ def index():
     # Kachel - die wiederholte nur, was die Kopf-Unterzeile ohnehin mit
     # {{ gefahrstoffe|length }} zeigt. Die Kachel ist entfallen.
     #
-    # Veraltete SDBs - dieselbe Regel wie in der Fristenliste (sdb_status),
-    # damit Kachel und Liste nicht auseinanderlaufen. Vorher rechnete diese
-    # Stelle das Alter selbst aus.
+    # stats_expired_sdb speiste ebenfalls eine Kachel (Veraltete SDBs); auch
+    # die ist entfallen - die Fristenzahl steht nur noch als Menuepunkt in der
+    # Kopfzeile und in der Fristenliste selbst.
     today = datetime.utcnow().date()
-    # Die Stufe wird einmal je Stoff bestimmt und trägt sowohl die Kachel als
-    # auch die Dokumentenspalte. Das Template rechnete dafür bisher selbst
-    # "(heute - sdb_datum).days / 365 >= 3" nach - mit der harten 3 statt
-    # SDB_FRIST_JAHRE, und an zwei Stellen (Tabelle und Kachelansicht) doppelt.
+    # Die Stufe wird einmal je Stoff bestimmt und trägt die Dokumentenspalte.
+    # Das Template rechnete dafür bisher selbst "(heute - sdb_datum).days / 365
+    # >= 3" nach - mit der harten 3 statt SDB_FRIST_JAHRE, und an zwei Stellen
+    # (Tabelle und Kachelansicht) doppelt.
     sdb_stufen = {stoff.id: sdb_status(stoff, today)[0] for stoff in gefahrstoffe}
-    stats_expired_sdb = sum(
-        1 for stufe in sdb_stufen.values() if stufe in ('dringend', 'pruefen')
-    )
 
     # Anzahl der Standorte (distinct unterbereich_id)
     stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
 
-    return render_template('index.html', 
+    return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
-                           bereiche=bereiche, 
+                           bereiche=bereiche,
                            aktiver_bereich=aktiver_bereich,
                            aktiver_unterbereich=aktiver_unterbereich,
                            today=today,
                            sdb_stufen=sdb_stufen,
-                           stats_expired_sdb=stats_expired_sdb,
                            stats_locations=stats_locations)
 
 @app.route('/betriebsanweisungen')

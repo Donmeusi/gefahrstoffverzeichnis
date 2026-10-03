@@ -87,30 +87,10 @@
        nie definiert. Das div bleibt, weil .index-grid zwei Kinder braucht. #}
     <div>
         {% if gefahrstoffe %}
-        {# Nur noch eine Kachel. Von den drei alten sagte keine etwas, aus dem
-           eine Handlung folgt:
-             "Gefahrstoffe" wiederholte die Zahl, die in der Unterzeile steht
-                (und die beim Filtern live mitlaeuft), und
-             "Standorte" zaehlte in Wahrheit die belegten Unterbereiche, nicht
-                die vorhandenen Standorte.
-           Beide Zahlen stehen jetzt in der Unterzeile. Was bleibt, ist die
-           einzige, die irgendwohin fuehrt.
-
-           ⚠️ Das Markup dieser Kachel ist nicht frei: test_fristen.py liest
-           "kpi-value">N</span>" gefolgt von "kpi-label">Veraltete SDBs" aus
-           dem HTML der Startseite. Klassenfolge und Beschriftung nicht
-           aendern. #}
-        <div class="kpi-dashboard">
-            <a class="kpi-card" href="{{ url_for('fristen') }}" title="Offene Fristen ansehen">
-                <div class="kpi-icon {% if stats_expired_sdb > 0 %}danger{% else %}primary{% endif %}">
-                    <i class="fa-solid fa-file-pdf"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ stats_expired_sdb }}</span>
-                    <span class="kpi-label">Veraltete SDBs <i class="fa-solid fa-arrow-right icon-xs"></i></span>
-                </div>
-            </a>
-        </div>
+        {# Die Fristen-Kachel stand hier bis zum 03.10.2026. Sie ist entfallen:
+           die Fristen stehen als Menuepunkt in der Kopfzeile (mit Zaehler), und
+           die Liste zeigt dieselbe Zahl. Damit gibt es wieder nur eine Stelle,
+           an der die Fristenzahl steht, statt Kachel plus Liste. #}
         <div class="list-toolbar">
             <!-- Filter und Livesuche: links, weil sie die Daten einschraenken.
                  Die Ansichtssteuerung steht rechts - sie aendert die

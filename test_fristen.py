@@ -300,11 +300,13 @@ class TestFristenliste(unittest.TestCase):
         self.assertNotIn('SDB-Datum eintragen', html)
         self.assertNotIn('Inventur starten', html)
 
-    def test_kachelzahl_und_liste_stimmen_ueberein(self):
-        """Die Kachel auf der Startseite und die Liste kommen aus einer Regel.
+    def test_fristenliste_zaehlt_nach_derselben_regel(self):
+        """Die Fristenliste zählt nach derselben Regel wie sdb_status.
 
-        Das war der Ausgangsfehler: die Kachel zählte ab 3 Jahren, die
-        SDB-Seite rechnete mit 3 und 5 Jahren - zwei Zahlen für eine Frist.
+        Das war der Ausgangsfehler: eine Startseiten-Kachel zählte ab 3 Jahren,
+        die SDB-Seite rechnete mit 3 und 5 Jahren - zwei Zahlen für eine Frist.
+        Die Kachel ist am 03.10.2026 entfallen (die Fristen stehen als Menüpunkt
+        in der Kopfzeile); die Liste ist damit die eine Quelle geblieben.
         """
         self._umgebung()
         with app.app_context():
@@ -313,18 +315,12 @@ class TestFristenliste(unittest.TestCase):
                 1 for s in Gefahrstoff.query.all()
                 if sdb_status(s, heute)[0] in ('dringend', 'pruefen')
             )
-
-        startseite = self.client.get('/').get_data(as_text=True)
-        treffer = re.search(r'kpi-value">(\d+)</span>\s*<span class="kpi-label">Veraltete SDBs',
-                            startseite)
-        self.assertIsNotNone(treffer, 'Die Kachel "Veraltete SDBs" wurde nicht gefunden')
-        self.assertEqual(int(treffer.group(1)), erwartet)
         self.assertEqual(erwartet, 2, 'Mittelaltstoff und Altstoff sind fällig')
 
-        # Und dieselben zwei Stoffe stehen auch in der Liste
+        # Dieselben zwei Stoffe stehen in der Liste
         fristen = self._seite()
         self.assertEqual(fristen.count('SDB prüfen') + fristen.count('SDB dringend aktualisieren'),
-                         2)
+                         erwartet)
 
     def test_sdb_seite_nutzt_dieselben_stufen(self):
         """Die SDB-Seite darf nicht wieder eigene Schwellen bekommen."""
