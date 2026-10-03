@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.24 – Nicht freigegebene CMR-Stoffe waren für den Administrator unsichtbar (Oktober 2026)
+
+* **⚠️ Der Fehler:** Ein CMR-Stoff wird mit `is_approved = False` angelegt und wartet auf Freigabe. Die Berechtigungsabfrage `get_gefahrstoff_query()` filterte `is_approved` aber für **jeden** weg — auch für den Administrator. Der Link aus der Freigabeliste im Profil lief dadurch in „Keine Berechtigung, diesen Gefahrstoff anzusehen": Wer freigeben sollte, konnte den Stoff nicht einmal ansehen. Jetzt sehen Administrator und Moderator nicht freigegebene Stoffe; für reguläre Benutzer bleiben sie bis zur Freigabe unsichtbar (so steht es auch in der Meldung beim Anlegen).
+* **Kennzeichnung ergänzt:** Nicht freigegebene Stoffe wären sonst nicht von freigegebenen zu unterscheiden. In der Detailansicht steht jetzt ein Abzeichen „Wartet auf Freigabe", in der Übersicht ein Sanduhr-Symbol am Namen.
+* **Neuer Test** (jetzt 120): Ein Administrator bekommt die Ansicht eines nicht freigegebenen Stoffes (HTTP 200) samt Kennzeichnung, ein regulärer Benutzer nicht (Umleitung).
+
 ### v3.23 – Aussehens-Runde: Feinschliff und umschaltbarer Dunkelmodus (Oktober 2026)
 
 * **Der Dunkelmodus ist umschaltbar.** Ein Knopf in der Kopfzeile wechselt zwischen hell und dunkel; die Wahl liegt im Browser (`localStorage`) und übersteht das Neuladen. Ohne eigene Wahl folgt die Anwendung der Systemvorliebe. Der Modus wird **vor** dem Laden gesetzt (Inline-Script als erstes Element im `<head>`) — sonst blitzt beim Öffnen kurz die helle Fassung auf. Die Kopfzeile färbt auch die nativen Bedienelemente mit (Auswahlfelder, Kästchen, Scrollbalken).

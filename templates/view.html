@@ -12,6 +12,11 @@
         {% elif stoff.signalwort == 'Achtung' %}
         <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Achtung</span>
         {% endif %}
+        {# CMR-Stoffe sind vor der Freigabe nur für Moderator/Admin sichtbar.
+           Ohne dieses Zeichen sähe der Stoff wie ein freigegebener aus. #}
+        {% if not stoff.is_approved %}
+        <span class="badge badge-info"><i class="fa-solid fa-hourglass-half"></i> Wartet auf Freigabe</span>
+        {% endif %}
     </div>
     {% if current_user.can_write %}
     {# flex-wrap: ohne das blieben die Knöpfe und das Lösch-Formular in einer

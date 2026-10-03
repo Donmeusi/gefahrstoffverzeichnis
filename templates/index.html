@@ -201,6 +201,12 @@
                             <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="table-link">
                                 <span>{{ stoff.name }}</span>
                                 <span class="inline-icons">
+                                    {# CMR-Stoff, wartet auf Freigabe - nur für
+                                       Moderator/Admin sichtbar. Ohne Zeichen
+                                       sähe er wie ein freigegebener aus. #}
+                                    {% if not stoff.is_approved %}
+                                    <i class="fa-solid fa-hourglass-half text-primary" title="Wartet auf Freigabe"></i>
+                                    {% endif %}
                                     {% if stoff.trgs_warnings %}
                                     <i class="fa-solid fa-triangle-exclamation text-danger" title="Zusammenlagerungsverbot (TRGS 510)"></i>
                                     {% endif %}

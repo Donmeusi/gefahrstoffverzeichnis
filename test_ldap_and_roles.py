@@ -84,6 +84,53 @@ class TestLdapAndRoles(unittest.TestCase):
             res_pdf = self.client.get('/export/pdf', follow_redirects=True)
             self.assertIn('Keine Berechtigung zum Exportieren', res_pdf.get_data(as_text=True))
 
+    def test_cmr_stoff_vor_freigabe_fuer_admin_sichtbar(self):
+        """Ein nicht freigegebener CMR-Stoff muss für Moderator und Admin
+        sichtbar sein - sonst ließe er sich nicht freigeben. Für andere bleibt
+        er bis zur Freigabe unsichtbar.
+
+        Fehler bis 03.10.2026: get_gefahrstoff_query() filterte is_approved für
+        JEDEN weg, auch für den Administrator. Der Link aus der Freigabeliste
+        lief dadurch in "Keine Berechtigung, diesen Gefahrstoff anzusehen"."""
+        with app.app_context():
+            admin = User(username='admin_cmr', role='admin')
+            admin.set_password('pass123')
+            db.session.add(admin)
+            db.session.commit()
+            user = User(username='user_cmr', role='benutzer')
+            user.set_password('pass123')
+            db.session.add(user)
+            db.session.commit()
+            bereich = Bereich(name='Labor CMR', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+            unter = Unterbereich(name='Schrank CMR', bereich_id=bereich.id)
+            db.session.add(unter)
+            db.session.commit()
+            stoff = Gefahrstoff(name='CMR-Teststoff', h_saetze='H350',
+                                unterbereich_id=unter.id, user_id=admin.id,
+                                is_approved=False)
+            db.session.add(stoff)
+            db.session.commit()
+            stoff_id = stoff.id
+
+        # Der Administrator darf ihn ansehen (er soll ihn ja freigeben) ...
+        self.client.post('/login', data={'username': 'admin_cmr', 'password': 'pass123'},
+                         follow_redirects=True)
+        res = self.client.get(f'/view/{stoff_id}')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('CMR-Teststoff', res.get_data(as_text=True))
+        # ... und er ist in der Übersicht als ungeprüft gekennzeichnet.
+        self.assertIn('Wartet auf Freigabe', self.client.get('/').get_data(as_text=True))
+        self.client.get('/logout')
+
+        # Ein regulärer Benutzer sieht ihn nicht.
+        self.client.post('/login', data={'username': 'user_cmr', 'password': 'pass123'},
+                         follow_redirects=True)
+        res2 = self.client.get(f'/view/{stoff_id}')
+        self.assertEqual(res2.status_code, 302,
+                         'Nicht freigegebene Stoffe bleiben für Benutzer unsichtbar')
+
     def test_location_print_and_inventur(self):
         with app.app_context():
             admin = User(username='admin_inv', role='admin')

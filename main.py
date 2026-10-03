@@ -76,7 +76,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.0.31"
+APP_VERSION = "2.0.32"
 
 @app.context_processor
 def inject_globals():
@@ -584,9 +584,17 @@ def is_cmr_stoff(h_saetze):
     return any(code in h_saetze for code in cmr_codes)
 
 def get_gefahrstoff_query():
-    """Gibt eine gefilterte Query für Gefahrstoffe zurück."""
-    base_query = Gefahrstoff.query.filter(Gefahrstoff.is_deleted == False, Gefahrstoff.is_approved == True)
-    
+    """Gibt eine gefilterte Query für Gefahrstoffe zurück.
+
+    Nicht freigegebene Stoffe (CMR, is_approved False) sieht, wer sie
+    freigeben kann - Administrator und Moderator. Für alle anderen bleiben sie
+    bis zur Freigabe unsichtbar (so steht es auch in der Meldung beim Anlegen).
+    Vorher filterte die Query is_approved für JEDEN weg, auch für den
+    Administrator: der Link aus der Freigabeliste lief dadurch in "Keine
+    Berechtigung, diesen Gefahrstoff anzusehen".
+    """
+    base_query = Gefahrstoff.query.filter(Gefahrstoff.is_deleted == False)
+
     if current_user.is_admin:
         return base_query
 
@@ -602,7 +610,8 @@ def get_gefahrstoff_query():
             )
         )
 
-    # Regulärer Benutzer
+    # Regulärer Benutzer: nicht freigegebene Stoffe bleiben unsichtbar.
+    base_query = base_query.filter(Gefahrstoff.is_approved == True)
     assigned_ids = [b.id for b in current_user.assigned_bereiche.all()]
     sub_ids      = [u.id for u in Unterbereich.query.filter(Unterbereich.bereich_id.in_(assigned_ids)).all()]
     return base_query.filter(
