@@ -242,6 +242,8 @@ main {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
 }
+/* Enger gestellte Fassung (Systemansicht: zwei Spalten fuer die Commit-Kennungen). */
+.row--tight { gap: 1rem; }
 
 @media (max-width: 768px) {
     .row { grid-template-columns: 1fr; }
@@ -1100,10 +1102,15 @@ label.required::after {
     color: var(--danger);
 }
 
+/* date und url fehlten in dieser Aufzaehlung. Beide kamen im Projekt vor
+   (date in add/edit/move_copy, url in der Systemansicht) und standen deshalb
+   im Browser-Standard - kleiner und anders geformt als die uebrigen Felder. */
 input[type="text"],
 input[type="password"],
 input[type="number"],
 input[type="email"],
+input[type="date"],
+input[type="url"],
 select {
     width: 100%;
     padding: 0.7rem 1rem;
@@ -2307,6 +2314,44 @@ a.kpi-card { text-decoration: none; }
    einzelne Klasse (0,1,0) - dieselbe Falle wie bei
    .inventur-amount-input. Als Inline-Stil war das egal. */
 .data-table th.col-action { width: 220px; text-align: right; padding: 1rem 1.5rem; }
+
+/* ============================================================
+   SYSTEMANSICHT
+   ============================================================ */
+/* Die Systemseite war die einzige mit einem fremden Klassenwortschatz:
+   .glass-card, .fade-in, .form-control und .form-label kamen nur dort vor
+   und waren im Stylesheet nie definiert. Die beiden Bereiche standen deshalb
+   ohne Karte direkt auf dem Seitenhintergrund - kein Hintergrund, kein
+   Rahmen, kein Schatten, keine Polsterung. Sie nutzen jetzt .card und
+   .card-body wie jede andere Seite. */
+.card-narrow { max-width: 800px; }
+
+/* Ueberschrift mit Symbol davor (Systemseite). Nicht .section-header: das
+   zieht eine Trennlinie und andere Abstaende. */
+.card-title {
+    margin-bottom: 1rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Git-Zeichen in der Markenfarbe (offizielles Orange, kein App-Ton). */
+.icon-git { color: #f1502f; }
+
+/* Commit-Kennung in der Versionspruefung */
+.version-code {
+    background: var(--bg-card);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: var(--fs-base);
+    margin-top: 0.25rem;
+    display: inline-block;
+    border: 1px solid var(--border);
+}
+
+/* Auswahlfeld: volle Zeilenbreite waere hier zu breit. */
+.select-narrow { max-width: 300px; display: inline-block; }
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen

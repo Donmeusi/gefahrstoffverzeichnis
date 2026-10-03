@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-server h1-icon"></i> System & Updates</h1>
+        <h1><i class="fa-solid fa-server h1-icon"></i> System &amp; Updates</h1>
         <p class="text-muted subline">
             Verwalte Updates und Systemeinstellungen
         </p>
@@ -15,70 +15,74 @@
     </div>
 </div>
 
-<div class="glass-card fade-in" style="margin-top:1.5rem; max-width:800px;">
-    <h3 style="margin-bottom:1rem; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
-        <i class="fa-brands fa-git-alt" style="color:#F1502F;"></i> Repository-Konfiguration
-    </h3>
-    <form method="POST" action="{{ url_for('update_repo') }}" style="display:flex; flex-direction:column; gap:1rem;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label class="form-label" for="repo_url">Git Repository URL</label>
-            <input type="url" name="repo_url" id="repo_url" class="form-control" value="{{ remote_url }}" required>
-            <div class="text-muted" style="margin-top:0.25rem; font-size:0.8rem;">Die Quell-URL für automatische Updates. Standard: <code>https://github.com/Donmeusi/gefahrstoffverzeichnis</code></div>
-        </div>
-        <div>
-            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> URL speichern</button>
-            <button type="button" class="btn btn-outline" onclick="document.getElementById('repo_url').value='https://github.com/Donmeusi/gefahrstoffverzeichnis';"><i class="fa-solid fa-rotate-left"></i> Standard wiederherstellen</button>
-        </div>
-    </form>
+<div class="card card-narrow mt-4">
+    <div class="card-body">
+        <h3 class="card-title">
+            <i class="fa-brands fa-git-alt icon-git"></i> Repository-Konfiguration
+        </h3>
+        <form method="POST" action="{{ url_for('update_repo') }}" class="stack-md">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="repo_url">Git Repository URL</label>
+                <input type="url" name="repo_url" id="repo_url" value="{{ remote_url }}" required>
+                <div class="form-text">Die Quell-URL für automatische Updates. Standard: <code>https://github.com/Donmeusi/gefahrstoffverzeichnis</code></div>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> URL speichern</button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('repo_url').value='https://github.com/Donmeusi/gefahrstoffverzeichnis';"><i class="fa-solid fa-rotate-left"></i> Standard wiederherstellen</button>
+            </div>
+        </form>
+    </div>
 </div>
 
-<div class="glass-card fade-in" style="margin-top:1.5rem; max-width:800px; animation-delay:0.1s;">
-    <h3 style="margin-bottom:1rem; color:var(--text-main); display:flex; align-items:center; gap:0.5rem;">
-        <i class="fa-solid fa-cloud-download-alt text-primary"></i> Versionsprüfung
-    </h3>
-    
-    <div class="info-panel">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-            <div>
-                <strong style="color:var(--text-main);">Installierte Version (Lokal):</strong><br>
-                <code style="background:white; padding:0.2rem 0.4rem; border-radius:4px; font-size:1rem; margin-top:0.25rem; display:inline-block; border:1px solid #ddd;">{{ local_commit }}</code>
-            </div>
-            <div>
-                <strong style="color:var(--text-main);">Neueste Version (Remote):</strong><br>
-                <code style="background:white; padding:0.2rem 0.4rem; border-radius:4px; font-size:1rem; margin-top:0.25rem; display:inline-block; border:1px solid #ddd;">{{ remote_commit }}</code>
+<div class="card card-narrow mt-4">
+    <div class="card-body">
+        <h3 class="card-title">
+            <i class="fa-solid fa-cloud-download-alt text-primary"></i> Versionsprüfung
+        </h3>
+
+        <div class="info-panel">
+            <div class="row row--tight">
+                <div>
+                    <strong>Installierte Version (Lokal):</strong><br>
+                    <code class="version-code">{{ local_commit }}</code>
+                </div>
+                <div>
+                    <strong>Neueste Version (Remote):</strong><br>
+                    <code class="version-code">{{ remote_commit }}</code>
+                </div>
             </div>
         </div>
+
+        <form method="POST" action="{{ url_for('do_update') }}" onsubmit="return confirmUpdate();">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group info-panel">
+                <label for="target_branch">Update-Kanal (Branch) wählen:</label>
+                <select name="target_branch" id="target_branch" class="select-narrow">
+                    <option value="main" {% if current_branch == 'main' %}selected{% endif %}>Stable (main)</option>
+                    <option value="beta" {% if current_branch == 'beta' %}selected{% endif %}>Beta (beta)</option>
+                </select>
+                <p class="text-muted mt-2 text-sm">
+                    Aktueller Kanal: <strong>{{ current_branch }}</strong>. Wenn du den Kanal wechselst, wird das System beim Update automatisch auf den gewählten Zweig umgestellt.
+                </p>
+            </div>
+
+            {% if updates_available %}
+                <div class="alert alert-success">
+                    <i class="fa-solid fa-circle-check"></i> <strong>Neues Update auf aktuellem Kanal verfügbar!</strong>
+                </div>
+            {% else %}
+                <div class="info-panel inline-icons">
+                    <i class="fa-solid fa-check text-primary"></i> Dein System ist auf dem neuesten Stand für den Kanal '{{ current_branch }}'.
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary" id="updateBtn">
+                <i class="fa-solid fa-rocket"></i> Update / Kanal-Wechsel durchführen (Neustart)
+            </button>
+        </form>
     </div>
-    
-    <form method="POST" action="{{ url_for('do_update') }}" onsubmit="return confirmUpdate();">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <div class="form-group info-panel">
-            <label class="form-label" for="target_branch">Update-Kanal (Branch) wählen:</label>
-            <select name="target_branch" id="target_branch" class="form-control" style="max-width: 300px; display: inline-block;">
-                <option value="main" {% if current_branch == 'main' %}selected{% endif %}>Stable (main)</option>
-                <option value="beta" {% if current_branch == 'beta' %}selected{% endif %}>Beta (beta)</option>
-            </select>
-            <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.85rem;">
-                Aktueller Kanal: <strong>{{ current_branch }}</strong>. Wenn du den Kanal wechselst, wird das System beim Update automatisch auf den gewählten Zweig umgestellt.
-            </p>
-        </div>
-        
-        {% if updates_available %}
-            <div style="padding:1rem; background:rgba(40,167,69,0.1); border:1px solid rgba(40,167,69,0.2); border-radius:8px; color:#28a745; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-                <i class="fa-solid fa-circle-check"></i> <strong>Neues Update auf aktuellem Kanal verfügbar!</strong>
-            </div>
-        {% else %}
-            <div class="info-panel inline-icons">
-                <i class="fa-solid fa-check text-primary"></i> Dein System ist auf dem neuesten Stand für den Kanal '{{ current_branch }}'.
-            </div>
-        {% endif %}
-        
-        <button type="submit" class="btn btn-primary" id="updateBtn">
-            <i class="fa-solid fa-rocket"></i> Update / Kanal-Wechsel durchführen (Neustart)
-        </button>
-    </form>
 </div>
 
 <script>
