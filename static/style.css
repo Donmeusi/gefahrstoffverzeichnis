@@ -596,6 +596,15 @@ h4 { font-size: var(--fs-base); }
     color: var(--primary);
 }
 
+/* Dokumentknöpfe der Detailsicht. Sie waren der letzte Ort mit festen
+   Farbwerten im HTML (#fca5a5, #a5b4fc, #86efac - helle Töne aus fremden
+   Paletten, alle drei nur in view.html). Die -soft-Tokens sind genau dafür
+   gedacht: die kräftigere Stufe derselben Tönung als Rahmen.
+   Müssen wie die Varianten darüber nach .btn-outline stehen. */
+.btn-outline-sdb { border-color: var(--danger-soft); }
+.btn-outline-ba  { border-color: var(--primary-soft); }
+.btn-outline-gb  { border-color: var(--success-soft); }
+
 /* Danger */
 .btn-danger {
     background: linear-gradient(135deg, var(--danger), var(--danger-hover));
@@ -603,6 +612,23 @@ h4 { font-size: var(--fs-base); }
     box-shadow: 0 4px 12px var(--danger-soft);
 }
 .btn-danger:hover { transform: translateY(-2px); filter: brightness(1.08); color: white; }
+
+/* Warnung.
+   Die Klasse war in view.html benutzt, aber nie definiert - der Knopf hing
+   dadurch ohne Hintergrund in der Zeile und war nur durch seinen Inline-Stil
+   (color: black) überhaupt lesbar. Jetzt wie die Knöpfe darüber, mit dunkler
+   Schrift: Weiß erreicht auf --warning (#ffab00) nur 1,9:1. */
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning), var(--gold-dark));
+    color: var(--text-main);
+    box-shadow: 0 4px 12px var(--gold-light);
+}
+.btn-warning:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+    color: var(--text-main);
+}
+.btn-warning:active { transform: translateY(0); filter: brightness(0.95); }
 
 /* Icon button */
 .btn-icon {
@@ -1147,6 +1173,12 @@ input[type="file"]:hover { border-color: var(--text-light); }
 .alert-warning { background: var(--warning-light); color: var(--on-warning); border-color: var(--warning); }
 .alert-info    { background: var(--info-light);    color: var(--on-primary); border-color: var(--info);    }
 
+/* Titel und Aufzählung in einem Hinweiskasten. Die Werte standen als
+   Inline-Stile in view.html (Zusammenlagerungsverbot). Ohne die Einrückung
+   stünde die Liste am Rand, weil der Reset (Zeile 120) padding: 0 setzt. */
+.alert > h4 { margin-bottom: 0.5rem; }
+.alert > ul { padding-left: 1.5rem; }
+
 /* ============================================================
    PICTOGRAMS
    ============================================================ */
@@ -1213,6 +1245,11 @@ input[type="file"]:hover { border-color: var(--text-light); }
     transition: transform var(--transition);
 }
 .pictogram-display img:hover { transform: scale(1.3); }
+
+/* Größere Fassung für die Detailsicht. Dort standen Abstand und Bildmaße
+   als Inline-Werte an jedem einzelnen Bild. */
+.pictogram-display--large { gap: 0.75rem; }
+.pictogram-display--large img { width: 58px; height: 58px; }
 
 /* ============================================================
    EMPTY STATE
@@ -1571,15 +1608,46 @@ body.auth-page::before {
     gap: 0.75rem 1.25rem;
     align-items: center;
 }
+/* Beschriftung über einem Wert: klein, gesperrt, gedämpft. Dieselbe Gestaltung
+   stand in view.html viermal als Inline-Stil auf <p>-Elementen - mit 0,78rem
+   daneben, einem Wert, den die Schrift-Tokens nicht kennen. Hier steht sie
+   einmal und .detail-grid dt teilt sie sich. */
+.field-label,
 .detail-grid dt {
     font-size: var(--fs-xs);
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    white-space: nowrap;
 }
+.field-label { margin-bottom: 0.5rem; }
+.detail-grid dt { white-space: nowrap; }
 .detail-grid dd { font-size: var(--fs-base); color: var(--text-main); }
+
+/* Gruppe aus Beschriftung und zugehörigem Inhalt. */
+.field-group { margin-bottom: 1.25rem; }
+/* Fließtext zu einer Beschriftung (H- und P-Sätze). */
+.field-value { font-size: var(--fs-sm); color: var(--text-main); line-height: 1.6; }
+/* Zusatzangabe unter einem Wert, etwa "Begründung:" oder das Prüfdatum. */
+.field-note { font-size: var(--fs-sm); color: var(--text-muted); margin-top: 0.2rem; }
+
+/* Kopfbereich der Detailsicht: links Zurück-Knopf, Titel und Signalwort,
+   rechts die Knopfreihe. */
+.page-header-main { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.page-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Trennlinie über den Nebenaktionen am Fuß der Stammdatenkarte. */
+.view-actions {
+    margin-top: 1.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Symbol, das etwas Abstand zum folgenden Text braucht. */
+.icon-leading { margin-right: 0.3rem; }
 
 .section-header {
     display: flex;
@@ -1913,6 +1981,7 @@ a.kpi-card { text-decoration: none; }
 .text-sm      { font-size: var(--fs-sm); }
 .nowrap       { white-space: nowrap; }
 .stack-xs     { display: flex; flex-direction: column; gap: 0.25rem; }
+.stack-lg     { display: flex; flex-direction: column; gap: 1.5rem; }
 .inline-icons { display: inline-flex; align-items: center; gap: 0.3rem; }
 
 /* Zeilentitel in der Tabelle */
@@ -1963,6 +2032,19 @@ a.kpi-card { text-decoration: none; }
 
 /* Dokumentknöpfe einer Zeile oder Kachel */
 .doc-row  { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+/* Die Dokumentknöpfe der Detailsicht sind größer als die Kürzel der Übersicht
+   und brauchen entsprechend mehr Abstand. */
+.doc-row--lg { gap: 0.75rem; }
+
+/* Platzhalter, wenn kein Dokument hinterlegt ist ("Kein SDB"). */
+.doc-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    padding: 0.4rem 0;
+}
 .doc-warn { color: var(--danger); }
 
 /* Symbolspalte in der Kachelansicht (Standort, Menge). Beide Symbole standen
