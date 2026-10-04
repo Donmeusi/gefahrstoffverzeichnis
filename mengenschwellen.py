@@ -45,6 +45,10 @@ Grenzen - bitte lesen
   geknüpft (Gase: "und > 1 Flasche", Kartuschen/Aerosole: "oder > 50 Stück").
   Die App kennt keine Gebindezahl; solche Regeln tragen einen 'hinweis' und
   werden allein über die Masse geprüft - das kann zu wenig melden.
+* **Gase werden nur über die H-Sätze zugeordnet.** Die Lagerklasse 2A umfasst
+  brennbare und nicht brennbare Gase; ein Rückfall über sie würde jedes
+  Druckgas als entzündbar melden. Ein Gas ohne H-Sätze geht deshalb nicht in
+  die Prüfung ein (in der Praxis führt ein Sicherheitsdatenblatt sie immer).
 * Die Werte sind eine Arbeitshilfe und kein Ersatz für die Gefährdungsbeurteilung.
   Maßgeblich bleibt der Text der TRGS 510 in der jeweils geltenden Fassung.
 """
@@ -269,7 +273,12 @@ SCHWELLEN = (
         'gruppe': 'entz_gase',
         'bezeichnung': 'Entzündbare Gase Kat. 1A, 1B, 2 (H220, H221)',
         'h_saetze': ('H220', 'H221'),
-        'lgk': ('2A',),
+        # Bewusst kein LGK-Rückfall: LGK 2A umfasst brennbare UND nicht brennbare
+        # Gase. Ohne H-Satz ließe sich die Zeile nicht zuordnen, und ein
+        # Rückfall über die Lagerklasse würde jedes Druckgas als entzündbar
+        # melden (nachgestellt: eine Flasche ohne H-Sätze ergab zwei sich
+        # widersprechende Befunde).
+        'lgk': (),
         'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 50.0,
         'zusatz_ab_kg': 200.0,
@@ -294,7 +303,8 @@ SCHWELLEN = (
         'bezeichnung': 'Gase unter Druck, nicht akut toxisch / entzündbar / oxidierend '
                        '(H280, H281)',
         'h_saetze': ('H280', 'H281'),
-        'lgk': ('2A',),
+        # Ebenfalls kein LGK-Rückfall - siehe entz_gase.
+        'lgk': (),
         'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 50.0,
         'zusatz_ab_kg': None,

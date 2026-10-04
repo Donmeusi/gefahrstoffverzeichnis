@@ -81,12 +81,14 @@
   });
 
   // Vergleichslauf: greift programmatische Änderungen auf (Autofill, H-Satz-Dialog),
-  // ohne dass jede dieser Stellen ein Ereignis auslösen muss.
+  // ohne dass jede dieser Stellen ein Ereignis auslösen muss. Das Intervall ist
+  // selbst die Entprellung, deshalb hier laden() statt planen() - sonst käme die
+  // Verzögerung ein zweites Mal dazu.
   setInterval(function () {
     const jetzt = signatur();
     if (jetzt !== letzteSignatur) {
       letzteSignatur = jetzt;
-      planen();
+      laden();
     }
   }, 1200);
 

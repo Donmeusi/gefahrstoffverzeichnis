@@ -208,6 +208,15 @@ class TestPruefeUnterbereich(unittest.TestCase):
             [stoff('Stickstoff', 60, 'kg', 'H280', '2A')])
         self.assertEqual(befunde[0]['gruppe'], 'gase_unter_druck')
 
+    def test_gas_ohne_h_satz_kein_rueckfall_ueber_die_lagerklasse(self):
+        # LGK 2A umfasst brennbare und nicht brennbare Gase - ein Rückfall über
+        # die Lagerklasse würde jedes Druckgas als entzündbar melden (im Browser
+        # nachgestellt: ohne H-Sätze kamen zwei sich widersprechende Befunde).
+        # Ohne H-Sätze bleibt ein Gas daher ungeprüft.
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Druckgas', 60, 'kg', '', '2A')])
+        self.assertEqual(befunde, [])
+
 
 class TestAbgleichTabelle1(unittest.TestCase):
     """Sperrt den Abgleich gegen die amtliche Tabelle 1 fest.

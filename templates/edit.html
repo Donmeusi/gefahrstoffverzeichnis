@@ -368,5 +368,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
-<script src="{{ url_for('static', filename='mengenschwellen_vorschau.js') }}"></script>
+<script src="{{ url_for('static', filename='mengenschwellen_vorschau.js') }}?v={{ APP_VERSION }}"></script>
 {% endblock %}
