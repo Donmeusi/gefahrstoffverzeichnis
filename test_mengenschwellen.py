@@ -155,6 +155,105 @@ class TestPruefeUnterbereich(unittest.TestCase):
         ]
         self.assertEqual(mengenschwellen.stoffe_ohne_menge(stoffe), 2)
 
+    # Die folgenden Fälle prüfen die Gruppen, die erst im Abgleich gegen den
+    # amtlichen Text aufgenommen wurden (Tabelle 1 der TRGS 510).
+    def test_cmr_kat1_fuenfzig_kilo(self):
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Benzol', 60, 'kg', 'H350', '6.1C')])
+        self.assertEqual(befunde[0]['gruppe'], 'cmr_kat1')
+        self.assertEqual(befunde[0]['kleinmenge_kg'], 50.0)
+
+    def test_zielorgantoxisch_kat1(self):
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Xylol', 60, 'kg', 'H370', '6.1C')])
+        self.assertEqual(befunde[0]['gruppe'], 'zielorgantoxisch_kat1')
+
+    def test_selbstzersetzlich_einhundert_kilo(self):
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Peroxid', 150, 'kg', 'H242', '5.2')])
+        self.assertEqual(befunde[0]['gruppe'], 'selbstzersetzlich')
+        self.assertEqual(befunde[0]['kleinmenge_kg'], 100.0)
+
+    def test_brandfoerdernd_kat1_ein_kilo(self):
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Nitrat', 3, 'kg', 'H271', '5.1A')])
+        self.assertEqual(befunde[0]['gruppe'], 'brandfoerdernd_kat1')
+        self.assertEqual(befunde[0]['kleinmenge_kg'], 1.0)
+
+    def test_aerosole_zwanzig_kilo(self):
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Spray', 25, 'kg', 'H222', '2B')])
+        self.assertEqual(befunde[0]['gruppe'], 'aerosole')
+        self.assertEqual(befunde[0]['kleinmenge_kg'], 20.0)
+
+    def test_toxisches_gas_hat_eigene_zeile(self):
+        # Akut toxisches Gas (H330 mit H280): eigenes Limit von 0,5 kg - und
+        # NICHT die 50-kg-Zeile für Flüssigkeiten/Feststoffe (ausschluss_h).
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Chlorgas', 1, 'kg', 'H330, H280', '2A')])
+        gruppen = {b['gruppe'] for b in befunde}
+        self.assertIn('akut_toxisch_gas', gruppen)
+        self.assertNotIn('akut_toxisch', gruppen)
+        gas = [b for b in befunde if b['gruppe'] == 'akut_toxisch_gas'][0]
+        self.assertEqual(gas['kleinmenge_kg'], 0.5)
+
+    def test_akut_toxische_fluessigkeit_bleibt_bei_fuenfzig_kilo(self):
+        # Ohne H280/H281 greift die Gas-Zeile nicht.
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Toxisch', 60, 'kg', 'H330', '6.1A')])
+        self.assertEqual({b['gruppe'] for b in befunde}, {'akut_toxisch'})
+
+    def test_druckgas_ohne_weitere_einstufung(self):
+        befunde = mengenschwellen.pruefe_unterbereich(
+            [stoff('Stickstoff', 60, 'kg', 'H280', '2A')])
+        self.assertEqual(befunde[0]['gruppe'], 'gase_unter_druck')
+
+
+class TestAbgleichTabelle1(unittest.TestCase):
+    """Sperrt den Abgleich gegen die amtliche Tabelle 1 fest.
+
+    Nennt die Tabelle 1 einen H-Satz mit einer Mengenschwelle, muss er in der
+    Regeltabelle vorkommen. Fällt ein Eintrag beim Umbau heraus, schlägt dieser
+    Test an.
+    """
+
+    # Alle H-Sätze, für die Tabelle 1 der TRGS 510 eine Menge nennt.
+    H_SAETZE_TABELLE_1 = (
+        'H300', 'H310', 'H330', 'H301', 'H311', 'H331',   # akut toxisch
+        'H340', 'H350', 'H350i', 'H360', 'H360F', 'H360D',
+        'H360FD', 'H360Fd', 'H360Df',                     # CMR Kat. 1A/1B
+        'H370', 'H372',                                   # zielorgantoxisch
+        'H220', 'H221',                                   # entzündbare Gase
+        'H270',                                           # oxidierende Gase
+        'H280', 'H281',                                   # Gase unter Druck
+        'H222', 'H223', 'H229',                           # Aerosole
+        'H224', 'H225', 'H226',                           # entzündbare Flüssigkeiten
+        'H228',                                           # entzündbare Feststoffe
+        'H242',                                           # selbstzersetzlich
+        'H250', 'H251', 'H252',                           # pyrophor / selbsterhitzend
+        'H260', 'H261',                                   # wasserreaktiv
+        'H271', 'H272',                                   # oxidierend
+        'H206', 'H207', 'H208',                           # desensibilisierte Explosivstoffe
+    )
+
+    def test_alle_h_saetze_der_tabelle_sind_erfasst(self):
+        erfasst = set()
+        for regel in mengenschwellen.SCHWELLEN:
+            erfasst |= set(regel['h_saetze'])
+        fehlend = [h for h in self.H_SAETZE_TABELLE_1 if h not in erfasst]
+        self.assertEqual(fehlend, [], f'Tabelle-1-Sätze ohne Regel: {fehlend}')
+
+    def test_gesamtgrenze_ist_1500_kg(self):
+        self.assertEqual(mengenschwellen.GESAMT_KLEINMENGEN_KG, 1500.0)
+
+    def test_zusammenlagerungsschwelle_ist_200_kg(self):
+        self.assertEqual(mengenschwellen.ZUSAMMENLAGERUNG_AB_KG, 200.0)
+
+    def test_jede_regel_hat_eine_quelle(self):
+        for regel in mengenschwellen.SCHWELLEN:
+            self.assertTrue(regel['quelle'], regel['gruppe'])
+            self.assertIn('TRGS 510', regel['quelle'])
+
 
 class TestAlleBefunde(unittest.TestCase):
     """Aufteilung auf Lagerabschnitte und Sortierung."""

@@ -1001,6 +1001,7 @@ def mengenschwellen_liste():
             'ueberschreitung_kg': befund['ueberschreitung_kg'],
             'stoffnamen': befund['stoffnamen'],
             'ohne_menge': befund.get('ohne_menge', []),
+            'hinweis': befund.get('hinweis'),
             'quelle': befund['quelle'],
         })
     return eintraege

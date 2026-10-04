@@ -71,8 +71,9 @@
         <strong>H-Sätze</strong>, ersatzweise über die Lagerklasse. Mengen in Liter werden ohne
         Dichte wie Kilogramm gerechnet; „Stück“ zählt nicht mit. Ab der Kleinmenge ist eine
         Lagerung außerhalb eines Lagers nicht mehr zulässig, ab der Zusatzschwelle greifen die
-        zusätzlichen Schutzmaßnahmen der TRGS 510. Die Werte sind eine Arbeitshilfe und kein
-        Ersatz für die Gefährdungsbeurteilung.
+        zusätzlichen Schutzmaßnahmen der TRGS 510. Die Schwellen folgen Tabelle 1 der TRGS 510
+        (Ausgabe Dezember 2020); sie sind eine Arbeitshilfe und kein Ersatz für die
+        Gefährdungsbeurteilung.
     </div>
 </div>
 
@@ -106,6 +107,14 @@
                             <span class="badge badge-warning">Kleinmenge überschritten</span>
                         {% endif %}
                     </div>
+                    {# Was die App nicht prüfen kann (Gebindezahl, Einheiten),
+                       steht als Hinweis an der Zeile - sonst sähe der Befund
+                       vollständiger aus, als er ist. #}
+                    {% if e.hinweis %}
+                    <div class="text-xs text-light mt-2">
+                        <i class="fa-solid fa-circle-info icon-leading"></i>{{ e.hinweis }}
+                    </div>
+                    {% endif %}
                 </td>
                 <td class="nowrap">
                     <strong>{{ e.summe_kg|round(1) }}</strong> kg

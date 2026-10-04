@@ -417,11 +417,16 @@ Schwellen erscheinen — eingehaltene Gruppen stehen nicht in der Liste.
 * **„Stück“ zählt nicht mit.** Stoffe in Stück-Einheit und Stoffe ohne erfasste
   Menge gehen in keine Summe ein. Ihre Zahl steht im Kopfbereich der Seite
   („… Stoff(e) ohne rechenbare Menge“), damit die Lücke sichtbar bleibt.
+* **Die Gebindezahl kennt die Anwendung nicht.** Einige Zeilen der Tabelle 1
+  sind zusätzlich an die Zahl der Gebinde geknüpft (Gase: „und > 1 Flasche“,
+  Kartuschen und Aerosole: „oder > 50 Stück“). Solche Fälle werden allein über
+  die Masse geprüft — das kann zu wenig melden. Der Hinweis steht an der
+  betroffenen Zeile.
 * **Die Werte sind eine Arbeitshilfe, kein Ersatz für die
   Gefährdungsbeurteilung.** Maßgeblich ist der Text der TRGS 510 in der jeweils
   geltenden Fassung. Die Zahlen stehen in `mengenschwellen.py`, jede mit
-  Quellenangabe, und sind vor einem produktiven Einsatz am Regelwerkstext zu
-  prüfen.
+  Quellenangabe, und wurden am 04.10.2026 gegen Tabelle 1 der amtlichen Fassung
+  (Ausgabe Dezember 2020) abgeglichen.
 
 Ein Hinweis auf überschrittene Mengenschwellen erscheint auch auf der
 Detailseite eines Stoffes — dort aber nur, wenn **dieser** Stoff am Befund

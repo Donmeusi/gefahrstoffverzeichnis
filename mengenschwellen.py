@@ -15,35 +15,50 @@ damit über denselben Bereich.
 Aufbau
 ------
 SCHWELLEN ist eine Tabelle aus Regeln. Jede Regel nennt die Einstufung
-(H-Sätze primär, Lagerklasse als Ersatz), die Kleinmenge und - wo die TRGS eine
-nennt - die Menge, ab der zusätzliche Schutzmaßnahmen greifen. Die Zahlen stehen
-bewusst nur hier, mit Quellenangabe; die Prüffunktionen selbst enthalten keine.
-Geprüft wird primär über die H-Sätze: das ist die Systematik der TRGS 510
+(H-Sätze primär, Lagerklasse als Ersatz), die Menge, ab der im Lager gelagert
+werden muss (Tabelle 1 Spalte 3 = Kleinmenge), und - wo die TRGS eine nennt -
+die Menge, ab der zusätzliche Schutzmaßnahmen greifen (Spalte 4). Die Zahlen
+stehen bewusst nur hier, mit Quellenangabe; die Prüffunktionen selbst enthalten
+keine. Geprüft wird primär über die H-Sätze: das ist die Systematik der TRGS 510
 (Tabelle 1 ordnet nach Einstufung, nicht nach Lagerklasse). Nur wenn ein Stoff
 keine passende H-Satz-Regel trifft, greift seine Lagerklasse als Ersatz.
+
+Quelle der Zahlen
+-----------------
+TRGS 510 "Lagerung von Gefahrstoffen in ortsbeweglichen Behältern", Ausgabe
+Dezember 2020, Fassung 16.02.2021, GMBl 2021 S. 178-216 (Nr. 9-10). Maßgeblich
+ist Abschnitt 1 Absätze 7-9 mit Tabelle 1 (Spalten 3 und 4) und der dortigen
+Fußnote zur Zusammenlagerung sowie Absatz 10. Abgeglichen am 04.10.2026 gegen
+die amtliche Fassung (Quelle: BAuA, veröffentlicht in der Vorschriftensammlung
+der Gewerbeaufsicht Baden-Württemberg). Die Mengen sind Nettolagermengen.
 
 Grenzen - bitte lesen
 ---------------------
 * Die App kennt keine Dichte. Mengen in L/ml werden ohne Umrechnung wie kg
   behandelt (1 L = 1 kg). Das ist eine Näherung und wird im Ergebnis als solche
-  gekennzeichnet.
+  gekennzeichnet. Die TRGS lässt bei Gasen sowie Druckgaskartuschen und
+  Aerosolpackungen die Einheit ausdrücklich wahlweise zu (kg oder l bzw. kg
+  oder Stück).
 * "Stück" lässt sich keiner Masse zuordnen und geht nicht in die Summen ein;
   solche Stoffe werden als Hinweis geführt, nicht als Zahl.
+* Mehrere Zeilen der Tabelle 1 sind zusätzlich an die Anzahl der Gebinde
+  geknüpft (Gase: "und > 1 Flasche", Kartuschen/Aerosole: "oder > 50 Stück").
+  Die App kennt keine Gebindezahl; solche Regeln tragen einen 'hinweis' und
+  werden allein über die Masse geprüft - das kann zu wenig melden.
 * Die Werte sind eine Arbeitshilfe und kein Ersatz für die Gefährdungsbeurteilung.
-  Maßgeblich ist der Text der TRGS 510 in der jeweils geltenden Fassung. Die
-  Zahlen unten sind gegen die Fassung Dezember 2020 (GMBl 2021 S. 178-216)
-  eingetragen und vor einem produktiven Einsatz am Regelwerkstext zu prüfen.
+  Maßgeblich bleibt der Text der TRGS 510 in der jeweils geltenden Fassung.
 """
 
 import re
 
-# Ab dieser Gesamtmenge (alle Kleinmengen eines Brandabschnitts zusammen) ist
-# eine Lagerung außerhalb von Lagern nicht mehr zulässig - TRGS 510 Nr. 4.3.1.
+# Ab dieser Gesamtmenge aller Gefahrstoffe im Brandabschnitt ist eine Lagerung
+# außerhalb von Lagern nicht mehr zulässig - TRGS 510 Nr. 1 Abs. 8 und Tabelle 1
+# (Zeile "mehrere verschiedene Gefahrstoffe": Summe > 1.500 kg).
 GESAMT_KLEINMENGEN_KG = 1500.0
 
-# Ab dieser Gesamtmenge im Lagerabschnitt greifen die Zusammenlagerungsregeln
-# (TRGS 510 Nr. 13). Nur ein Hinweiswert - die Zusammenlagerung selbst prüft
-# trgs510.py.
+# Ab dieser Gesamtmenge brauchen die Maßnahmen des Abschnitts 13 (Zusammen-
+# lagerung) nicht ergriffen zu werden - TRGS 510 Nr. 1 Abs. 10. Nur ein
+# Hinweiswert; die Zusammenlagerung selbst prüft trgs510.py.
 ZUSAMMENLAGERUNG_AB_KG = 200.0
 
 # Umrechnungsfaktoren in Kilogramm. L und ml werden 1:1 wie kg behandelt, weil
@@ -61,142 +76,270 @@ MASSEINHEITEN = {
 # das ist gewollt, beide Einzelcodes zählen.
 H_SATZ_MUSTER = re.compile(r'H\d{3}[A-Za-z]*')
 
-# Tabelle der Mengenschwellen. 'kleinmenge_kg' = bis hierher gilt die Lagerung
-# als Kleinmenge (keine Lagerung im Lager erforderlich). 'zusatz_ab_kg' = ab
-# hier greifen die zusätzlichen Schutzmaßnahmen; None, wo die TRGS für diese
-# Gruppe keine eigene Schwelle nennt.
+# Tabelle der Mengenschwellen - 1:1 aus Tabelle 1 der TRGS 510 (Spalten 3 und 4),
+# abgeglichen am 04.10.2026. Bezeichnungen und Mengen folgen dem Wortlaut.
+#
+#   kleinmenge_kg  Spalte 3 "Lagern im Lager": ab hier muss im Lager gelagert
+#                  werden (bis hierher ist es eine Kleinmenge)
+#   zusatz_ab_kg   Spalte 4 "Zusätzliche/besondere Schutzmaßnahmen"
+#   bedingung_h    Zusatzbedingung: der Stoff muss zusätzlich einen dieser
+#                  H-Sätze tragen, sonst greift die Regel nicht
+#   ausschluss_h   Gegenbedingung: trägt der Stoff einen dieser H-Sätze, greift
+#                  die Regel nicht (trennt z. B. Gase von Flüssigkeiten/Feststoffen)
+#   hinweis        was die App nicht prüfen kann (Gebindezahl, Einheiten)
 SCHWELLEN = (
+    # ── entzündbare Flüssigkeiten ────────────────────────────────────────────
     {
         'gruppe': 'entzfluessig_kat12',
         'bezeichnung': 'Entzündbare Flüssigkeiten Kat. 1/2 (H224, H225)',
         'h_saetze': ('H224', 'H225'),
         'lgk': ('3',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 20.0,
         'zusatz_ab_kg': 200.0,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1), Nr. 12 (Tabelle 9)',
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H224/H225: H224 > 10 kg, Summe > 20 kg)',
     },
     {
-        # Teilmenge der Gruppe oben: H224 ist allein auf 10 kg begrenzt, auch
-        # wenn die Summe H224+H225 20 kg nicht überschreitet. Deshalb eine
-        # eigene Zeile - sie zählt nur die H224-Stoffe.
+        # Teilmenge der Zeile oben - eigener Eintrag, weil Tabelle 1 für H224
+        # eine eigene Grenze nennt ("H224 > 10 kg") und die Summe H224/H225
+        # daneben ("Summe H224/H225 > 20 kg"). Diese Zeile zählt nur H224.
         'gruppe': 'entzfluessig_h224',
         'bezeichnung': 'davon H224 (höchstens 10 kg)',
         'h_saetze': ('H224',),
         'lgk': (),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 10.0,
         'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1, Fußnote H224)',
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (Spalte 3, H224)',
     },
     {
         'gruppe': 'entzfluessig_kat3',
         'bezeichnung': 'Entzündbare Flüssigkeiten Kat. 3 (H226)',
         'h_saetze': ('H226',),
         'lgk': ('3',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 100.0,
         'zusatz_ab_kg': 1000.0,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1), Nr. 12 (Tabelle 9)',
+        'hinweis': 'Entfällt bei ausschließlicher Lagerung mit Flammpunkt > 55 °C '
+                   '(Fußnote 3: Dieselkraftstoff, Heizöl)',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H226)',
     },
     {
         'gruppe': 'entzfeststoff',
         'bezeichnung': 'Entzündbare Feststoffe Kat. 1/2 (H228)',
         'h_saetze': ('H228',),
         'lgk': ('4.1B',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 200.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H228)',
     },
+    # ── selbstzersetzlich, pyrophor, selbsterhitzungsfähig, wasserreaktiv ────
     {
-        'gruppe': 'explosiv_desens',
-        'bezeichnung': 'Desensibilisierte Explosivstoffe (H206-H208)',
-        'h_saetze': ('H206', 'H207', 'H208'),
-        'lgk': ('4.1A',),
+        'gruppe': 'selbstzersetzlich',
+        'bezeichnung': 'Selbstzersetzliche Gefahrstoffe Typ C, D, E, F (H242)',
+        'h_saetze': ('H242',),
+        'lgk': (),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 100.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H242)',
     },
     {
         'gruppe': 'pyrophor',
-        'bezeichnung': 'Pyrophore Stoffe (H250)',
+        'bezeichnung': 'Pyrophore Flüssigkeiten und Feststoffe Kat. 1 (H250)',
         'h_saetze': ('H250',),
         'lgk': ('4.2',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 100.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H250)',
     },
     {
         'gruppe': 'selbsterhitzung',
-        'bezeichnung': 'Selbsterhitzungsfähige Stoffe (H251, H252)',
+        'bezeichnung': 'Selbsterhitzungsfähige Gefahrstoffe Kat. 1/2 (H251, H252)',
         'h_saetze': ('H251', 'H252'),
         'lgk': ('4.2',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 200.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H251, H252)',
     },
     {
         'gruppe': 'wasserreaktiv',
-        'bezeichnung': 'Stoffe, die mit Wasser entzündbare Gase bilden (H260, H261)',
+        'bezeichnung': 'Stoffe, die mit Wasser entzündbare Gase entwickeln, Kat. 1-3 (H260, H261)',
         'h_saetze': ('H260', 'H261'),
         'lgk': ('4.3',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 200.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H260, H261)',
     },
+    # ── brandfördernd ───────────────────────────────────────────────────────
     {
         'gruppe': 'brandfoerdernd_kat1',
-        'bezeichnung': 'Brandfördernde Stoffe Kat. 1 (H271)',
+        'bezeichnung': 'Oxidierende Flüssigkeiten und Feststoffe Kat. 1 (H271)',
         'h_saetze': ('H271',),
         'lgk': ('5.1A',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 1.0,
         'zusatz_ab_kg': 5.0,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'hinweis': 'Zusätzliche Maßnahmen nach Abschnitt 9 greifen bereits ab > 200 kg',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H271: > 1 kg, dann > 5 kg)',
     },
     {
         'gruppe': 'brandfoerdernd_kat23',
-        'bezeichnung': 'Brandfördernde Stoffe Kat. 2/3 (H272)',
+        'bezeichnung': 'Oxidierende Flüssigkeiten und Feststoffe Kat. 2/3 (H272)',
         'h_saetze': ('H272',),
         'lgk': ('5.1B', '5.1C'),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 50.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H272)',
     },
     {
+        'gruppe': 'explosiv_desens',
+        'bezeichnung': 'Desensibilisierte explosive Gefahrstoffe Kat. 1-4 (H206, H207, H208)',
+        'h_saetze': ('H206', 'H207', 'H208'),
+        'lgk': ('4.1A',),
+        'bedingung_h': (), 'ausschluss_h': (),
+        'kleinmenge_kg': 100.0,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': 'Nicht im Anwendungsbereich des Sprengstoffgesetzes (Fußnote 4)',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H206-H208)',
+    },
+    # ── toxisch, CMR, zielorgantoxisch ──────────────────────────────────────
+    {
         'gruppe': 'akut_toxisch',
-        'bezeichnung': 'Akut toxische Stoffe (H300, H301, H310, H311, H330, H331)',
+        'bezeichnung': 'Akut toxische Flüssigkeiten und Feststoffe Kat. 1-3 '
+                       '(H300, H301, H310, H311, H330, H331)',
         'h_saetze': ('H300', 'H301', 'H310', 'H311', 'H330', 'H331'),
-        'lgk': ('6.1A', '6.1B', '6.1C', '6.1D'),
+        'lgk': ('6.1A', '6.1B', '6.1C', '6.1D',),
+        'bedingung_h': (), 'ausschluss_h': ('H280', 'H281'),
+        'kleinmenge_kg': 50.0,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': 'Gilt für Flüssigkeiten/Feststoffe; akut toxische Gase siehe eigene Zeile',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H300/H310/H330, H301/H311/H331)',
+    },
+    {
+        'gruppe': 'akut_toxisch_gas',
+        'bezeichnung': 'Akut toxische Gase Kat. 1-3 (H330, H331 mit H280/H281)',
+        'h_saetze': ('H330', 'H331'),
+        'lgk': (),
+        'bedingung_h': ('H280', 'H281'), 'ausschluss_h': (),
+        'kleinmenge_kg': 0.5,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': 'Gilt ab > 0,5 kg oder > 1 l; Zusatzmaßnahmen ab > 200 kg oder > 400 l',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H330/H331 mit H280 oder H281)',
+    },
+    {
+        'gruppe': 'cmr_kat1',
+        'bezeichnung': 'Keimzellmutagen / karzinogen / reproduktionstoxisch Kat. 1A, 1B '
+                       '(H340, H350, H350i, H360, H360F, H360D, H360FD, H360Fd, H360Df)',
+        'h_saetze': ('H340', 'H350', 'H350i', 'H360', 'H360F', 'H360D',
+                     'H360FD', 'H360Fd', 'H360Df'),
+        'lgk': (),
+        'bedingung_h': (), 'ausschluss_h': (),
+        'kleinmenge_kg': 50.0,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H340, H350, H350i, H360-Reihe)',
+    },
+    {
+        'gruppe': 'zielorgantoxisch_kat1',
+        'bezeichnung': 'Zielorgantoxische Gefahrstoffe Kat. 1 (H370, H372)',
+        'h_saetze': ('H370', 'H372'),
+        'lgk': (),
+        'bedingung_h': (), 'ausschluss_h': (),
+        'kleinmenge_kg': 50.0,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': None,
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H370, H372)',
+    },
+    # ── Gase, Aerosole, Druckgaskartuschen ──────────────────────────────────
+    {
+        'gruppe': 'entz_gase',
+        'bezeichnung': 'Entzündbare Gase Kat. 1A, 1B, 2 (H220, H221)',
+        'h_saetze': ('H220', 'H221'),
+        'lgk': ('2A',),
+        'bedingung_h': (), 'ausschluss_h': (),
+        'kleinmenge_kg': 50.0,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': 'Tabelle 1 knüpft zusätzlich an "> 1 Flasche"; die Gebindezahl '
+                   'kennt die App nicht. Kartuschen: eigenes Limit (> 20 kg oder > 50 Stück)',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H220, H221)',
+    },
+    {
+        'gruppe': 'oxidierende_gase',
+        'bezeichnung': 'Oxidierende Gase Kat. 1 (H270)',
+        'h_saetze': ('H270',),
+        'lgk': (),
+        'bedingung_h': (), 'ausschluss_h': (),
+        'kleinmenge_kg': 50.0,
+        'zusatz_ab_kg': 200.0,
+        'hinweis': 'Tabelle 1 knüpft zusätzlich an "> 1 Flasche"; die Gebindezahl '
+                   'kennt die App nicht',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H270)',
+    },
+    {
+        'gruppe': 'gase_unter_druck',
+        'bezeichnung': 'Gase unter Druck, nicht akut toxisch / entzündbar / oxidierend '
+                       '(H280, H281)',
+        'h_saetze': ('H280', 'H281'),
+        'lgk': ('2A',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 50.0,
         'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'hinweis': 'Tabelle 1 knüpft zusätzlich an "> 1 Flasche"; die Gebindezahl '
+                   'kennt die App nicht',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H280, H281)',
     },
     {
         'gruppe': 'aerosole',
-        'bezeichnung': 'Aerosolpackungen / Druckgaspackungen',
+        'bezeichnung': 'Aerosole Kat. 1, 2, 3 in Aerosolpackungen (H222, H223, H229)',
         'h_saetze': ('H222', 'H223', 'H229'),
         'lgk': ('2B',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 20.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1: 20 kg oder 50 Stück)',
+        'zusatz_ab_kg': 200.0,
+        'hinweis': 'Tabelle 1: > 20 kg oder > 50 Stück',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (H222, H223, H229)',
     },
+    # ── Ersatz über die Lagerklasse (Tabelle 1 nennt keine LGK) ─────────────
     {
         'gruppe': 'brennbar_fluessig_lgk10',
-        'bezeichnung': 'Brennbare Flüssigkeiten ohne entzündbar-Einstufung (LGK 10)',
+        'bezeichnung': 'Brennbare Flüssigkeiten ohne Einstufung als entzündbar (LGK 10)',
         'h_saetze': (),
         'lgk': ('10',),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 1000.0,
-        'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'zusatz_ab_kg': 1000.0,
+        'hinweis': 'Ersatzzuordnung über die Lagerklasse; Tabelle 1 benennt diese '
+                   'Gruppe über die Eigenschaft, nicht über H-Sätze',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (brennbare Flüssigkeiten ohne Einstufung '
+                  'als entzündbar)',
     },
     {
         'gruppe': 'sonstige',
-        'bezeichnung': 'Sonstige Gefahrstoffe (LGK 12/13)',
+        'bezeichnung': 'Sonstige Gefahrstoffe ohne vorgenannte Einstufung (LGK 12/13)',
         'h_saetze': (),
         'lgk': ('12', '13'),
+        'bedingung_h': (), 'ausschluss_h': (),
         'kleinmenge_kg': 1000.0,
         'zusatz_ab_kg': None,
-        'quelle': 'TRGS 510 Nr. 4.3.1 (Tabelle 1)',
+        'hinweis': 'Tabelle 1: "andere als gefährlich eingestufte Stoffe/Gemische, '
+                   'alle nicht vorgenannten Gefahrenhinweise > 1.000 kg"',
+        'quelle': 'TRGS 510 Nr. 1 Tabelle 1 (andere Gefahrstoffe)',
     },
 )
-
 
 def h_codes(h_saetze):
     """H-Satz-Codes aus dem Freitextfeld als Menge ('H225, H319' -> {H225, H319})."""
@@ -226,6 +369,26 @@ def menge_in_kg(menge, einheit):
     return menge * faktor, None
 
 
+def _passt(regel, h_menge):
+    """Prüft eine Regel gegen die H-Satz-Menge eines Stoffes.
+
+    Über die Schnittmenge mit 'h_saetze' hinaus können zwei Bedingungen greifen:
+    'bedingung_h' verlangt zusätzlich mindestens einen dieser H-Sätze (trennt
+    z. B. akut toxische Gase von toxischen Flüssigkeiten), 'ausschluss_h'
+    schließt den Stoff aus, wenn er einen davon trägt (verhindert, dass ein Gas
+    zusätzlich an der Zeile für Flüssigkeiten/Feststoffe gemessen wird).
+    """
+    if not h_menge & set(regel['h_saetze']):
+        return False
+    bedingung = regel.get('bedingung_h') or ()
+    if bedingung and not (h_menge & set(bedingung)):
+        return False
+    ausschluss = regel.get('ausschluss_h') or ()
+    if ausschluss and (h_menge & set(ausschluss)):
+        return False
+    return True
+
+
 def _regeln_fuer_stoff(h_menge, lagerklasse):
     """Regeln, die auf einen Stoff zutreffen - H-Sätze zuerst.
 
@@ -234,7 +397,7 @@ def _regeln_fuer_stoff(h_menge, lagerklasse):
     falsche Treffer: ein Stoff der LGK 3 mit H226 soll nicht zusätzlich an der
     20-kg-Regel für H224/H225 gemessen werden.
     """
-    h_treffer = [r for r in SCHWELLEN if r['h_saetze'] and h_menge & set(r['h_saetze'])]
+    h_treffer = [r for r in SCHWELLEN if r['h_saetze'] and _passt(r, h_menge)]
     if h_treffer:
         return h_treffer
 
@@ -271,6 +434,7 @@ def _befund(regel, treffer):
         'status': status,
         'stoffnamen': [name for name, _ in treffer],
         'ueberschreitung_kg': summe - kleinmenge,
+        'hinweis': regel.get('hinweis'),
         'quelle': regel['quelle'],
     }
 
@@ -321,7 +485,9 @@ def pruefe_unterbereich(stoffe):
             'status': 'gesamt',
             'stoffnamen': [],
             'ueberschreitung_kg': gesamt_kg - GESAMT_KLEINMENGEN_KG,
-            'quelle': 'TRGS 510 Nr. 4.3.1 (1500 kg je Brandabschnitt)',
+            'hinweis': None,
+            'quelle': 'TRGS 510 Nr. 1 Abs. 8 und Tabelle 1 '
+                      '(Summe aller Kleinmengen > 1.500 kg je Brandabschnitt)',
         })
 
     for befund in befunde:
