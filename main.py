@@ -29,6 +29,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from ldap_auth import authenticate_ldap, is_ldap_enabled
 import mengenschwellen
+from types import SimpleNamespace
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -77,7 +78,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 
 @app.context_processor
 def inject_globals():
@@ -1034,6 +1035,104 @@ def mengenschwellen_fuer_unterbereich(unterbereich_id):
     return mengenschwellen.pruefe_unterbereich(stoffe)
 
 
+def mengenschwellen_befunde_fuer_stoff(stoff):
+    """Befunde des Lagerabschnitts, an denen dieser Stoff beteiligt ist.
+
+    Ein Befund, der nur andere Stoffe desselben Abschnitts betrifft, gehört
+    nicht auf die Seite dieses Stoffes - sonst stünde bei jedem Stoff im Schrank
+    dieselbe Warnung. Die Gesamtmenge des Abschnitts wird aber immer gezeigt,
+    weil sie alle Stoffe betrifft.
+    """
+    befunde = mengenschwellen_fuer_unterbereich(getattr(stoff, 'unterbereich_id', None))
+    return [b for b in befunde
+            if stoff.name in b['stoffnamen'] or b['status'] == 'gesamt']
+
+
+def mengenschwellen_befund_text(befund):
+    """Ein Befund als Satz für Meldungen (Flash) und Vorschau."""
+    if befund['status'] == 'zusatz':
+        return (f"{befund['bezeichnung']}: {befund['summe_kg']:.1f} kg im "
+                f"Lagerabschnitt - zusätzliche Schutzmaßnahmen ab "
+                f"{befund['zusatz_ab_kg']:.0f} kg sind erreicht.")
+    if befund['status'] == 'gesamt':
+        return (f"Gesamtmenge im Lagerabschnitt: {befund['summe_kg']:.1f} kg - "
+                f"über der Grenze von {befund['kleinmenge_kg']:.0f} kg für alle "
+                f"Kleinmengen zusammen.")
+    return (f"{befund['bezeichnung']}: {befund['summe_kg']:.1f} kg im "
+            f"Lagerabschnitt - Kleinmenge {befund['kleinmenge_kg']:.1f} kg "
+            f"überschritten, Lagerung nur noch im Lager zulässig.")
+
+
+def mengenschwellen_warnung_nach_speichern(stoff):
+    """Warnt nach dem Speichern, wenn der Lagerabschnitt eine Mengenschwelle
+    nach TRGS 510 überschreitet - blockiert aber nichts.
+
+    Der Hinweis kommt zusätzlich zur Prüfseite: Wer gerade eine Menge einträgt,
+    soll die Folge sofort sehen und nicht erst beim nächsten Blick in die
+    Übersicht. Ein Fehler in der Prüfung darf das Speichern nicht stören.
+    """
+    try:
+        for befund in mengenschwellen_befunde_fuer_stoff(stoff):
+            flash('Mengenschwelle (TRGS 510): ' + mengenschwellen_befund_text(befund),
+                  'warning')
+    except Exception as e:
+        print(f"Mengenschwellen-Prüfung nach dem Speichern fehlgeschlagen: {e}")
+
+
+@app.route('/api/mengenschwellen_vorschau')
+@login_required
+def api_mengenschwellen_vorschau():
+    """Live-Vorschau der Mengenschwellen für das Gefahrstoff-Formular.
+
+    Nimmt die noch nicht gespeicherten Formularwerte entgegen und prüft sie
+    zusammen mit den bereits im Lagerabschnitt liegenden Stoffen (beim
+    Bearbeiten ohne den bearbeiteten Stoff selbst). Blockiert nichts - liefert
+    nur Hinweise für das Formular. Ein Fehler darf die Seite nicht stören,
+    deshalb immer eine Antwort mit 'hinweise'.
+    """
+    leer = jsonify({'hinweise': []})
+    if not current_user.can_write:
+        return leer
+
+    try:
+        unterbereich_id = int(request.args.get('unterbereich_id') or 0)
+    except (TypeError, ValueError):
+        return leer
+    unterbereich = db.session.get(Unterbereich, unterbereich_id) if unterbereich_id else None
+    if not unterbereich:
+        return leer
+
+    # Zugriffsprüfung wie überall sonst: nur Bereiche, die der Benutzer sehen darf.
+    if not current_user.is_admin:
+        if unterbereich.bereich_id not in {b.id for b in get_accessible_bereiche()}:
+            return leer
+
+    # Beim Bearbeiten den Stoff selbst ausschließen - sonst zählte seine alte
+    # Menge zusätzlich zu der gerade eingetragenen.
+    try:
+        ausschluss_id = int(request.args.get('stoff_id') or 0)
+    except (TypeError, ValueError):
+        ausschluss_id = 0
+
+    bestand = [s for s in unterbereich.gefahrstoffe
+               if not getattr(s, 'is_deleted', False) and s.id != ausschluss_id]
+
+    entwurf = SimpleNamespace(
+        name=request.args.get('name') or '(neuer Stoff)',
+        menge=request.args.get('menge') or None,
+        mengeneinheit=request.args.get('mengeneinheit'),
+        h_saetze=request.args.get('h_saetze'),
+        lagerklasse=request.args.get('lagerklasse'),
+        unterbereich_id=unterbereich_id,
+        is_deleted=False,
+    )
+
+    befunde = mengenschwellen.pruefe_unterbereich(bestand + [entwurf])
+    hinweise = [mengenschwellen_befund_text(b) for b in befunde
+                if entwurf.name in b['stoffnamen'] or b['status'] == 'gesamt']
+    return jsonify({'hinweise': hinweise})
+
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -1545,11 +1644,8 @@ def view_stoff(id):
     # Detailseite dieselbe Entscheidung zeigt wie Liste und Fristenliste.
     heute = datetime.utcnow().date()
     # Mengenschwellen des Lagerabschnitts, aber nur die Befunde, an denen
-    # dieser Stoff beteiligt ist (oder die Gesamtmenge des Abschnitts): sonst
-    # stünde bei jedem Stoff im Schrank dieselbe Warnung.
-    alle_befunde = mengenschwellen_fuer_unterbereich(stoff.unterbereich_id)
-    eigene_befunde = [b for b in alle_befunde
-                      if stoff.name in b['stoffnamen'] or b['status'] == 'gesamt']
+    # dieser Stoff beteiligt ist (oder die Gesamtmenge des Abschnitts).
+    eigene_befunde = mengenschwellen_befunde_fuer_stoff(stoff)
     return render_template('view.html', stoff=stoff, today=heute,
                            sdb_stufe=sdb_status(stoff, heute)[0],
                            mengenschwellen=eigene_befunde)
@@ -1810,6 +1906,8 @@ def add():
                 flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt! Hinweis: Da es sich um einen CMR-Stoff handelt, muss er vor der Sichtbarkeit von einem Moderator/Admin freigegeben werden.', 'warning')
             else:
                 flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt!', 'success')
+            # Mengenschwellen des Lagerabschnitts prüfen und warnen (nicht blockieren).
+            mengenschwellen_warnung_nach_speichern(neuer_stoff)
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
@@ -1943,6 +2041,8 @@ def edit_stoff(id):
                 flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert! Hinweis: Er muss nun als CMR-Stoff neu freigegeben werden.', 'warning')
             else:
                 flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert!', 'success')
+            # Mengenschwellen des Lagerabschnitts prüfen und warnen (nicht blockieren).
+            mengenschwellen_warnung_nach_speichern(stoff)
             return redirect(url_for('view_stoff', id=stoff.id))
         except Exception as e:
             db.session.rollback()

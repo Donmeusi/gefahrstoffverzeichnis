@@ -269,6 +269,15 @@
                 </div>
             </div>
 
+            {# Live-Vorschau der Mengenschwellen (TRGS 510). Gefüllt von
+               static/mengenschwellen_vorschau.js; ohne JavaScript bleibt die
+               Box verborgen. Sie blockiert nichts - die verbindliche Prüfung
+               steht auf /mengenschwellen. display wird per Script
+               geschaltet, deshalb an dieser Stelle als Inline-Stil. #}
+            <div id="mengenschwellen-vorschau" class="alert alert-warning alert--stack mb-4"
+                 style="display: none;"
+                 data-url="{{ url_for('api_mengenschwellen_vorschau') }}"></div>
+
             <div class="form-actions">
                 <a href="https://gestis.dguv.de/search" target="_blank" class="btn btn-outline btn-sm">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> GESTIS-Datenbank
@@ -425,4 +434,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
+<script src="{{ url_for('static', filename='mengenschwellen_vorschau.js') }}"></script>
 {% endblock %}

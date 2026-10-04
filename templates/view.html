@@ -75,10 +75,13 @@
             {{ b.summe_kg|round(1) }} kg von {{ b.kleinmenge_kg|round(1) }} kg
             {%- if b.status == 'zusatz' %},
             zusätzliche Schutzmaßnahmen ab {{ b.zusatz_ab_kg|int }} kg sind erreicht
+            {%- elif b.status == 'gesamt' %},
+            über der Grenze für alle Kleinmengen zusammen
             {%- else %},
             die Kleinmenge ist überschritten – Lagerung nur noch im Lager
             {%- endif %}.
-            <span class="text-light text-xs">({{ b.quelle }})</span>
+            {% if b.hinweis %}<br><span class="text-light text-xs">{{ b.hinweis }}</span>{% endif %}
+            <br><span class="text-light text-xs">{{ b.quelle }}</span>
         </li>
         {% endfor %}
     </ul>

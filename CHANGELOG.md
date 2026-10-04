@@ -2,6 +2,17 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.27 – Mengenschwellen-Prüfung im Formular (Stufe 3, Oktober 2026)
+
+* **Warum:** Nach v3.26 wurde eine überschrittene Mengenschwelle erst auf der Prüfseite sichtbar — wer gerade eine Menge eintrug, erfuhr die Folge nicht. Die Prüfung greift jetzt dort, wo die Menge entsteht.
+* **Warnung nach dem Speichern.** Nach `/add` und `/edit` prüft die Anwendung den Lagerabschnitt und meldet eine überschrittene Kleinmenge oder erreichte Zusatzschwelle als Hinweis. **Sie blockiert nichts** — gespeichert wird, was eingetragen wurde; die Meldung erscheint zusätzlich zur Erfolgsmeldung.
+* **Live-Vorschau im Formular.** Anlegen und Bearbeiten haben unter den Feldern eine Hinweisbox, die beim Tippen (und nach einem SDB-Autofill oder einer H-Satz-Auswahl) die Mengen des Lagerabschnitts neu bewertet. Sie ruft den neuen Endpunkt `/api/mengenschwellen_vorschau` auf, der die **noch nicht gespeicherten** Werte zusammen mit dem vorhandenen Bestand prüft. Beim Bearbeiten wird der bearbeitete Stoff ausgeschlossen (`stoff_id`), damit seine alte Menge nicht doppelt zählt.
+* **Ohne JavaScript bleibt die Box verborgen** — die verbindliche Prüfung steht unverändert auf `/mengenschwellen`, die Vorschau ist Beiwerk.
+* **Zugriff wie überall:** Der Endpunkt verlangt Schreibrecht und prüft den Standort gegen die zugänglichen Bereiche; ohne Standort oder ohne Menge kommt eine leere Antwort statt eines Fehlers.
+* **Ein Fehler in der Prüfung stört nie das Speichern** — sie läuft in einem eigenen `try`, das nur ins Protokoll schreibt.
+* **Neuer Test** (jetzt 167): Vorschau (Anmeldeschutz, ohne Standort leer, Überschreitung melden, Bestand einrechnen, Stoff-Ausschluss mit Gegenprobe) und Speicherwarnung (warnt über der Schwelle, schweigt darunter, Box in beiden Formularen).
+* **Nicht gebaut: eine Admin-Seite zum Bearbeiten der Schwellen.** Die Werte bleiben bewusst im Quelltext (`mengenschwellen.py`), jede mit Quelle. Eine Eingabemaske würde erlauben, die Zahlen still von der Verordnung wegzudrehen — dafür ist ein Compliance-Wert zu heikel. Änderungen laufen über das Modul.
+
 ### v3.26 – Mengenschwellen-Prüfung nach TRGS 510 (Oktober 2026)
 
 * **Warum:** Das Verzeichnis kannte bisher nur die *Zusammenlagerung* (welche Lagerklassen dürfen zusammenstehen, `trgs510.py`). Die zweite Hälfte der TRGS 510 fehlte: ab welcher **Menge** eine Lagerung außerhalb eines Lagers nicht mehr zulässig ist. Diese Prüfung ist jetzt eingebaut.

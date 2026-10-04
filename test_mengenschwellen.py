@@ -370,5 +370,150 @@ class TestMengenschwellenSeite(unittest.TestCase):
         self.assertIn('nav-count', html)
 
 
+class TestStufe3Formular(unittest.TestCase):
+    """Live-Prüfung im Formular (Stufe 3): Vorschau-Endpunkt und Warnung nach
+    dem Speichern."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _umgebung(self):
+        with app.app_context():
+            admin = User(username='chef_stufe3', role='admin')
+            admin.set_password('pass123')
+            db.session.add(admin)
+            db.session.commit()
+            bereich = Bereich(name='Labor S3', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+            unter = Unterbereich(name='Schrank S3', bereich_id=bereich.id)
+            db.session.add(unter)
+            db.session.commit()
+            self.unter_id = unter.id
+        self.client.post('/login',
+                         data={'username': 'chef_stufe3', 'password': 'pass123'},
+                         follow_redirects=True)
+
+    def test_vorschau_verlangt_anmeldung(self):
+        res = self.client.get('/api/mengenschwellen_vorschau',
+                              query_string={'unterbereich_id': 1, 'menge': 200})
+        self.assertEqual(res.status_code, 302)
+
+    def test_vorschau_ohne_standort_ist_leer(self):
+        self._umgebung()
+        res = self.client.get('/api/mengenschwellen_vorschau',
+                              query_string={'menge': '200', 'h_saetze': 'H226'})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.get_json()['hinweise'], [])
+
+    def test_vorschau_meldet_ueberschreitung(self):
+        self._umgebung()
+        res = self.client.get('/api/mengenschwellen_vorschau', query_string={
+            'unterbereich_id': self.unter_id, 'name': 'Testxylol',
+            'menge': '150', 'mengeneinheit': 'kg', 'h_saetze': 'H226',
+            'lagerklasse': '3'})
+        hinweise = res.get_json()['hinweise']
+        self.assertEqual(len(hinweise), 1)
+        self.assertIn('Kleinmenge', hinweise[0])
+
+    def test_vorschau_beruecksichtigt_bestand(self):
+        # 60 kg im Schrank + 60 kg im Formular = 120 kg > 100 kg Kleinmenge.
+        self._umgebung()
+        with app.app_context():
+            db.session.add(Gefahrstoff(name='Bestand', unterbereich_id=self.unter_id,
+                                       menge=60.0, mengeneinheit='kg',
+                                       h_saetze='H226', lagerklasse='3'))
+            db.session.commit()
+        res = self.client.get('/api/mengenschwellen_vorschau', query_string={
+            'unterbereich_id': self.unter_id, 'name': 'Neu',
+            'menge': '60', 'mengeneinheit': 'kg', 'h_saetze': 'H226'})
+        self.assertEqual(len(res.get_json()['hinweise']), 1)
+
+    def test_vorschau_schliesst_den_bearbeiteten_stoff_aus(self):
+        # Beim Bearbeiten darf die alte Menge des Stoffes nicht zusätzlich
+        # zählen. Bestand: der bearbeitete Stoff 60 kg + ein zweiter 30 kg = 90 kg
+        # (unter der Kleinmenge von 100 kg). Ohne Ausschluss kämen die alten
+        # 60 kg ein zweites Mal hinzu (150 kg) - und das wäre eine Falschwarnung.
+        self._umgebung()
+        with app.app_context():
+            a = Gefahrstoff(name='Bearbeitet', unterbereich_id=self.unter_id,
+                            menge=60.0, mengeneinheit='kg',
+                            h_saetze='H226', lagerklasse='3')
+            db.session.add(a)
+            db.session.add(Gefahrstoff(name='Zweiter', unterbereich_id=self.unter_id,
+                                       menge=30.0, mengeneinheit='kg',
+                                       h_saetze='H226', lagerklasse='3'))
+            db.session.commit()
+            stoff_id = a.id
+
+        gemeinsam = {'unterbereich_id': self.unter_id, 'name': 'Bearbeitet',
+                     'menge': '60', 'mengeneinheit': 'kg', 'h_saetze': 'H226'}
+
+        # Mit Ausschluss des bearbeiteten Stoffes: 60 + 30 = 90 kg, kein Befund.
+        res = self.client.get('/api/mengenschwellen_vorschau',
+                              query_string=dict(gemeinsam, stoff_id=stoff_id))
+        self.assertEqual(res.get_json()['hinweise'], [])
+
+        # Gegenprobe ohne Ausschluss: 60 + 60 + 30 = 150 kg, Befund.
+        res = self.client.get('/api/mengenschwellen_vorschau',
+                              query_string=gemeinsam)
+        self.assertEqual(len(res.get_json()['hinweise']), 1)
+
+    def test_anlegen_warnt_nach_dem_speichern(self):
+        self._umgebung()
+        res = self.client.post('/add', data={
+            'name': 'Testxylol', 'unterbereich_id': str(self.unter_id),
+            'menge': '150', 'mengeneinheit': 'kg', 'h_saetze': 'H226',
+            'lagerklasse': '3', 'substitutionspruefung': 'nein',
+        }, follow_redirects=True)
+        html = res.get_data(as_text=True)
+        self.assertIn('Mengenschwelle (TRGS 510)', html)
+        self.assertIn('Kleinmenge', html)
+
+    def test_anlegen_warnt_nicht_unterhalb_der_schwelle(self):
+        self._umgebung()
+        res = self.client.post('/add', data={
+            'name': 'Kleinstoff', 'unterbereich_id': str(self.unter_id),
+            'menge': '10', 'mengeneinheit': 'kg', 'h_saetze': 'H226',
+            'lagerklasse': '3', 'substitutionspruefung': 'nein',
+        }, follow_redirects=True)
+        self.assertNotIn('Mengenschwelle (TRGS 510)', res.get_data(as_text=True))
+
+    def test_formular_enthaelt_die_vorschau_box(self):
+        self._umgebung()
+        html = self._seite_gefahrstoff_formular('/add')
+        self.assertIn('mengenschwellen-vorschau', html)
+        self.assertIn('mengenschwellen_vorschau.js', html)
+
+    def test_bearbeiten_uebergibt_die_stoff_id(self):
+        # Die Box im Bearbeiten-Formular muss die Stoff-ID mitgeben, sonst
+        # zählte die alte Menge doppelt (siehe Test oben).
+        self._umgebung()
+        with app.app_context():
+            s = Gefahrstoff(name='Bearbeiten', unterbereich_id=self.unter_id,
+                            menge=10.0, mengeneinheit='kg',
+                            h_saetze='H226', lagerklasse='3')
+            db.session.add(s)
+            db.session.commit()
+            stoff_id = s.id
+        html = self._seite_gefahrstoff_formular(f'/edit/{stoff_id}')
+        self.assertIn('mengenschwellen-vorschau', html)
+        self.assertIn(f'data-stoff-id="{stoff_id}"', html)
+
+    def _seite_gefahrstoff_formular(self, pfad):
+        res = self.client.get(pfad)
+        self.assertEqual(res.status_code, 200, pfad)
+        return res.get_data(as_text=True)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

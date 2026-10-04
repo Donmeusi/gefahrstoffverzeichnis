@@ -298,6 +298,16 @@
                 </div>
             </div>
 
+            {# Live-Vorschau der Mengenschwellen (TRGS 510). Gefüllt von
+               static/mengenschwellen_vorschau.js; data-stoff-id schließt den
+               bearbeiteten Stoff aus, damit seine alte Menge nicht doppelt
+               zählt. Blockiert nichts - die verbindliche Prüfung steht auf
+               /mengenschwellen. #}
+            <div id="mengenschwellen-vorschau" class="alert alert-warning alert--stack mb-4"
+                 style="display: none;"
+                 data-url="{{ url_for('api_mengenschwellen_vorschau') }}"
+                 data-stoff-id="{{ stoff.id }}"></div>
+
             <div class="form-actions">
                 <a href="https://gestis.dguv.de/search" target="_blank" class="btn btn-outline btn-sm">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> GESTIS-Datenbank
@@ -358,4 +368,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="{{ url_for('static', filename='autofill.js') }}"></script>
+<script src="{{ url_for('static', filename='mengenschwellen_vorschau.js') }}"></script>
 {% endblock %}

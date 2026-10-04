@@ -433,6 +433,22 @@ Detailseite eines Stoffes — dort aber nur, wenn **dieser** Stoff am Befund
 beteiligt ist (oder es um die Gesamtmenge des Abschnitts geht) — und als
 Symbol in der Übersicht neben dem Stoffnamen.
 
+### 9.4 Prüfung beim Anlegen und Bearbeiten
+
+Die Prüfung greift nicht nur auf der Mengenschwellen-Seite, sondern auch dort,
+wo die Menge entsteht:
+
+* **Nach dem Speichern** erscheint eine Meldung, wenn der Lagerabschnitt eine
+  Schwelle überschreitet. Sie **blockiert nichts** — gespeichert wird, was Sie
+  eingetragen haben.
+* **Während des Ausfüllens** zeigt das Formular unter den Feldern eine
+  Hinweisbox, die beim Ändern von Menge, Einheit, H-Sätzen, Lagerklasse oder
+  Standort neu rechnet — auch nach einem SDB-Autofill. Sie bezieht die bereits
+  im Lagerabschnitt liegenden Stoffe ein; beim Bearbeiten wird der bearbeitete
+  Stoff nicht doppelt gezählt.
+* Die Box braucht JavaScript. Ist es abgeschaltet, bleibt sie einfach leer; die
+  verbindliche Liste steht weiterhin auf der Seite **Mengenschwellen**.
+
 ## 10. Suche, Filter und Exporte
 
 * **Suche** im Dashboard: Name, CAS-Nummer, H-Sätze.
@@ -661,8 +677,9 @@ Diese Anwendung wird laufend weiterentwickelt. Die vollständige Änderungsliste
 steht in `CHANGELOG.md`; die Datenschutz-Dokumentation in
 `DATENSCHUTZ_UND_TOM.md`.
 
-**Die wichtigsten Schritte bis Version 3.26:**
+**Die wichtigsten Schritte bis Version 3.27:**
 
+* **v3.27** — Mengenschwellen-Prüfung im Formular: Warnung nach dem Speichern und Live-Vorschau beim Ausfüllen
 * **v3.26** — *Neu:* Mengenschwellen-Prüfung nach TRGS 510 je Lagerabschnitt (eigene Seite mit Zähler)
 * **v3.25** — *Aussehen:* eigenständiger Entwurf „Amt & Akte" (neue Schriften, Papierweiß/Tinte, flache Formen)
 * **v3.24** — Nicht freigegebene CMR-Stoffe sind für den Administrator sichtbar; das Freigabe-Abzeichen ist zugleich der Freigabeknopf
