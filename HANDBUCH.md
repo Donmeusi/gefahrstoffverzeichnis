@@ -38,7 +38,7 @@ auf Ihrem Rechner ist nicht nötig.
 Beim allerersten Start ist die Anwendung leer. Der **erste** Account, der über
 die Registrierung angelegt wird, erhält dauerhaft Administratorrechte. Danach
 ist die Selbstregistrierung abgeschaltet — weitere Konten legt ein Administrator
-an (siehe Abschnitt 12).
+an (siehe Abschnitt 13).
 
 > ⚠️ **Prüfen Sie den Benutzernamen des ersten Kontos.** Er lässt sich später
 > zwar ändern, aber die Anmeldung läuft darüber. Bewahren Sie das Passwort
@@ -49,7 +49,7 @@ an (siehe Abschnitt 12).
 
 Über **Profil** in der Navigation. Das Passwort muss mindestens vier Zeichen
 haben. Jede Änderung wird in der Systemhistorie vermerkt — ohne das Passwort
-selbst (Abschnitt 13).
+selbst (Abschnitt 14).
 
 ### 2.4 Abmelden
 
@@ -71,6 +71,7 @@ ab:
 | **Betriebsanweisungen** | Sammelliste aller Betriebsanweisungen |
 | **Sicherheitsdatenblätter** | Sammelliste aller Datenblätter mit Aktualitätsstand |
 | **Fristen** | Offene Aufgaben, mit der Anzahl im Menüpunkt |
+| **Mengenschwellen** | Überschrittene Mengenschwellen nach TRGS 510, mit der Anzahl im Menüpunkt |
 | **Standorte** | Bereiche und Unterbereiche, QR-Codes, Inventur (ab Moderator) |
 | **Benutzer** | Benutzerverwaltung (ab Moderator) |
 | **Historie** | Systemhistorie (nur Administrator) |
@@ -172,7 +173,7 @@ bestimmen den Inhalt der Betriebsanweisung.
 * **Ansehen:** Klick auf den Namen. Die Detailansicht zeigt alle Angaben, die
   angehängten Dokumente und — falls vorhanden — Zusammenlagerungshinweise.
 * **Bearbeiten:** Bleistiftsymbol. Zuständig sind alle, die den Stoff verwalten
-  dürfen (siehe Abschnitt 11).
+  dürfen (siehe Abschnitt 12).
 * **Kopieren:** Erzeugt einen vollständigen zweiten Eintrag für einen anderen
   Standort. Lagerklasse, Gefahrenkategorien und die Substitutionsprüfung werden
   mitgenommen.
@@ -375,7 +376,59 @@ Die Werte stehen als Konstanten im Programm (`SDB_FRIST_JAHRE`,
 `SDB_DRINGEND_JAHRE`, `INVENTUR_FRIST_MONATE`, `SUBSTITUTION_FRIST_MONATE`) und
 lassen sich an einer Stelle ändern.
 
-## 9. Suche, Filter und Exporte
+## 9. Mengenschwellen (TRGS 510)
+
+Die Seite **Mengenschwellen** prüft, ob in einem Lagerabschnitt die Mengen
+zusammen so groß werden, dass eine Lagerung außerhalb eines Lagers nicht mehr
+zulässig ist. Die Zahl im Menüpunkt entspricht der Anzahl der Befunde.
+
+### 9.1 Wovon die Prüfung ausgeht
+
+* **Bezugsebene ist der Lagerabschnitt** — in der Anwendung der **Unterbereich**
+  des Standorts (Schrank, Regal, Fach). Nicht der einzelne Stoff zählt, sondern
+  die Summe aller Stoffe im selben Unterbereich. Zwei Stoffe, die einzeln unter
+  der Grenze liegen, können zusammen darüber liegen.
+* **Zuordnung über die H-Sätze**, ersatzweise über die Lagerklasse. Das ist die
+  Systematik der TRGS 510: die Kleinmengen hängen an der Einstufung, nicht an
+  der Lagerklasse. Nur wenn ein Stoff keinen passenden H-Satz trägt, greift
+  seine Lagerklasse.
+* Geprüft werden die **Kleinmengen** (bis hierher gilt die Lagerung als
+  Kleinmenge) und — wo die TRGS eine nennt — die **Zusatzschwellen** (ab hier
+  greifen zusätzliche Schutzmaßnahmen), außerdem die **Gesamtmenge** aller
+  Kleinmengen je Brandabschnitt (1.500 kg).
+
+### 9.2 Die drei Arten von Befund
+
+| Befund | Bedeutung |
+|---|---|
+| **Kleinmenge überschritten** | Die Menge liegt über der Kleinmenge der Gruppe — Lagerung nur noch im Lager zulässig |
+| **Zusätzliche Schutzmaßnahmen erforderlich** | Die Zusatzschwelle der Gruppe ist erreicht (z. B. entzündbare Flüssigkeiten Kat. 1/2 ab 200 kg, Kat. 3 ab 1.000 kg) |
+| **Gesamtmenge über 1.500 kg** | Alle Kleinmengen des Lagerabschnitts zusammen überschreiten die Obergrenze |
+
+Die Liste zeigt je Zeile den Lagerabschnitt, die Gruppe, die erreichte Menge im
+Verhältnis zur Kleinmenge und die betroffenen Stoffe. Nur überschrittene
+Schwellen erscheinen — eingehaltene Gruppen stehen nicht in der Liste.
+
+### 9.3 Was die Prüfung nicht kann — bitte lesen
+
+* **Liter werden wie Kilogramm gerechnet** (1 L = 1 kg). Die Anwendung kennt
+  keine Dichte; ein entsprechendes Feld gibt es bewusst nicht. Bei Flüssigkeiten
+  mit deutlich anderer Dichte ist das eine Näherung.
+* **„Stück“ zählt nicht mit.** Stoffe in Stück-Einheit und Stoffe ohne erfasste
+  Menge gehen in keine Summe ein. Ihre Zahl steht im Kopfbereich der Seite
+  („… Stoff(e) ohne rechenbare Menge“), damit die Lücke sichtbar bleibt.
+* **Die Werte sind eine Arbeitshilfe, kein Ersatz für die
+  Gefährdungsbeurteilung.** Maßgeblich ist der Text der TRGS 510 in der jeweils
+  geltenden Fassung. Die Zahlen stehen in `mengenschwellen.py`, jede mit
+  Quellenangabe, und sind vor einem produktiven Einsatz am Regelwerkstext zu
+  prüfen.
+
+Ein Hinweis auf überschrittene Mengenschwellen erscheint auch auf der
+Detailseite eines Stoffes — dort aber nur, wenn **dieser** Stoff am Befund
+beteiligt ist (oder es um die Gesamtmenge des Abschnitts geht) — und als
+Symbol in der Übersicht neben dem Stoffnamen.
+
+## 10. Suche, Filter und Exporte
 
 * **Suche** im Dashboard: Name, CAS-Nummer, H-Sätze.
 * **Filter**: Signalwort und Piktogramme, kombinierbar mit der Suche.
@@ -386,7 +439,7 @@ lassen sich an einer Stelle ändern.
 Exportiert wird immer genau das, was gerade gefiltert ist. Die Rolle `Lesen`
 darf nicht exportieren.
 
-## 10. Freigabe-Workflow
+## 11. Freigabe-Workflow
 
 Stoffe mit **CMR-Einstufung** (z. B. H350 „Kann Krebs erzeugen") werden beim
 Anlegen nicht sofort sichtbar. Sie warten auf eine Freigabe:
@@ -403,7 +456,7 @@ besonders wichtig. Sie soll nicht am Verfahren vorbeigehen.
 Auch eine **Kopie** eines CMR-Stoffs wartet wieder auf Freigabe — das Kopieren
 umgeht den Workflow nicht.
 
-## 11. Benutzer, Rollen und Rechte
+## 12. Benutzer, Rollen und Rechte
 
 ### 11.1 Die vier Rollen
 
@@ -432,7 +485,7 @@ umgeht den Workflow nicht.
   exportieren, Dokumente herunterladen, Betriebsanweisungen bearbeiten,
   Standorte oder Benutzer verwalten. Die Navigation blendet das aus, und der
   Server prüft jede Route zusätzlich.
-* Bei LDAP-Anbindung ist `lesen` die Vorbelegung für neue Konten (Abschnitt 14).
+* Bei LDAP-Anbindung ist `lesen` die Vorbelegung für neue Konten (Abschnitt 15).
 
 ### 11.2 Schutz vor dem Aussperren
 
@@ -441,7 +494,7 @@ umgeht den Workflow nicht.
 * Ein **Administrator** kann nur von einem Administrator geändert werden.
 * Man kann **sich selbst nicht löschen**.
 
-## 12. Benutzerverwaltung
+## 13. Benutzerverwaltung
 
 Ab Moderator, vollständig ab Administrator, unter **Benutzer**.
 
@@ -459,7 +512,7 @@ Ab Moderator, vollständig ab Administrator, unter **Benutzer**.
 > über die Löschung selbst nennt den Namen, sonst wäre nicht nachvollziehbar,
 > wer gelöscht wurde.
 
-## 13. Systemhistorie (Audit-Log)
+## 14. Systemhistorie (Audit-Log)
 
 Nur für Administratoren, unter **Historie**. Sie zeigt die letzten 100 Vorgänge:
 wer wann was getan hat. Beim Rollenwechsel stehen die alte und die neue Rolle
@@ -476,7 +529,7 @@ Inhalt einer Unterschrift (nur „Unterschrift gesetzt" bzw. „entfernt"). Beid
 sind personenbezogene Daten, die in eine breit einsehbare Historie nicht
 gehören.
 
-## 14. Für Administratoren
+## 15. Für Administratoren
 
 ### 14.1 System und Updates
 
@@ -508,7 +561,7 @@ Die Daten liegen in einer SQLite-Datei im Datenverzeichnis (`data/gefahrstoffe.d
 sowie in den hochgeladenen Dokumenten (`data/uploads/`). Sichern Sie beide
 zusammen — die Datenbank verweist auf die Dateien.
 
-## 15. Datenschutz und Sicherheit
+## 16. Datenschutz und Sicherheit
 
 * **Keine externen Ressourcen.** Schriften und Symbole liegen in der Anwendung.
   Beim Aufruf einer Seite geht nichts an Dritte. Einzige Ausnahme ist das
@@ -525,12 +578,12 @@ zusammen — die Datenbank verweist auf die Dateien.
   Bildschirm sehen darf, kann sie drucken oder abfotografieren. Der Schutz stützt
   sich auf die Bereichszuweisung, nicht auf eine technische Sperre.
 
-## 16. Häufige Fragen und Fehlersuche
+## 17. Häufige Fragen und Fehlersuche
 
 **Ich habe einen Stoff angelegt, sehe ihn aber nicht.**
 Drei mögliche Ursachen, in dieser Reihenfolge prüfen:
 1. **CMR-Stoff?** Enthält der Stoff einen CMR-Satz (z. B. H350), wartet er auf
-   Freigabe (Abschnitt 10).
+   Freigabe (Abschnitt 11).
 2. **Kein Standort zugewiesen?** Ohne Standort sehen ihn nur Sie und die
    Administratoren.
 3. **Falscher Bereich?** Er liegt in einem Bereich, dem Sie nicht zugewiesen
@@ -549,11 +602,21 @@ Gelöschte Gefahrstoffe sind archiviert; ein Wiederherstellen gibt es in der
 Oberfläche nicht (Abschnitt 4.5). Wenden Sie sich an einen Administrator.
 
 **Ein Kollege sieht einen Stoff nicht, ich schon.**
-Bereichszuweisung prüfen (Abschnitt 11).
+Bereichszuweisung prüfen (Abschnitt 12).
 
 **Warum steht ein Stoff bei „Substitutionsprüfung" nicht in der Liste?**
 Weil „noch nie geprüft" als Zahl geführt wird, nicht als Zeile
 (Abschnitt 8.2). Die Zahl steht unter der Kachel.
+
+**Warum warnt die Mengenschwellen-Seite, obwohl jeder einzelne Stoff klein ist?**
+Weil nicht der Stoff zählt, sondern die Summe im Lagerabschnitt (Abschnitt 9.1).
+Zwei Stoffe unter der Grenze können zusammen darüber liegen. Die Zeile nennt
+die betroffenen Stoffe.
+
+**Warum zählt mein Stoff bei den Mengenschwellen nicht mit?**
+Weil seine Einheit „Stück" ist oder keine Menge erfasst wurde — beides lässt
+sich keiner Masse zuordnen (Abschnitt 9.3). Die Zahl der betroffenen Stoffe
+steht im Kopfbereich der Seite.
 
 **Kann ich mein Passwort selbst zurücksetzen?**
 Nein. Ändern ja (Abschnitt 2.3), zurücksetzen muss ein Administrator.
@@ -563,7 +626,7 @@ Auf Bildschirmen zwischen 1375 und 1785 Pixel verdichtet die Anwendung die
 Navigation, damit sie ohne Umbruch passt. Darunter klappt sie zum Menüknopf
 zusammen.
 
-## 17. Glossar
+## 18. Glossar
 
 | Begriff | Bedeutung |
 |---|---|
@@ -575,6 +638,8 @@ zusammen.
 | **GefStoffV** | Gefahrstoffverordnung |
 | **GHS / CLP** | Weltweit harmonisiertes Einstufungs- und Kennzeichnungssystem |
 | **H-Satz** | Gefahrenhinweis („Hazard statement"), z. B. H225 |
+| **Kleinmenge** | Menge je Lagerabschnitt, bis zu der ein Gefahrstoff noch außerhalb eines Lagers stehen darf (TRGS 510, Tabelle 1) |
+| **Lagerabschnitt** | Räumlich abgegrenzter Lagerbereich; in dieser App der Unterbereich des Standorts (Schrank, Regal, Fach) |
 | **LGK** | Lagerklasse nach TRGS 510 — bestimmt, was zusammen gelagert werden darf |
 | **P-Satz** | Sicherheitshinweis („Precautionary statement"), z. B. P210 |
 | **SDB** | Sicherheitsdatenblatt — kommt vom Lieferanten, muss aktuell sein |
@@ -585,14 +650,17 @@ zusammen.
 
 ---
 
-## 18. Version und Änderungen
+## 19. Version und Änderungen
 
 Diese Anwendung wird laufend weiterentwickelt. Die vollständige Änderungsliste
 steht in `CHANGELOG.md`; die Datenschutz-Dokumentation in
 `DATENSCHUTZ_UND_TOM.md`.
 
-**Die wichtigsten Schritte bis Version 3.23:**
+**Die wichtigsten Schritte bis Version 3.26:**
 
+* **v3.26** — *Neu:* Mengenschwellen-Prüfung nach TRGS 510 je Lagerabschnitt (eigene Seite mit Zähler)
+* **v3.25** — *Aussehen:* eigenständiger Entwurf „Amt & Akte" (neue Schriften, Papierweiß/Tinte, flache Formen)
+* **v3.24** — Nicht freigegebene CMR-Stoffe sind für den Administrator sichtbar; das Freigabe-Abzeichen ist zugleich der Freigabeknopf
 * **v3.23** — *Aussehen:* umschaltbarer Dunkelmodus, Zebra-Tabellen, sichtbarer Feinschliff (Ausdrucke bleiben hell)
 * **v3.22** — Startseite entzerrt: eine Kennzahl, Filter- und Ansichtsleiste getrennt, eine Hauptaktion, Spaltenauswahl
 * **v3.21** — Barrierefreiheit (Tastatur, Vorleseprogramme) und eine einheitliche Gestaltungssprache (Inline-Stile 445 → 12, eigene Farbwerte 49 → 0)

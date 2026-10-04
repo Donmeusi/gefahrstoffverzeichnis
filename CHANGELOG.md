@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.26 – Mengenschwellen-Prüfung nach TRGS 510 (Oktober 2026)
+
+* **Warum:** Das Verzeichnis kannte bisher nur die *Zusammenlagerung* (welche Lagerklassen dürfen zusammenstehen, `trgs510.py`). Die zweite Hälfte der TRGS 510 fehlte: ab welcher **Menge** eine Lagerung außerhalb eines Lagers nicht mehr zulässig ist. Diese Prüfung ist jetzt eingebaut.
+* **Bezugsebene ist der Lagerabschnitt.** Gerechnet wird nicht je Stoff, sondern je Unterbereich des Standortbaums (Schrank, Regal, Fach) — wie in der TRGS selbst. Damit greift dieselbe Bereichs-Isolation wie in allen Listen (`get_gefahrstoff_query()`).
+* **Zuordnung über die H-Sätze, Lagerklasse als Ersatz.** Die TRGS 510 (Tabelle 1) ordnet die Kleinmengen nach Einstufung, nicht nach Lagerklasse; deshalb wird primär über die H-Sätze geprüft. Nur wo kein H-Satz eine Zuordnung erlaubt, greift die Lagerklasse. Das verhindert falsche Treffer — ein Stoff der LGK 3 mit H226 wird nicht zusätzlich an der 20-kg-Regel für H224/H225 gemessen.
+* **Die Zahlen stehen an genau einer Stelle** (`mengenschwellen.py`, Tabelle `SCHWELLEN`), jede mit Quellenangabe. Enthalten sind u. a. entzündbare Flüssigkeiten Kat. 1/2 (20 kg, davon H224 höchstens 10 kg) und Kat. 3 (100 kg), entzündbare Feststoffe (200 kg), brandfördernde Stoffe Kat. 1 (1 kg) und Kat. 2/3 (50 kg), akut toxische Stoffe (50 kg), Aerosolpackungen (20 kg), LGK 10–13 (1.000 kg); dazu die Gesamtgrenze von **1.500 kg** je Brandabschnitt. Die Zusatzschwellen (entzündbare Flüssigkeiten Kat. 1/2 ab 200 kg, Kat. 3 ab 1.000 kg) sind ebenfalls hinterlegt.
+* **⚠️ Arbeitshilfe, kein Ersatz für die Gefährdungsbeurteilung.** Die Werte sind gegen die Fassung Dezember 2020 eingetragen und im Modulkopf und auf der Seite als solche gekennzeichnet; maßgeblich bleibt der Text der TRGS 510. Die Zahlen sind vor einem produktiven Einsatz am Regelwerkstext zu prüfen — sie stehen deshalb gebündelt und mit Quelle, nicht im Code verstreut.
+* **⚠️ Ohne Dichte werden Liter wie Kilogramm gerechnet** (1 L = 1 kg). Ein Dichtefeld gibt es bewusst nicht; auf der Seite und im Modulkopf steht der Hinweis. **„Stück“ zählt nicht mit** — solche Stoffe und Stoffe ohne Menge gehen nicht in die Summe ein und werden im Kopfbereich als Zahl ausgewiesen, damit die Lücke sichtbar bleibt.
+* **Neue Seite `/mengenschwellen`** (Menüpunkt mit Zähler, nach dem Muster der Fristenliste): Kacheln nach Art des Befunds (Kleinmenge überschritten, Zusatzmaßnahmen erreicht, Gesamtmenge über 1.500 kg, betroffene Lagerabschnitte) und eine Arbeitsliste je Lagerabschnitt und Gruppe. Dazu ein Warnhinweis auf der Stoff-Detailseite (nur für Befunde, an denen der Stoff beteiligt ist) und ein Symbol in der Übersicht.
+* **`trgs510.py` abgegrenzt:** Der Modulkopf nennt jetzt klar, dass das Modul nur die Zusammenlagerung abdeckt und die Mengenprüfung in `mengenschwellen.py` liegt; beide beziehen sich auf denselben Lagerabschnitt.
+* **Neuer Test** (jetzt 146): 20 Tests für die Regel selbst (Summen, Vorrang der H-Sätze, H224-Teilgrenze, Stück/fehlende Menge, Gesamtgrenze, gelöschte Stoffe) und 6 für die Seiten (Anmeldeschutz, Liste, Leerzustand, Detailhinweis, Übersichtssymbol, Zähler). Keine neuen CSS-Klassen — es kommen nur vorhandene zum Einsatz.
+
 ### v3.25 – Neues Erscheinungsbild: „Amt & Akte" (Oktober 2026)
 
 * **Warum:** Die Oberfläche trug den vertrauten Dashboard-Baukasten-Look — Inter, Atlassian-Blau, überall Schlagschatten und Farbverläufe, jede Überschrift mit farbiger Symbol-Kachel. Für ein Verzeichnis, das man nachschlägt, wirkt das beliebig. Auf Wunsch des Betreibers wurde ein eigenständiger Entwurf gesetzt; drei Richtungen standen zur Wahl, gewählt wurde „Amt & Akte".

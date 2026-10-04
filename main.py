@@ -28,6 +28,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from ldap_auth import authenticate_ldap, is_ldap_enabled
+import mengenschwellen
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -76,7 +77,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.1.1"
+APP_VERSION = "2.2.0"
 
 @app.context_processor
 def inject_globals():
@@ -970,6 +971,68 @@ def fristen_alle():
     return g._fristen
 
 
+# ─── Mengenschwellen (TRGS 510) ──────────────────────────────────────────────
+#
+# Prüft je Lagerabschnitt, ob die gelagerten Mengen die Kleinmengen der
+# TRGS 510 überschreiten. Die Regeln und Zahlen stehen in mengenschwellen.py;
+# hier wird nur der Zugriffsbereich der App darauf abgebildet, damit dieselbe
+# Bereichs-Isolation gilt wie in allen anderen Listen. Die Bezugsebene ist der
+# Unterbereich des Standortbaums - dieselbe Ebene, auf der auch die
+# Zusammenlagerung in trgs510.py prüft.
+
+def mengenschwellen_liste():
+    """Mengenschwellen-Überschreitungen im Zugriffsbereich als Arbeitsliste.
+
+    Nutzt get_gefahrstoff_query() (kein zweites Rechtemodell) und ergänzt die
+    Befunde aus mengenschwellen.alle_befunde() um Ort, Link und Handlungsziel.
+    """
+    stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
+    eintraege = []
+    for befund in mengenschwellen.alle_befunde(stoffe):
+        ub_id = befund['unterbereich_id']
+        eintraege.append({
+            'objekt': standort_text(ub_id),
+            'objekt_link': url_for('index', unterbereich_id=ub_id),
+            'bezeichnung': befund['bezeichnung'],
+            'status': befund['status'],
+            'summe_kg': befund['summe_kg'],
+            'kleinmenge_kg': befund['kleinmenge_kg'],
+            'zusatz_ab_kg': befund['zusatz_ab_kg'],
+            'ueberschreitung_kg': befund['ueberschreitung_kg'],
+            'stoffnamen': befund['stoffnamen'],
+            'ohne_menge': befund.get('ohne_menge', []),
+            'quelle': befund['quelle'],
+        })
+    return eintraege
+
+
+def mengenschwellen_alle():
+    """mengenschwellen_liste() einmal pro Request, zwischengespeichert in g.
+
+    Wie bei den Fristen: Zähler in der Navigation und Liste auf der Seite
+    kommen aus derselben Berechnung, damit sie nicht auseinanderlaufen.
+    """
+    if not hasattr(g, '_mengenschwellen'):
+        g._mengenschwellen = mengenschwellen_liste()
+    return g._mengenschwellen
+
+
+def mengenschwellen_fuer_unterbereich(unterbereich_id):
+    """Mengenschwellen-Befunde eines Lagerabschnitts - für die Stoff-Detailseite.
+
+    Bewusst ohne get_gefahrstoff_query(): der Aufrufer hat bereits geprüft, dass
+    der Benutzer den Stoff sehen darf, und der Befund zeigt nur, was im selben
+    Abschnitt liegt.
+    """
+    if not unterbereich_id:
+        return []
+    unterbereich = db.session.get(Unterbereich, unterbereich_id)
+    if not unterbereich:
+        return []
+    stoffe = [s for s in unterbereich.gefahrstoffe if not getattr(s, 'is_deleted', False)]
+    return mengenschwellen.pruefe_unterbereich(stoffe)
+
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -1126,6 +1189,12 @@ def index():
     # Anzahl der Standorte (distinct unterbereich_id)
     stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
 
+    # Lagerabschnitte mit einer Mengenschwellen-Überschreitung (TRGS 510). Einmal
+    # für die ganze Liste bestimmt und als Menge der IDs übergeben - je Zeile
+    # nachzurechnen wäre derselbe Aufwand, nur N-mal (wie bei trgs_warnings).
+    mengen_auffaellig = {b['unterbereich_id']
+                         for b in mengenschwellen.alle_befunde(gefahrstoffe)}
+
     return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
                            bereiche=bereiche,
@@ -1133,7 +1202,8 @@ def index():
                            aktiver_unterbereich=aktiver_unterbereich,
                            today=today,
                            sdb_stufen=sdb_stufen,
-                           stats_locations=stats_locations)
+                           stats_locations=stats_locations,
+                           mengen_auffaellig=mengen_auffaellig)
 
 @app.route('/betriebsanweisungen')
 @login_required
@@ -1185,6 +1255,32 @@ def fristen():
     }
     return render_template('fristen.html', eintraege=eintraege, uebersicht=uebersicht,
                            heute=heute)
+
+
+@app.route('/mengenschwellen')
+@login_required
+def mengenschwellen_seite():
+    """Mengenschwellen nach TRGS 510 als Arbeitsliste.
+
+    Die Regel steht in mengenschwellen.py, die Liste in mengenschwellen_liste(),
+    der Zähler in der Navigation kommt aus derselben Funktion - so passen Zähler
+    und Liste zusammen (wie bei den Fristen).
+
+    Der Name des Endpunkts weicht bewusst vom Modulnamen ab: 'mengenschwellen'
+    ist bereits das importierte Modul, eine gleichnamige View würde es
+    überschatten.
+    """
+    eintraege = mengenschwellen_alle()
+    uebersicht = {
+        'zusatz':        sum(1 for e in eintraege if e['status'] == 'zusatz'),
+        'ueberschritten': sum(1 for e in eintraege if e['status'] == 'ueberschritten'),
+        'gesamt':        sum(1 for e in eintraege if e['status'] == 'gesamt'),
+        'abschnitte':    len(set(e['objekt'] for e in eintraege)),
+        'ohne_menge':    mengenschwellen.stoffe_ohne_menge(get_gefahrstoff_query().all()),
+    }
+    return render_template('mengenschwellen.html', eintraege=eintraege,
+                           uebersicht=uebersicht,
+                           gesamtgrenze=mengenschwellen.GESAMT_KLEINMENGEN_KG)
 
 # ─── Standorte ───────────────────────────────────────────────────────────────
 
@@ -1447,8 +1543,15 @@ def view_stoff(id):
     # Die Stufe des Sicherheitsdatenblatts kommt aus sdb_status(), damit die
     # Detailseite dieselbe Entscheidung zeigt wie Liste und Fristenliste.
     heute = datetime.utcnow().date()
+    # Mengenschwellen des Lagerabschnitts, aber nur die Befunde, an denen
+    # dieser Stoff beteiligt ist (oder die Gesamtmenge des Abschnitts): sonst
+    # stünde bei jedem Stoff im Schrank dieselbe Warnung.
+    alle_befunde = mengenschwellen_fuer_unterbereich(stoff.unterbereich_id)
+    eigene_befunde = [b for b in alle_befunde
+                      if stoff.name in b['stoffnamen'] or b['status'] == 'gesamt']
     return render_template('view.html', stoff=stoff, today=heute,
-                           sdb_stufe=sdb_status(stoff, heute)[0])
+                           sdb_stufe=sdb_status(stoff, heute)[0],
+                           mengenschwellen=eigene_befunde)
 
 
 @app.route('/gefahrstoff/<int:id>/betriebsanweisung')
@@ -2186,6 +2289,22 @@ def inject_fristen_zaehler():
         # Ein Zähler darf nie eine Seite verhindern.
         print(f"Fristenzähler nicht berechenbar: {e}")
         return dict(fristen_count=0)
+
+
+@app.context_processor
+def inject_mengenschwellen_zaehler():
+    """Zähler für den Navigationseintrag „Mengenschwellen".
+
+    Wie beim Fristenzähler: dieselbe Berechnung wie die Seite, einmal pro
+    Request. Ein Fehler darf den Seitenaufbau nicht verhindern.
+    """
+    if not current_user.is_authenticated:
+        return dict(mengenschwellen_count=0)
+    try:
+        return dict(mengenschwellen_count=len(mengenschwellen_alle()))
+    except Exception as e:
+        print(f"Mengenschwellen-Zähler nicht berechenbar: {e}")
+        return dict(mengenschwellen_count=0)
 
 
 @app.context_processor

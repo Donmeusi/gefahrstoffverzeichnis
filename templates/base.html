@@ -87,6 +87,7 @@
                    (siehe die Kommentare in style.css zu den Breiten) und ein
                    zusätzlicher Kasten würde ihn weiter verbreitern. #}
                 <li><a href="{{ url_for('fristen') }}" {% if request.endpoint == 'fristen' %}aria-current="page"{% endif %}><i class="fa-solid fa-clock"></i> Fristen{% if fristen_count and fristen_count > 0 %}<span class="nav-count">{{ fristen_count }}</span>{% endif %}</a></li>
+                <li><a href="{{ url_for('mengenschwellen_seite') }}" {% if request.endpoint == 'mengenschwellen_seite' %}aria-current="page"{% endif %}><i class="fa-solid fa-scale-unbalanced"></i> Mengenschwellen{% if mengenschwellen_count and mengenschwellen_count > 0 %}<span class="nav-count">{{ mengenschwellen_count }}</span>{% endif %}</a></li>
                 {% if current_user.role in ('admin', 'moderator') %}
                 <li><a href="{{ url_for('locations') }}" {% if request.endpoint == 'locations' %}aria-current="page"{% endif %}><i class="fa-solid fa-building"></i> Standorte</a></li>
                 {% endif %}

@@ -62,6 +62,29 @@
 </div>
 {% endif %}
 
+{% if mengenschwellen %}
+{# Mengenschwellen des Lagerabschnitts, an denen dieser Stoff beteiligt ist
+   (oder die Gesamtmenge). Die Befunde kommen aus main.py/mengenschwellen.py;
+   hier stehen nur Beschriftung, Menge und Handlungsbedarf. #}
+<div class="alert alert-warning alert--stack mb-4">
+    <h4><i class="fa-solid fa-scale-unbalanced"></i> Mengenschwellen im Lagerabschnitt (TRGS 510)</h4>
+    <ul>
+        {% for b in mengenschwellen %}
+        <li>
+            <strong>{{ b.bezeichnung }}:</strong>
+            {{ b.summe_kg|round(1) }} kg von {{ b.kleinmenge_kg|round(1) }} kg
+            {%- if b.status == 'zusatz' %},
+            zusätzliche Schutzmaßnahmen ab {{ b.zusatz_ab_kg|int }} kg sind erreicht
+            {%- else %},
+            die Kleinmenge ist überschritten – Lagerung nur noch im Lager
+            {%- endif %}.
+            <span class="text-light text-xs">({{ b.quelle }})</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="view-grid">
     <!-- Left: Stammdaten -->
     <div class="card">

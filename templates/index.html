@@ -210,6 +210,13 @@
                                     {% if stoff.trgs_warnings %}
                                     <i class="fa-solid fa-triangle-exclamation text-danger" title="Zusammenlagerungsverbot (TRGS 510)"></i>
                                     {% endif %}
+                                    {# Mengenschwelle im Lagerabschnitt des Stoffes
+                                       überschritten (TRGS 510). Die IDs kommen
+                                       gesammelt aus index() - je Zeile neu zu
+                                       rechnen wäre derselbe Aufwand N-mal. #}
+                                    {% if stoff.unterbereich_id in mengen_auffaellig %}
+                                    <i class="fa-solid fa-scale-unbalanced text-danger" title="Mengenschwelle im Lagerabschnitt überschritten (TRGS 510)"></i>
+                                    {% endif %}
                                     <i class="fa-solid fa-chevron-right row-caret" aria-hidden="true"></i>
                                 </span>
                             </a>
