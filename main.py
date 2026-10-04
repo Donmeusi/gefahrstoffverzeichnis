@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -12,12 +12,15 @@ import subprocess
 import platform
 import threading
 import time
+import calendar
 from datetime import datetime
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
 from io import BytesIO
 import pdfplumber
 import re
+from html import escape
+from html.parser import HTMLParser
 import qrcode
 import base64
 from reportlab.lib import colors
@@ -25,6 +28,8 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from ldap_auth import authenticate_ldap, is_ldap_enabled
+import mengenschwellen
+from types import SimpleNamespace
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -45,7 +50,8 @@ os.makedirs(app_data_dir, exist_ok=True)
 
 db_data_path = os.path.join(app_data_dir, 'gefahrstoffe.db')
 db_root_path = os.path.join(basedir, 'gefahrstoffe.db')
-if not os.path.exists(db_data_path) and os.path.exists(db_root_path):
+
+if os.path.exists(db_root_path) and (not os.path.exists(db_data_path) or os.path.getsize(db_data_path) == 0):
     import shutil
     shutil.copy2(db_root_path, db_data_path)
 
@@ -68,7 +74,11 @@ def handle_csrf_error(e):
     flash('Deine Sitzung oder das Sicherheits-Token ist abgelaufen. Bitte melde dich erneut an.', 'error')
     return redirect(url_for('login'))
 
-APP_VERSION = "2.0.1"
+# Wird im Fußbereich angezeigt UND als Cache-Buster für style.css verwendet
+# (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
+# Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
+# aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
+APP_VERSION = "2.3.1"
 
 @app.context_processor
 def inject_globals():
@@ -188,7 +198,17 @@ class AuditLog(db.Model):
     entity_id = db.Column(db.Integer)
     details = db.Column(db.Text)
     
-    user = db.relationship('User', backref=db.backref('audit_logs', lazy=True))
+    # passive_deletes: Beim Löschen eines Benutzers darf SQLAlchemy die user_id
+    # in dessen Einträgen nicht auf NULL setzen. Ohne das verliert die Historie
+    # nicht nur den Namen - das ist gewollt, siehe DATENSCHUTZ_UND_TOM.md
+    # ("pseudonymisiert erhalten") - sondern auch den Bezug zwischen den
+    # Einträgen: sie stünden danach alle als "System / Unbekannt" da und ließen
+    # sich nicht einmal mehr einander zuordnen. Die erhaltene ID wirkt als
+    # Pseudonym, der Name bleibt gelöscht.
+    user = db.relationship(
+        'User',
+        backref=db.backref('audit_logs', lazy=True, passive_deletes=True)
+    )
 
 
 class Bereich(db.Model):
@@ -221,12 +241,25 @@ class Unterbereich(db.Model):
     )
 
     def get_full_path(self):
+        """Standortpfad als Klartext: "Bereich › Unterbereich › ...".
+
+        Liefert bewusst kein HTML mehr (frueher "&rsaquo;"), sondern das
+        Zeichen selbst. Damit brauchen die Vorlagen kein |safe mehr - das
+        hatte HTML aus Bereichsnamen ungefiltert durchgelassen, und wo es
+        fehlte, stand "&rsaquo;" woertlich auf der Seite.
+
+        Vor dem Trenner steht ein geschuetztes Leerzeichen, damit er beim
+        Umbruch nicht allein am Zeilenanfang landet.
+        """
         parts = []
         current = self
-        while current:
+        # Begrenzt wie standort_text(): ein Zyklus in den Daten darf nicht in
+        # einer Endlosschleife enden.
+        while current is not None and len(parts) < 20:
             parts.insert(0, current.name)
             current = current.parent
-        return f"{self.bereich.name} &rsaquo; {' &rsaquo; '.join(parts)}"
+        trenner = ' › '      # geschuetztes Leerzeichen + "› " + Leerzeichen
+        return self.bereich.name + trenner + trenner.join(parts)
 
 
 class Gefahrstoff(db.Model):
@@ -248,9 +281,20 @@ class Gefahrstoff(db.Model):
     substitutionspruefung = db.Column(db.String(10), nullable=True)
     ersatzstoff         = db.Column(db.String(200), nullable=True)
     begruendung         = db.Column(db.String(500), nullable=True)
+    # Wann die Substitutionsprüfung nach §7 GefStoffV zuletzt durchgeführt
+    # wurde. Grundlage für die Frist in fristen_liste(). Ein gesetzliches
+    # Wiederholungsintervall gibt es dafür nicht - siehe
+    # SUBSTITUTION_FRIST_MONATE.
+    substitution_geprueft_am = db.Column(db.Date, nullable=True)
     sicherheitsdatenblatt = db.Column(db.String(200), nullable=True)
     betriebsanweisung   = db.Column(db.String(200), nullable=True)
     gefaehrdungsbeurteilung = db.Column(db.String(200), nullable=True)
+    # Individuell angepasste Betriebsanweisung: Texte als JSON ({feldname: html}),
+    # die gewählten ISO-7010-Gebotszeichen als kommaseparierte Codes ("M004,M009")
+    # und die Unterschrift als JSON ({"typ": "bild"|"name", "wert": ...}).
+    ba_texte            = db.Column(db.Text, nullable=True)
+    ba_gebotszeichen    = db.Column(db.String(100), nullable=True)
+    ba_unterschrift     = db.Column(db.Text, nullable=True)
     is_deleted          = db.Column(db.Boolean, default=False)
     is_approved         = db.Column(db.Boolean, default=True)
     deleted_at          = db.Column(db.DateTime, nullable=True)
@@ -283,9 +327,17 @@ class Gefahrstoff(db.Model):
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
-def log_audit_event(action, entity_type, entity_id, details=""):
+def log_audit_event(action, entity_type, entity_id, details="", user_id=None):
+    """Schreibt einen Eintrag in die Systemhistorie.
+
+    'user_id' überschreibt den handelnden Benutzer. Das ist für Ereignisse
+    nötig, die vor dem Login passieren (Registrierung des ersten Admins): dort
+    ist current_user anonym, und der Eintrag stünde sonst als
+    "System / Unbekannt" in der Historie, obwohl der Zusammenhang bekannt ist.
+    """
     try:
-        user_id = current_user.id if current_user.is_authenticated else None
+        if user_id is None:
+            user_id = current_user.id if current_user.is_authenticated else None
         log_entry = AuditLog(
             user_id=user_id,
             action=action,
@@ -297,6 +349,221 @@ def log_audit_event(action, entity_type, entity_id, details=""):
         db.session.commit()
     except Exception as e:
         print(f"Failed to log audit event: {e}")
+
+
+# ─── Betriebsanweisung: individuell angepasste Inhalte ───────────────────────
+#
+# Die editierbaren Bereiche auf ba_print.html werden als HTML gespeichert und im
+# Template mit |safe ausgegeben. Deshalb läuft jeder Wert serverseitig durch eine
+# Whitelist (Tags ja, Attribute nein), damit über contenteditable kein Markup wie
+# <script>, style= oder onerror= in die Datenbank und von dort in den Browser
+# eines Administrators gelangen kann.
+
+BA_ALLOWED_TAGS = {
+    'b', 'strong', 'i', 'em', 'u', 's', 'br', 'hr', 'p', 'div', 'span',
+    'ul', 'ol', 'li', 'sub', 'sup', 'small', 'blockquote',
+}
+BA_MAX_FIELD_LEN = 20000
+
+# Felder, die gespeichert werden. Arbeitsbereich, Stoffname und CAS stehen
+# bewusst nicht dabei: die kommen live aus der Datenbank, ein gespeicherter
+# Text würde eine spätere Umbenennung des Stoffs stillschweigend verdecken.
+# Die Zwischenüberschriften ("Verschütten:", "Brand:" ...) bleiben Teil des
+# Templates, damit nur echte Inhalte überschrieben werden.
+BA_TEXT_FIELDS = (
+    'ba_nummer',
+    'ba_taetigkeit',
+    'ba_h_saetze',
+    'ba_schutzmassnahmen',
+    'ba_verhalten_verschuetten',
+    'ba_verhalten_brand',
+    'ba_erste_hilfe_massnahme',
+    'ba_erste_hilfe_kontakt',
+    'ba_entsorgung',
+)
+
+# Unterschrift: entweder ein gezeichnetes PNG als Data-URL oder ein eingetippter
+# Name. Beides landet im Ausdruck (als <img src> bzw. als Text), deshalb wird hier
+# streng geprüft statt nur bereinigt.
+BA_SIGNATUR_BILD_PRAEFIX = 'data:image/png;base64,'
+BA_SIGNATUR_MAX_BILD = 300000      # Zeichen; ein Unterschrift-PNG liegt bei wenigen KB
+BA_SIGNATUR_MAX_NAME = 80
+
+# Auswählbare ISO-7010-Gebotszeichen als (Code, Bezeichnung). Die Codes müssen
+# als static/symbols/<CODE>.svg vorhanden sein. Diese Liste ist die einzige
+# Quelle für Auswahlliste, Bildtitel und die Prüfung der gespeicherten Werte.
+#
+# Die Bezeichnungen wurden gegen die tatsächliche Grafik der Dateien und die
+# offizielle ISO-7010-Liste geprüft. Vier Einträge waren zuvor falsch
+# beschriftet (M002, M003, M004, M024 trugen die Bedeutung anderer Zeichen).
+# "Schutzhelm benutzen" und "Hautschutzcreme benutzen" waren die falschen
+# Beschriftungen von M014 und M022; beide Zeichen sind seit 25.09.2026 mit
+# belegter Herkunft vorhanden (siehe static/symbols/SOURCES.md) und tragen hier
+# ihre offiziellen Bezeichnungen nach ASR A1.3 Anhang 1 / DGUV 211-041.
+#
+# M002 wurde am 25.09.2026 aus der Auswahl entfernt: es ist auf Wikimedia Commons
+# die einzige Datei unter CC BY-SA 3.0 (alle übrigen sind gemeinfrei) und damit
+# die einzige mit Namensnennungspflicht. Eine freiere Fassung dieses Motivs gibt
+# es dort nicht, und M002 fehlt auch in ASR A1.3 Anhang 1. Einzelheiten in
+# static/symbols/SOURCES.md.
+#
+# M024 ("Diesen Weg benutzen") wurde am selben Tag aus der Auswahl entfernt:
+# das Zeichen ist fachlich für eine Gefahrstoff-Betriebsanweisung ohne Nutzen.
+# Die Datei bleibt im Ordner (gemeinfrei, kein Lizenzgrund zu löschen), sie wird
+# hier nur nicht mehr angeboten. Ein Wiederaufnehmen ist eine Zeile.
+BA_GEBOTSZEICHEN = (
+    ('M001', 'Allgemeines Gebotszeichen'),
+    ('M003', 'Gehörschutz benutzen'),
+    ('M004', 'Augenschutz benutzen'),
+    ('M008', 'Fußschutz benutzen'),
+    ('M009', 'Schutzhandschuhe benutzen'),
+    ('M010', 'Schutzkleidung benutzen'),
+    ('M011', 'Hände waschen'),
+    ('M013', 'Gesichtsschutzschirm benutzen'),
+    ('M014', 'Kopfschutz benutzen'),
+    ('M017', 'Atemschutz benutzen'),
+    ('M022', 'Hautschutzmittel benutzen'),
+)
+BA_GEBOTSZEICHEN_CODES = tuple(code for code, _ in BA_GEBOTSZEICHEN)
+# Obergrenze für die Icon-Spalte auf A4. Empirisch ermittelt (Seite rendern, mit
+# Chrome nach PDF drucken, Seiten zählen): mit sechs Zeichen passt die
+# Betriebsanweisung auch bei 13 langen P-Sätzen noch auf eine Seite. Mehr wären
+# unnötig, weil die Spalte nur 100 px breit ist.
+BA_MAX_GEBOTSZEICHEN = 6
+
+
+class _BASanitizer(HTMLParser):
+    """Behält nur Tags aus BA_ALLOWED_TAGS und verwirft sämtliche Attribute."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self._out = []
+        self._open = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in BA_ALLOWED_TAGS:
+            return
+        self._out.append(f"<{tag}>")
+        if tag not in ('br', 'hr'):
+            self._open.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        if tag in BA_ALLOWED_TAGS:
+            self._out.append(f"<{tag}>")
+
+    def handle_endtag(self, tag):
+        if tag not in BA_ALLOWED_TAGS or tag not in self._open:
+            return
+        # Zwischenliegende Tags mitschließen, damit das Ergebnis wohlgeformt bleibt.
+        while self._open:
+            offen = self._open.pop()
+            self._out.append(f"</{offen}>")
+            if offen == tag:
+                break
+
+    def handle_data(self, data):
+        self._out.append(escape(data))
+
+    def result(self):
+        while self._open:
+            self._out.append(f"</{self._open.pop()}>")
+        return ''.join(self._out)
+
+
+def sanitize_ba_html(raw):
+    if not raw:
+        return ''
+    parser = _BASanitizer()
+    try:
+        parser.feed(raw[:BA_MAX_FIELD_LEN])
+        parser.close()
+    except Exception as e:
+        print(f"BA-Text konnte nicht bereinigt werden: {e}")
+        return ''
+    return parser.result()
+
+
+def load_ba_texte(stoff):
+    """Liefert die gespeicherten BA-Texte, auf bekannte Felder begrenzt und bereinigt."""
+    try:
+        data = json.loads(stoff.ba_texte) if stoff.ba_texte else {}
+    except (ValueError, TypeError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return {f: sanitize_ba_html(data.get(f)) for f in BA_TEXT_FIELDS if data.get(f)}
+
+
+def load_ba_gebotszeichen(stoff):
+    """Liefert die gespeicherten Gebotszeichen-Codes in Reihenfolge der Auswahlliste."""
+    gespeichert = [c.strip() for c in (stoff.ba_gebotszeichen or '').split(',')]
+    return [c for c in BA_GEBOTSZEICHEN_CODES if c in gespeichert][:BA_MAX_GEBOTSZEICHEN]
+
+
+def sanitize_ba_unterschrift(raw):
+    """Prüft die Unterschrift und liefert JSON zum Speichern - oder None.
+
+    Erlaubt sind genau zwei Formen: ein PNG als Data-URL ("gezeichnet") oder ein
+    reiner Name. Alles andere wird verworfen. Der Wert landet im Ausdruck als
+    <img src> beziehungsweise als Text, hier darf also nichts Beliebiges durch.
+    """
+    if not raw:
+        return None
+    try:
+        daten = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(daten, dict):
+        return None
+
+    typ = daten.get('typ')
+    wert = daten.get('wert')
+    if not isinstance(wert, str):
+        return None
+
+    if typ == 'bild':
+        if not wert.startswith(BA_SIGNATUR_BILD_PRAEFIX):
+            return None
+        nutzlast = re.sub(r'\s+', '', wert[len(BA_SIGNATUR_BILD_PRAEFIX):])
+        if not nutzlast or len(nutzlast) > BA_SIGNATUR_MAX_BILD:
+            return None
+        if not re.fullmatch(r'[A-Za-z0-9+/=]+', nutzlast):
+            return None
+        # Nicht nur das Präfix prüfen: der Wert wird als <img src> in die
+        # Betriebsanweisung eingebettet. Was sich nicht als PNG lesen lässt, wird
+        # abgelehnt - sonst stünde später ein kaputtes Bild im Ausdruck.
+        try:
+            from PIL import Image
+            rohdaten = base64.b64decode(nutzlast, validate=True)
+            pruefbild = Image.open(BytesIO(rohdaten))
+            if (pruefbild.format or '').upper() != 'PNG':
+                return None
+            pruefbild.verify()
+        except Exception:
+            return None
+        return json.dumps({'typ': 'bild', 'wert': BA_SIGNATUR_BILD_PRAEFIX + nutzlast},
+                          ensure_ascii=False)
+
+    if typ == 'name':
+        name = ' '.join(wert.split())[:BA_SIGNATUR_MAX_NAME]
+        if not name:
+            return None
+        return json.dumps({'typ': 'name', 'wert': name}, ensure_ascii=False)
+
+    return None
+
+
+def load_ba_unterschrift(stoff):
+    """Liefert {'typ': ..., 'wert': ...} der gespeicherten Unterschrift oder {}."""
+    geprueft = sanitize_ba_unterschrift(stoff.ba_unterschrift)
+    if not geprueft:
+        return {}
+    try:
+        return json.loads(geprueft)
+    except (ValueError, TypeError):
+        return {}
+
+
 
 def get_accessible_bereiche():
     """Gibt die Bereiche zurück, auf die der aktuelle Benutzer Zugriff hat."""
@@ -319,9 +586,17 @@ def is_cmr_stoff(h_saetze):
     return any(code in h_saetze for code in cmr_codes)
 
 def get_gefahrstoff_query():
-    """Gibt eine gefilterte Query für Gefahrstoffe zurück."""
-    base_query = Gefahrstoff.query.filter(Gefahrstoff.is_deleted == False, Gefahrstoff.is_approved == True)
-    
+    """Gibt eine gefilterte Query für Gefahrstoffe zurück.
+
+    Nicht freigegebene Stoffe (CMR, is_approved False) sieht, wer sie
+    freigeben kann - Administrator und Moderator. Für alle anderen bleiben sie
+    bis zur Freigabe unsichtbar (so steht es auch in der Meldung beim Anlegen).
+    Vorher filterte die Query is_approved für JEDEN weg, auch für den
+    Administrator: der Link aus der Freigabeliste lief dadurch in "Keine
+    Berechtigung, diesen Gefahrstoff anzusehen".
+    """
+    base_query = Gefahrstoff.query.filter(Gefahrstoff.is_deleted == False)
+
     if current_user.is_admin:
         return base_query
 
@@ -337,7 +612,8 @@ def get_gefahrstoff_query():
             )
         )
 
-    # Regulärer Benutzer
+    # Regulärer Benutzer: nicht freigegebene Stoffe bleiben unsichtbar.
+    base_query = base_query.filter(Gefahrstoff.is_approved == True)
     assigned_ids = [b.id for b in current_user.assigned_bereiche.all()]
     sub_ids      = [u.id for u in Unterbereich.query.filter(Unterbereich.bereich_id.in_(assigned_ids)).all()]
     return base_query.filter(
@@ -375,6 +651,488 @@ def can_manage_bereich(bereich):
         return bereich.owner_id == current_user.id or bereich in current_user.assigned_bereiche.all()
     return False
 
+
+def is_last_admin(user):
+    """True, wenn 'user' Administrator ist und kein weiterer Administrator existiert.
+
+    Die Benutzerverwaltung schützte den "Haupt-Admin" bisher nur über den
+    Benutzernamen 'admin'. Das greift zu kurz: der erste Administrator entsteht
+    über /register mit frei gewähltem Namen, und /register ist danach
+    deaktiviert (`User.query.count() > 0`). Wird der letzte Administrator
+    degradiert oder gelöscht, kommt ohne Eingriff in die Datenbank niemand mehr
+    in die Verwaltung. Diese Prüfung hängt deshalb an der Rolle, nicht am Namen.
+    """
+    if user.role != 'admin':
+        return False
+    return User.query.filter(User.role == 'admin', User.id != user.id).count() == 0
+
+
+def standort_text(unterbereich_id):
+    """Standort als Klartext für die Systemhistorie: "Bereich / Unterbereich".
+
+    Bewusst nicht Unterbereich.get_full_path(): das liefert HTML-Entities
+    (&rsaquo;) und ist für die Anzeige im Template gedacht, nicht für ein Log.
+    Verschachtelte Unterbereiche werden wie dort über die Elternkette benannt
+    ("Labor A / Regal 1 / Schrank 2"), sonst wäre ein Eintrag nicht eindeutig.
+
+    Die Funktion verträgt auch None und IDs, zu denen es keinen Unterbereich
+    mehr gibt - beim Protokollieren ist das der Normalfall.
+    """
+    if not unterbereich_id:
+        return 'ohne Standort'
+    unterbereich = db.session.get(Unterbereich, unterbereich_id)
+    if not unterbereich:
+        return f'Unbekannter Standort (ID {unterbereich_id})'
+
+    teile = [unterbereich.name]
+    eltern = unterbereich.parent
+    # Die Schleife ist begrenzt, damit ein Zyklus in den Daten nicht in einer
+    # Endlosschleife endet. get_full_path() im Modell hat diesen Schutz nicht.
+    while eltern is not None and len(teile) < 20:
+        teile.insert(0, eltern.name)
+        eltern = eltern.parent
+    return f'{unterbereich.bereich.name} / {" / ".join(teile)}'
+
+
+def ziel_standort_pruefen(raw_wert, bereiche):
+    """Prüft einen Ziel-Standort aus einem Formular.
+
+    Rückgabe: (ziel_id, fehlermeldung). 'ziel_id' ist None, wenn kein Standort
+    gewählt wurde - das bedeutet "ohne Standort" und ist zulässig.
+    'fehlermeldung' ist gesetzt, wenn das Ziel abgelehnt wird.
+
+    Gebraucht von /add, /edit, /move und /copy. Geprüft wird dreierlei: der Wert
+    muss eine Zahl sein, es muss einen Unterbereich dazu geben, und dessen
+    Bereich muss für den Benutzer zugänglich sein. Der dritte Punkt war schon
+    vorher überall vorhanden, die ersten beiden fehlten - eine ID ohne
+    zugehörigen Unterbereich wurde übernommen (SQLite erzwingt die
+    Fremdschlüssel nicht), ein nicht numerischer Wert still verworfen.
+    """
+    if not raw_wert or not str(raw_wert).strip():
+        return None, None
+
+    try:
+        ziel_id = int(raw_wert)
+    except (ValueError, TypeError):
+        return None, 'Ungültiger Ziel-Standort.'
+
+    ziel = db.session.get(Unterbereich, ziel_id)
+    if not ziel:
+        return None, 'Der gewählte Ziel-Standort existiert nicht.'
+    if ziel.bereich.id not in [b.id for b in bereiche]:
+        return None, 'Kein Zugriff auf diesen Ziel-Standort.'
+    return ziel_id, None
+
+# ─── Fristen ─────────────────────────────────────────────────────────────────
+#
+# Fälligkeiten werden aus vorhandenen Daten abgeleitet, nicht gespeichert:
+#   SDB       -> sdb_datum + SDB_FRIST_JAHRE
+#   Inventur  -> jüngstes last_inventur_datum eines Standorts + INVENTUR_FRIST_MONATE
+# "Erledigt" ist damit jeweils eine vorhandene Aktion (SDB-Datum eintragen bzw.
+# Schnell-Inventur durchführen) - es braucht keine eigene Tabelle und keine
+# Migration.
+#
+# Die Schwellen standen vorher zweimal mit unterschiedlichen Zahlen im Code:
+# index() rechnete für die Kachel "Veraltete SDBs" mit >= 3 Jahren,
+# sicherheitsdatenblaetter.html rechnete dieselbe Regel mit drei Stufen im
+# Template nach. Hier stehen sie einmal.
+
+SDB_FRIST_JAHRE       = 3   # ab hier: SDB aktualisieren
+SDB_DRINGEND_JAHRE    = 5   # ab hier: dringend
+INVENTUR_FRIST_MONATE = 12
+
+# Für die Substitutionsprüfung nach §7 GefStoffV gibt es KEIN gesetzliches
+# Wiederholungsintervall. Die Vorschrift verlangt die Prüfung und ihre
+# Dokumentation, TRGS 600 beschreibt das Vorgehen; wiederholt wird sie bei
+# neuen Erkenntnissen, nicht nach festen Jahren. Dieser Wert ist deshalb eine
+# interne Konvention des Betriebs und keine Vorschrift - hier in einer Zeile
+# änderbar. Der Fall "nie geprüft" wird unabhängig davon immer ausgewiesen.
+SUBSTITUTION_FRIST_MONATE = 24
+
+# Reihenfolge in der Liste: kleiner = dringlicher. Der Schlüssel ist
+# (Kategorie, Stufe), nicht die Stufe allein - "fehlt" bedeutet bei SDB etwas
+# anderes als bei der Substitutionsprüfung, und ein fehlendes
+# Sicherheitsdatenblatt wiegt schwerer als eine nicht dokumentierte Prüfung.
+FRISTEN_RANG = {
+    ('SDB', 'fehlt'):               0,
+    ('SDB', 'dringend'):            1,
+    ('SDB', 'ohne_datum'):          2,
+    ('SDB', 'pruefen'):             3,
+    ('Substitution', 'fehlt'):      4,
+    ('Substitution', 'ohne_datum'): 5,
+    ('Substitution', 'faellig'):    6,
+    ('Inventur', 'inventur'):       7,
+}
+
+
+def _datum_aus_formular(wert):
+    """Datum aus einem Formularfeld ('YYYY-MM-DD') oder None.
+
+    Wirft ValueError bei einem nicht leeren, aber unlesbaren Wert. Ein Browser
+    liefert bei type="date" nichts anderes - die Prüfung ist für selbst gebaute
+    Requests. Ein stillschweigend verworfenes Datum wäre schlimmer als eine
+    Meldung, deshalb entscheidet der Aufrufer, ob er den Fehler anzeigt.
+    """
+    if not wert:
+        return None
+    return datetime.strptime(wert, '%Y-%m-%d').date()
+
+
+def _plus_jahre(datum, jahre):
+    """Datum um Jahre verschieben. Der 29.02. wird auf den 28. gelegt."""
+    try:
+        return datum.replace(year=datum.year + jahre)
+    except ValueError:
+        return datum.replace(year=datum.year + jahre, day=28)
+
+
+def _plus_monate(datum, monate):
+    """Datum um Monate verschieben, Tag auf den Monatsletzten begrenzt."""
+    monat_index = datum.month - 1 + monate
+    jahr = datum.year + monat_index // 12
+    monat = monat_index % 12 + 1
+    tag = min(datum.day, calendar.monthrange(jahr, monat)[1])
+    return datum.replace(year=jahr, month=monat, day=tag)
+
+
+def sdb_status(stoff, heute):
+    """Friststatus des Sicherheitsdatenblatts eines Gefahrstoffs.
+
+    Rückgabe: (stufe, faellig_seit) mit stufe aus
+      'fehlt'      - kein Sicherheitsdatenblatt hinterlegt
+      'ohne_datum' - Dokument vorhanden, aber kein Datum erfasst
+      'dringend'   - älter als SDB_DRINGEND_JAHRE
+      'pruefen'    - älter als SDB_FRIST_JAHRE
+      'ok'         - aktuell
+    'faellig_seit' ist der Beginn der Frist (None bei 'fehlt'/'ohne_datum') und
+    dient der Anzeige "überfällig seit".
+
+    Die beiden Fehlfälle sind neu: bisher fielen Stoffe ohne Dokument durch
+    beide vorhandenen Prüfungen, weil die SDB-Seite auf
+    sicherheitsdatenblatt.isnot(None) filtert.
+    """
+    if not stoff.sicherheitsdatenblatt:
+        return 'fehlt', None
+    if not stoff.sdb_datum:
+        return 'ohne_datum', None
+
+    frist = _plus_jahre(stoff.sdb_datum, SDB_FRIST_JAHRE)
+    if heute < frist:
+        return 'ok', None
+    if heute >= _plus_jahre(stoff.sdb_datum, SDB_DRINGEND_JAHRE):
+        return 'dringend', frist
+    return 'pruefen', frist
+
+
+def substitution_status(stoff, heute):
+    """Friststatus der Substitutionsprüfung nach §7 GefStoffV.
+
+    Rückgabe: (stufe, faellig_seit) mit stufe aus
+      'fehlt'      - keine Prüfung dokumentiert
+      'ohne_datum' - Prüfung vermerkt, aber kein Datum erfasst
+      'faellig'    - letzte Prüfung älter als SUBSTITUTION_FRIST_MONATE
+      'ok'         - innerhalb der Frist
+
+    'fehlt' und 'ohne_datum' sind bewusst getrennt: ob eine Prüfung
+    stattgefunden hat, sagt das Feld substitutionspruefung ('ja'/'nein'),
+    wann sie war, sagt das Datum. Fehlt nur das Datum, ist die Prüfung
+    dokumentiert und es fehlt eine Angabe - das ist etwas anderes als eine
+    Prüfung, die nie stattgefunden hat.
+    """
+    if not stoff.substitutionspruefung:
+        return 'fehlt', None
+    if not stoff.substitution_geprueft_am:
+        return 'ohne_datum', None
+
+    frist = _plus_monate(stoff.substitution_geprueft_am, SUBSTITUTION_FRIST_MONATE)
+    if heute < frist:
+        return 'ok', None
+    return 'faellig', frist
+
+
+def fristen_liste(heute=None):
+    """Alle offenen Fristen im Zugriffsbereich des angemeldeten Benutzers.
+
+    Nutzt get_gefahrstoff_query(), damit die vorhandene Bereichs-Isolation gilt
+    und kein zweites Rechtemodell entsteht. Dringlichste zuerst.
+    'aktion_link' ist nur für schreibberechtigte Rollen gesetzt.
+    """
+    if heute is None:
+        heute = datetime.utcnow().date()
+
+    eintraege = []
+    stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
+
+    for stoff in stoffe:
+        stufe, faellig_seit = sdb_status(stoff, heute)
+        if stufe == 'ok':
+            continue
+        eintraege.append({
+            'kategorie': 'SDB',
+            'stufe': stufe,
+            'objekt': stoff.name,
+            'objekt_link': url_for('view_stoff', id=stoff.id),
+            'ort': standort_text(stoff.unterbereich_id),
+            'faellig_seit': faellig_seit,
+            'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
+            'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
+            'aktion_text': 'SDB-Datum eintragen',
+        })
+
+    # Substitutionsprüfung (§7 GefStoffV). Getrennt von der SDB-Schleife, weil
+    # beide unabhängige Fristen am selben Stoff sind - ein Stoff kann ein
+    # aktuelles Sicherheitsdatenblatt haben und trotzdem nie geprüft sein.
+    #
+    # "fehlt" (noch nie geprüft) erscheint bewusst NICHT als Zeile: bei einem
+    # gewachsenen Verzeichnis wäre das jeder Stoff auf einmal und die Liste
+    # damit als Arbeitsliste unbrauchbar. Der Zustand wird im Kopfbereich als
+    # Zahl ausgewiesen (substitution_ohne_pruefung), damit die Lücke sichtbar
+    # bleibt. Die Zustände mit konkretem Handlungsbedarf - Prüfdatum fehlt,
+    # Prüfung überfällig - bleiben Zeilen.
+    for stoff in stoffe:
+        stufe, faellig_seit = substitution_status(stoff, heute)
+        if stufe in ('ok', 'fehlt'):
+            continue
+        eintraege.append({
+            'kategorie': 'Substitution',
+            'stufe': stufe,
+            'objekt': stoff.name,
+            'objekt_link': url_for('view_stoff', id=stoff.id),
+            'ort': standort_text(stoff.unterbereich_id),
+            'faellig_seit': faellig_seit,
+            'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
+            'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
+            'aktion_text': 'Prüfung dokumentieren',
+        })
+
+    # Inventur: das Datum hängt am Stoff, nicht am Standort. Ein Standort gilt
+    # als fällig, wenn sein jüngstes Inventurdatum zu alt ist - oder wenn dort
+    # noch nie inventarisiert wurde.
+    je_standort = {}
+    for stoff in stoffe:
+        if stoff.unterbereich_id:
+            je_standort.setdefault(stoff.unterbereich_id, []).append(stoff)
+
+    for unterbereich_id in sorted(je_standort):
+        stoffe_dort = je_standort[unterbereich_id]
+        juengste = max((s.last_inventur_datum for s in stoffe_dort if s.last_inventur_datum),
+                       default=None)
+        faellig_seit = _plus_monate(juengste.date(), INVENTUR_FRIST_MONATE) if juengste else None
+        if faellig_seit and heute < faellig_seit:
+            continue
+        eintraege.append({
+            'kategorie': 'Inventur',
+            'stufe': 'inventur',
+            'objekt': standort_text(unterbereich_id),
+            'objekt_link': url_for('index', unterbereich_id=unterbereich_id),
+            'ort': f'{len(stoffe_dort)} Gefahrstoff(e)',
+            'faellig_seit': faellig_seit,
+            'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
+            'aktion_link': (url_for('location_inventur', id=unterbereich_id)
+                            if current_user.can_write else None),
+            'aktion_text': 'Inventur starten',
+        })
+
+    # Dringlichste zuerst. Einträge ohne Fälligkeitsdatum (kein SDB hinterlegt,
+    # noch nie inventarisiert) stehen innerhalb ihrer Gruppe vorn - dort ist am
+    # wenigsten bekannt, also am ehesten etwas zu tun.
+    eintraege.sort(key=lambda e: (
+        FRISTEN_RANG.get((e['kategorie'], e['stufe']), 9),
+        0 if e['tage_ueberfaellig'] is None else 1,
+        -(e['tage_ueberfaellig'] or 0),
+        e['objekt'],
+    ))
+    return eintraege
+
+
+def substitution_ohne_pruefung(heute=None):
+    """Anzahl der Gefahrstoffe ohne dokumentierte Substitutionsprüfung.
+
+    Diese Stoffe erscheinen nicht als Zeilen in der Fristenliste (siehe
+    fristen_liste), die Zahl steht aber im Kopfbereich von /fristen. Ohne sie
+    wäre die Lücke unsichtbar - §7 GefStoffV verlangt die Prüfung für jeden
+    Gefahrstoff, nicht nur für die, deren Prüfung veraltet ist.
+    """
+    if heute is None:
+        heute = datetime.utcnow().date()
+    return sum(1 for stoff in get_gefahrstoff_query().all()
+               if substitution_status(stoff, heute)[0] == 'fehlt')
+
+
+def fristen_alle():
+    """fristen_liste() einmal pro Request, zwischengespeichert in g.
+
+    Der Zähler in der Navigation braucht bei jedem Seitenaufbau eine Zahl, die
+    Liste selbst nur auf /fristen. Beides kommt aus derselben Berechnung - sonst
+    stünden Zähler und Liste irgendwann auseinander, und genau das war der
+    Ausgangsfehler (Kachel und SDB-Seite rechneten verschieden).
+    """
+    if not hasattr(g, '_fristen'):
+        g._fristen = fristen_liste()
+    return g._fristen
+
+
+# ─── Mengenschwellen (TRGS 510) ──────────────────────────────────────────────
+#
+# Prüft je Lagerabschnitt, ob die gelagerten Mengen die Kleinmengen der
+# TRGS 510 überschreiten. Die Regeln und Zahlen stehen in mengenschwellen.py;
+# hier wird nur der Zugriffsbereich der App darauf abgebildet, damit dieselbe
+# Bereichs-Isolation gilt wie in allen anderen Listen. Die Bezugsebene ist der
+# Unterbereich des Standortbaums - dieselbe Ebene, auf der auch die
+# Zusammenlagerung in trgs510.py prüft.
+
+def mengenschwellen_liste():
+    """Mengenschwellen-Überschreitungen im Zugriffsbereich als Arbeitsliste.
+
+    Nutzt get_gefahrstoff_query() (kein zweites Rechtemodell) und ergänzt die
+    Befunde aus mengenschwellen.alle_befunde() um Ort, Link und Handlungsziel.
+    """
+    stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
+    eintraege = []
+    for befund in mengenschwellen.alle_befunde(stoffe):
+        ub_id = befund['unterbereich_id']
+        eintraege.append({
+            'objekt': standort_text(ub_id),
+            'objekt_link': url_for('index', unterbereich_id=ub_id),
+            'bezeichnung': befund['bezeichnung'],
+            'status': befund['status'],
+            'summe_kg': befund['summe_kg'],
+            'kleinmenge_kg': befund['kleinmenge_kg'],
+            'zusatz_ab_kg': befund['zusatz_ab_kg'],
+            'ueberschreitung_kg': befund['ueberschreitung_kg'],
+            'stoffnamen': befund['stoffnamen'],
+            'ohne_menge': befund.get('ohne_menge', []),
+            'hinweis': befund.get('hinweis'),
+            'quelle': befund['quelle'],
+        })
+    return eintraege
+
+
+def mengenschwellen_alle():
+    """mengenschwellen_liste() einmal pro Request, zwischengespeichert in g.
+
+    Wie bei den Fristen: Zähler in der Navigation und Liste auf der Seite
+    kommen aus derselben Berechnung, damit sie nicht auseinanderlaufen.
+    """
+    if not hasattr(g, '_mengenschwellen'):
+        g._mengenschwellen = mengenschwellen_liste()
+    return g._mengenschwellen
+
+
+def mengenschwellen_fuer_unterbereich(unterbereich_id):
+    """Mengenschwellen-Befunde eines Lagerabschnitts - für die Stoff-Detailseite.
+
+    Bewusst ohne get_gefahrstoff_query(): der Aufrufer hat bereits geprüft, dass
+    der Benutzer den Stoff sehen darf, und der Befund zeigt nur, was im selben
+    Abschnitt liegt.
+    """
+    if not unterbereich_id:
+        return []
+    unterbereich = db.session.get(Unterbereich, unterbereich_id)
+    if not unterbereich:
+        return []
+    stoffe = [s for s in unterbereich.gefahrstoffe if not getattr(s, 'is_deleted', False)]
+    return mengenschwellen.pruefe_unterbereich(stoffe)
+
+
+def mengenschwellen_befunde_fuer_stoff(stoff):
+    """Befunde des Lagerabschnitts, an denen dieser Stoff beteiligt ist.
+
+    Ein Befund, der nur andere Stoffe desselben Abschnitts betrifft, gehört
+    nicht auf die Seite dieses Stoffes - sonst stünde bei jedem Stoff im Schrank
+    dieselbe Warnung. Die Gesamtmenge des Abschnitts wird aber immer gezeigt,
+    weil sie alle Stoffe betrifft.
+    """
+    befunde = mengenschwellen_fuer_unterbereich(getattr(stoff, 'unterbereich_id', None))
+    return [b for b in befunde
+            if stoff.name in b['stoffnamen'] or b['status'] == 'gesamt']
+
+
+def mengenschwellen_befund_text(befund):
+    """Ein Befund als Satz für Meldungen (Flash) und Vorschau."""
+    if befund['status'] == 'zusatz':
+        return (f"{befund['bezeichnung']}: {befund['summe_kg']:.1f} kg im "
+                f"Lagerabschnitt - zusätzliche Schutzmaßnahmen ab "
+                f"{befund['zusatz_ab_kg']:.0f} kg sind erreicht.")
+    if befund['status'] == 'gesamt':
+        return (f"Gesamtmenge im Lagerabschnitt: {befund['summe_kg']:.1f} kg - "
+                f"über der Grenze von {befund['kleinmenge_kg']:.0f} kg für alle "
+                f"Kleinmengen zusammen.")
+    return (f"{befund['bezeichnung']}: {befund['summe_kg']:.1f} kg im "
+            f"Lagerabschnitt - Kleinmenge {befund['kleinmenge_kg']:.1f} kg "
+            f"überschritten, Lagerung nur noch im Lager zulässig.")
+
+
+def mengenschwellen_warnung_nach_speichern(stoff):
+    """Warnt nach dem Speichern, wenn der Lagerabschnitt eine Mengenschwelle
+    nach TRGS 510 überschreitet - blockiert aber nichts.
+
+    Der Hinweis kommt zusätzlich zur Prüfseite: Wer gerade eine Menge einträgt,
+    soll die Folge sofort sehen und nicht erst beim nächsten Blick in die
+    Übersicht. Ein Fehler in der Prüfung darf das Speichern nicht stören.
+    """
+    try:
+        for befund in mengenschwellen_befunde_fuer_stoff(stoff):
+            flash('Mengenschwelle (TRGS 510): ' + mengenschwellen_befund_text(befund),
+                  'warning')
+    except Exception as e:
+        print(f"Mengenschwellen-Prüfung nach dem Speichern fehlgeschlagen: {e}")
+
+
+@app.route('/api/mengenschwellen_vorschau')
+@login_required
+def api_mengenschwellen_vorschau():
+    """Live-Vorschau der Mengenschwellen für das Gefahrstoff-Formular.
+
+    Nimmt die noch nicht gespeicherten Formularwerte entgegen und prüft sie
+    zusammen mit den bereits im Lagerabschnitt liegenden Stoffen (beim
+    Bearbeiten ohne den bearbeiteten Stoff selbst). Blockiert nichts - liefert
+    nur Hinweise für das Formular. Ein Fehler darf die Seite nicht stören,
+    deshalb immer eine Antwort mit 'hinweise'.
+    """
+    leer = jsonify({'hinweise': []})
+    if not current_user.can_write:
+        return leer
+
+    try:
+        unterbereich_id = int(request.args.get('unterbereich_id') or 0)
+    except (TypeError, ValueError):
+        return leer
+    unterbereich = db.session.get(Unterbereich, unterbereich_id) if unterbereich_id else None
+    if not unterbereich:
+        return leer
+
+    # Zugriffsprüfung wie überall sonst: nur Bereiche, die der Benutzer sehen darf.
+    if not current_user.is_admin:
+        if unterbereich.bereich_id not in {b.id for b in get_accessible_bereiche()}:
+            return leer
+
+    # Beim Bearbeiten den Stoff selbst ausschließen - sonst zählte seine alte
+    # Menge zusätzlich zu der gerade eingetragenen.
+    try:
+        ausschluss_id = int(request.args.get('stoff_id') or 0)
+    except (TypeError, ValueError):
+        ausschluss_id = 0
+
+    bestand = [s for s in unterbereich.gefahrstoffe
+               if not getattr(s, 'is_deleted', False) and s.id != ausschluss_id]
+
+    entwurf = SimpleNamespace(
+        name=request.args.get('name') or '(neuer Stoff)',
+        menge=request.args.get('menge') or None,
+        mengeneinheit=request.args.get('mengeneinheit'),
+        h_saetze=request.args.get('h_saetze'),
+        lagerklasse=request.args.get('lagerklasse'),
+        unterbereich_id=unterbereich_id,
+        is_deleted=False,
+    )
+
+    befunde = mengenschwellen.pruefe_unterbereich(bestand + [entwurf])
+    hinweise = [mengenschwellen_befund_text(b) for b in befunde
+                if entwurf.name in b['stoffnamen'] or b['status'] == 'gesamt']
+    return jsonify({'hinweise': hinweise})
+
+
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -400,7 +1158,14 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        log_audit_event(user.id, "USER_CREATE", "Erster Admin-Benutzer bei Systemstart angelegt.")
+        # Argumente standen hier in falscher Reihenfolge und Zahl: der Aufruf
+        # lautete log_audit_event(user.id, "USER_CREATE", "<Satz>") und schrieb
+        # damit eine Zahl als Aktion und den Satz in die Integer-Spalte
+        # entity_id. Die Zuordnung des ersten Admins ist über user_id belegt,
+        # weil current_user zu diesem Zeitpunkt noch anonym ist.
+        log_audit_event('USER_CREATE', 'User', user.id,
+                        'Erster Admin-Benutzer bei Systemstart angelegt (Rolle: admin).',
+                        user_id=user.id)
         flash('Erster Admin-Benutzer erfolgreich erstellt! Bitte einloggen.', 'success')
         return redirect(url_for('login'))
         
@@ -438,6 +1203,9 @@ def login():
             flash('Ungültiger Benutzername oder Passwort', 'error')
             return redirect(url_for('login'))
         login_user(user)
+        # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
+        log_audit_event('LOGIN', 'User', user.id,
+                        'Lokaler Login (Passwort aus der Datenbank).')
         return redirect(url_for('index'))
     return render_template('login.html')
 
@@ -503,30 +1271,39 @@ def index():
     bereiche = get_accessible_bereiche()
     gefahrstoffe = query.order_by(Gefahrstoff.name).all()
     
-    # KPIs berechnen
-    stats_total = len(gefahrstoffe)
-    
-    # Abgelaufene SDBs (älter als 3 Jahre)
+    # KPIs berechnen.
+    # Die Gesamtzahl stand hier als stats_total und speiste eine eigene
+    # Kachel - die wiederholte nur, was die Kopf-Unterzeile ohnehin mit
+    # {{ gefahrstoffe|length }} zeigt. Die Kachel ist entfallen.
+    #
+    # stats_expired_sdb speiste ebenfalls eine Kachel (Veraltete SDBs); auch
+    # die ist entfallen - die Fristenzahl steht nur noch als Menuepunkt in der
+    # Kopfzeile und in der Fristenliste selbst.
     today = datetime.utcnow().date()
-    stats_expired_sdb = 0
-    for stoff in gefahrstoffe:
-        if stoff.sicherheitsdatenblatt and stoff.sdb_datum:
-            diff_years = (today - stoff.sdb_datum).days / 365
-            if diff_years >= 3:
-                stats_expired_sdb += 1
-                
+    # Die Stufe wird einmal je Stoff bestimmt und trägt die Dokumentenspalte.
+    # Das Template rechnete dafür bisher selbst "(heute - sdb_datum).days / 365
+    # >= 3" nach - mit der harten 3 statt SDB_FRIST_JAHRE, und an zwei Stellen
+    # (Tabelle und Kachelansicht) doppelt.
+    sdb_stufen = {stoff.id: sdb_status(stoff, today)[0] for stoff in gefahrstoffe}
+
     # Anzahl der Standorte (distinct unterbereich_id)
     stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
 
-    return render_template('index.html', 
+    # Lagerabschnitte mit einer Mengenschwellen-Überschreitung (TRGS 510). Einmal
+    # für die ganze Liste bestimmt und als Menge der IDs übergeben - je Zeile
+    # nachzurechnen wäre derselbe Aufwand, nur N-mal (wie bei trgs_warnings).
+    mengen_auffaellig = {b['unterbereich_id']
+                         for b in mengenschwellen.alle_befunde(gefahrstoffe)}
+
+    return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
-                           bereiche=bereiche, 
+                           bereiche=bereiche,
                            aktiver_bereich=aktiver_bereich,
                            aktiver_unterbereich=aktiver_unterbereich,
                            today=today,
-                           stats_total=stats_total,
-                           stats_expired_sdb=stats_expired_sdb,
-                           stats_locations=stats_locations)
+                           sdb_stufen=sdb_stufen,
+                           stats_locations=stats_locations,
+                           mengen_auffaellig=mengen_auffaellig)
 
 @app.route('/betriebsanweisungen')
 @login_required
@@ -542,14 +1319,75 @@ def sicherheitsdatenblaetter_list():
     query = get_gefahrstoff_query()
     # Nur Stoffe mit Sicherheitsdatenblatt, alphabetisch sortiert
     stoffe = query.filter(Gefahrstoff.sicherheitsdatenblatt.isnot(None)).order_by(Gefahrstoff.name).all()
-    return render_template('sicherheitsdatenblaetter.html', gefahrstoffe=stoffe, today=datetime.utcnow().date())
+    # Die Stufen kommen aus sdb_status() - vorher rechnete das Template dieselbe
+    # Regel mit eigenen Zahlen nach. Angezeigt wird weiterhin nur der Status;
+    # die Entscheidung, was "veraltet" heißt, fällt an einer Stelle.
+    heute = datetime.utcnow().date()
+    sdb_stufen = {stoff.id: sdb_status(stoff, heute)[0] for stoff in stoffe}
+    return render_template('sicherheitsdatenblaetter.html', gefahrstoffe=stoffe,
+                           sdb_stufen=sdb_stufen)
+
+
+@app.route('/fristen')
+@login_required
+def fristen():
+    """Offene Fristen als Arbeitsliste.
+
+    Die Regel steht in fristen_liste(), die Zahl auf der Startseite und der
+    Zähler in der Navigation kommen aus derselben Funktion (fristen_alle()).
+    """
+    eintraege = fristen_alle()
+    heute = datetime.utcnow().date()
+
+    # Aufschlüsselung für den Kopfbereich. Nach Kategorie gefiltert, weil
+    # dieselbe Stufe in mehreren Kategorien vorkommt ("fehlt" heißt bei SDB
+    # "kein Dokument", bei der Substitutionsprüfung "nie geprüft").
+    uebersicht = {
+        'sdb_faellig':  sum(1 for e in eintraege
+                            if e['kategorie'] == 'SDB'
+                            and e['stufe'] in ('dringend', 'pruefen')),
+        'sdb_fehlend':  sum(1 for e in eintraege
+                            if e['kategorie'] == 'SDB'
+                            and e['stufe'] in ('fehlt', 'ohne_datum')),
+        'substitution': sum(1 for e in eintraege if e['kategorie'] == 'Substitution'),
+        'subst_ungeprueft': substitution_ohne_pruefung(heute),
+        'inventur':     sum(1 for e in eintraege if e['kategorie'] == 'Inventur'),
+    }
+    return render_template('fristen.html', eintraege=eintraege, uebersicht=uebersicht,
+                           heute=heute)
+
+
+@app.route('/mengenschwellen')
+@login_required
+def mengenschwellen_seite():
+    """Mengenschwellen nach TRGS 510 als Arbeitsliste.
+
+    Die Regel steht in mengenschwellen.py, die Liste in mengenschwellen_liste(),
+    der Zähler in der Navigation kommt aus derselben Funktion - so passen Zähler
+    und Liste zusammen (wie bei den Fristen).
+
+    Der Name des Endpunkts weicht bewusst vom Modulnamen ab: 'mengenschwellen'
+    ist bereits das importierte Modul, eine gleichnamige View würde es
+    überschatten.
+    """
+    eintraege = mengenschwellen_alle()
+    uebersicht = {
+        'zusatz':        sum(1 for e in eintraege if e['status'] == 'zusatz'),
+        'ueberschritten': sum(1 for e in eintraege if e['status'] == 'ueberschritten'),
+        'gesamt':        sum(1 for e in eintraege if e['status'] == 'gesamt'),
+        'abschnitte':    len(set(e['objekt'] for e in eintraege)),
+        'ohne_menge':    mengenschwellen.stoffe_ohne_menge(get_gefahrstoff_query().all()),
+    }
+    return render_template('mengenschwellen.html', eintraege=eintraege,
+                           uebersicht=uebersicht,
+                           gesamtgrenze=mengenschwellen.GESAMT_KLEINMENGEN_KG)
 
 # ─── Standorte ───────────────────────────────────────────────────────────────
 
 @app.route('/locations', methods=['GET', 'POST'])
 @login_required
 def locations():
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung für die Standortverwaltung.', 'error')
         return redirect(url_for('index'))
 
@@ -562,6 +1400,10 @@ def locations():
                 neuer_bereich = Bereich(name=name, owner_id=current_user.id)
                 db.session.add(neuer_bereich)
                 db.session.commit()
+                # Bis hierher war nur das Löschen eines Standorts protokolliert,
+                # das Anlegen nicht. Beides gehört in die Historie.
+                log_audit_event('CREATE', 'Bereich', neuer_bereich.id,
+                                f'Bereich "{neuer_bereich.name}" angelegt.')
                 flash(f'Bereich "{name}" erfolgreich hinzugefügt.', 'success')
 
         elif action == 'add_unterbereich':
@@ -585,6 +1427,11 @@ def locations():
                         neuer = Unterbereich(name=name, bereich_id=bereich_id, parent_id=parent_id)
                         db.session.add(neuer)
                         db.session.commit()
+                        # Der volle Pfad, weil ein Unterbereich unter einem
+                        # anderen Unterbereich hängen kann und der blosse Name
+                        # dann nicht eindeutig wäre.
+                        log_audit_event('CREATE', 'Unterbereich', neuer.id,
+                                        f'Unterbereich angelegt: {standort_text(neuer.id)}.')
                         flash(f'Unterbereich "{name}" erfolgreich hinzugefügt.', 'success')
                     else:
                         flash('Keine Berechtigung für diesen Bereich.', 'error')
@@ -730,10 +1577,24 @@ def delete_bereich(id):
     if not can_manage_bereich(bereich):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('locations'))
+
+    # Vor dem Löschen festhalten: die Unterbereiche verschwinden per Kaskade,
+    # und ihre Gefahrstoffe verlieren dabei den Standort, ohne gelöscht zu
+    # werden (nachgemessen). Das gehört in die Systemhistorie, sonst sieht man
+    # später nur einen Bereich verschwinden und weiß nicht, was daran hing.
+    bereich_name      = bereich.name
+    bereich_id        = bereich.id
+    anzahl_unterbereiche = len(bereich.unterbereiche)
+    anzahl_stoffe     = sum(len(u.gefahrstoffe) for u in bereich.unterbereiche)
+
     try:
         db.session.delete(bereich)
         db.session.commit()
-        flash(f'Bereich "{bereich.name}" gelöscht.', 'info')
+        log_audit_event('DELETE', 'Bereich', bereich_id,
+                        f'Bereich "{bereich_name}" gelöscht '
+                        f'({anzahl_unterbereiche} Unterbereich(e) mitgelöscht, '
+                        f'{anzahl_stoffe} Gefahrstoff(e) dadurch ohne Standort).')
+        flash(f'Bereich "{bereich_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'Fehler beim Löschen: {str(e)}', 'error')
@@ -747,12 +1608,23 @@ def delete_unterbereich(id):
     if not can_manage_bereich(unterbereich.bereich):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('locations'))
+
+    # Die Gefahrstoffe bleiben erhalten und verlieren nur den Standort. Anzahl
+    # und Name vorher sichern - nach dem Commit ist das Objekt weg.
+    unterbereich_id   = unterbereich.id
+    anzeige_name      = unterbereich.name
+    unterbereich_name = f'{unterbereich.bereich.name} / {unterbereich.name}'
+    anzahl_stoffe     = len(unterbereich.gefahrstoffe)
+
     try:
         for stoff in unterbereich.gefahrstoffe:
             stoff.unterbereich_id = None
         db.session.delete(unterbereich)
         db.session.commit()
-        flash(f'Unterbereich "{unterbereich.name}" gelöscht.', 'info')
+        log_audit_event('DELETE', 'Unterbereich', unterbereich_id,
+                        f'Unterbereich "{unterbereich_name}" gelöscht '
+                        f'({anzahl_stoffe} Gefahrstoff(e) dadurch ohne Standort).')
+        flash(f'Unterbereich "{anzeige_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
         flash(f'Fehler beim Löschen: {str(e)}', 'error')
@@ -768,7 +1640,15 @@ def view_stoff(id):
     if not accessible:
         flash('Keine Berechtigung, diesen Gefahrstoff anzusehen.', 'error')
         return redirect(url_for('index'))
-    return render_template('view.html', stoff=stoff, today=datetime.utcnow().date())
+    # Die Stufe des Sicherheitsdatenblatts kommt aus sdb_status(), damit die
+    # Detailseite dieselbe Entscheidung zeigt wie Liste und Fristenliste.
+    heute = datetime.utcnow().date()
+    # Mengenschwellen des Lagerabschnitts, aber nur die Befunde, an denen
+    # dieser Stoff beteiligt ist (oder die Gesamtmenge des Abschnitts).
+    eigene_befunde = mengenschwellen_befunde_fuer_stoff(stoff)
+    return render_template('view.html', stoff=stoff, today=heute,
+                           sdb_stufe=sdb_status(stoff, heute)[0],
+                           mengenschwellen=eigene_befunde)
 
 
 @app.route('/gefahrstoff/<int:id>/betriebsanweisung')
@@ -814,12 +1694,98 @@ def betriebsanweisung_print(id):
             text = p_dict.get(p_code, "")
             p_saetze_list.append(f"{p_code}: {text}" if text else p_code)
 
-    return render_template('ba_print.html', 
-                           stoff=stoff, 
+    return render_template('ba_print.html',
+                           stoff=stoff,
                            arbeitsbereich=arbeitsbereich,
                            h_saetze_list=h_saetze_list,
                            p_saetze_list=p_saetze_list,
+                           ba_texte=load_ba_texte(stoff),
+                           gebotszeichen=load_ba_gebotszeichen(stoff),
+                           gebotszeichen_auswahl=BA_GEBOTSZEICHEN,
+                           ba_max_gebotszeichen=BA_MAX_GEBOTSZEICHEN,
+                           unterschrift=load_ba_unterschrift(stoff),
                            today=datetime.utcnow().date())
+
+
+@app.route('/gefahrstoff/<int:id>/betriebsanweisung/speichern', methods=['POST'])
+@login_required
+def betriebsanweisung_speichern(id):
+    """Speichert die individuell angepassten Texte und Gebotszeichen der Betriebsanweisung."""
+    stoff = Gefahrstoff.query.get_or_404(id)
+    if not get_gefahrstoff_query().filter(Gefahrstoff.id == id).first():
+        flash('Keine Berechtigung für diesen Gefahrstoff.', 'error')
+        return redirect(url_for('index'))
+
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('betriebsanweisung_print', id=id))
+
+    try:
+        if request.form.get('action') == 'reset':
+            stoff.ba_texte = None
+            stoff.ba_gebotszeichen = None
+            stoff.ba_unterschrift = None
+            db.session.commit()
+            log_audit_event('UPDATE', 'Gefahrstoff', id,
+                            'Betriebsanweisung auf Standardwerte zurückgesetzt.')
+            flash('Betriebsanweisung auf die Standardwerte zurückgesetzt.', 'success')
+            return redirect(url_for('betriebsanweisung_print', id=id))
+
+        # Mit dem gespeicherten Stand zusammenführen statt ihn zu ersetzen: ohne
+        # JavaScript werden die contenteditable-Bereiche nicht übertragen, ein
+        # Teil-Submit darf bereits gespeicherte Felder nicht verwerfen.
+        texte = {}
+        try:
+            texte = json.loads(stoff.ba_texte) if stoff.ba_texte else {}
+        except (ValueError, TypeError):
+            texte = {}
+        if not isinstance(texte, dict):
+            texte = {}
+
+        for field in BA_TEXT_FIELDS:
+            if field not in request.form:
+                continue
+            value = sanitize_ba_html(request.form.get(field, ''))
+            if value:
+                texte[field] = value
+            else:
+                texte.pop(field, None)          # bewusst geleertes Feld
+
+        texte = {f: v for f, v in texte.items() if f in BA_TEXT_FIELDS}
+
+        codes = []
+        for code in request.form.get('ba_gebotszeichen', '').split(','):
+            code = code.strip()
+            if code in BA_GEBOTSZEICHEN_CODES and code not in codes:
+                codes.append(code)
+        codes = codes[:BA_MAX_GEBOTSZEICHEN]
+
+        if any(f in request.form for f in BA_TEXT_FIELDS):
+            stoff.ba_texte = json.dumps(texte, ensure_ascii=False) if texte else None
+        if 'ba_gebotszeichen' in request.form:
+            stoff.ba_gebotszeichen = ','.join(codes) if codes else None
+        if 'ba_unterschrift' in request.form:
+            stoff.ba_unterschrift = sanitize_ba_unterschrift(
+                request.form.get('ba_unterschrift', ''))
+
+        db.session.commit()
+        # Der Inhalt der Unterschrift (Name oder Bild) gehört nicht ins Audit-Log,
+        # nur die Tatsache, dass eine gesetzt oder entfernt wurde.
+        unterschrift_hinweis = ''
+        if 'ba_unterschrift' in request.form:
+            unterschrift_hinweis = (', Unterschrift gesetzt' if stoff.ba_unterschrift
+                                    else ', Unterschrift entfernt')
+        log_audit_event('UPDATE', 'Gefahrstoff', id,
+                        f'Betriebsanweisung gespeichert '
+                        f'({len(texte)} Textfelder, {len(codes)} Gebotszeichen'
+                        f'{unterschrift_hinweis}).')
+        flash('Betriebsanweisung gespeichert.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Fehler beim Speichern der Betriebsanweisung: {e}")
+        flash('Betriebsanweisung konnte nicht gespeichert werden.', 'error')
+
+    return redirect(url_for('betriebsanweisung_print', id=id))
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -837,18 +1803,18 @@ def add():
             cas_nummer   = request.form.get('cas_nummer')
             eg_nummer    = request.form.get('eg_nummer')
             signalwort   = request.form.get('signalwort')
-            unterbereich_id_raw = request.form.get('unterbereich_id')
 
-            unterbereich_id = None
-            if unterbereich_id_raw and str(unterbereich_id_raw).strip():
-                try:
-                    unterbereich_id = int(unterbereich_id_raw)
-                    unter = Unterbereich.query.get(unterbereich_id)
-                    if unter and unter.bereich.id not in [b.id for b in bereiche]:
-                        flash('Kein Zugriff auf diesen Standort.', 'error')
-                        return redirect(url_for('add'))
-                except (ValueError, TypeError):
-                    unterbereich_id = None
+            # Ziel-Standort prüfen. Die frühere Fassung war unvollständig: eine
+            # ID ohne zugehörigen Unterbereich wurde übernommen (SQLite erzwingt
+            # die Fremdschlüssel nicht, sie blieb als toter Verweis stehen), und
+            # ein nicht numerischer Wert wurde stillschweigend verworfen, sodass
+            # der Stoff ohne Standort entstand. Jetzt melden beide Fälle einen
+            # Fehler - wie /move und /copy.
+            unterbereich_id, fehler = ziel_standort_pruefen(
+                request.form.get('unterbereich_id'), bereiche)
+            if fehler:
+                flash(fehler, 'error')
+                return redirect(url_for('add'))
 
             piktogramme_list = request.form.getlist('piktogramme')
             piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
@@ -872,6 +1838,14 @@ def add():
             substitutionspruefung = request.form.get('substitutionspruefung')
             ersatzstoff = request.form.get('ersatzstoff') if substitutionspruefung == 'ja' else None
             begruendung = request.form.get('begruendung') if substitutionspruefung == 'nein' else None
+
+            try:
+                substitution_geprueft_am = _datum_aus_formular(
+                    request.form.get('substitution_geprueft_am'))
+            except ValueError:
+                flash('Ungültiges Datum bei "Substitutionsprüfung zuletzt geprüft am".',
+                      'error')
+                return redirect(url_for('add'))
 
             menge = None
             if menge_str:
@@ -915,6 +1889,7 @@ def add():
                 substitutionspruefung=substitutionspruefung,
                 ersatzstoff=ersatzstoff,
                 begruendung=begruendung,
+                substitution_geprueft_am=substitution_geprueft_am,
                 sicherheitsdatenblatt=sdb_filename, betriebsanweisung=ba_filename,
                 gefaehrdungsbeurteilung=gb_filename,
                 unterbereich_id=unterbereich_id,
@@ -931,6 +1906,8 @@ def add():
                 flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt! Hinweis: Da es sich um einen CMR-Stoff handelt, muss er vor der Sichtbarkeit von einem Moderator/Admin freigegeben werden.', 'warning')
             else:
                 flash(f'Gefahrstoff "{name}" erfolgreich hinzugefügt!', 'success')
+            # Mengenschwellen des Lagerabschnitts prüfen und warnen (nicht blockieren).
+            mengenschwellen_warnung_nach_speichern(neuer_stoff)
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
@@ -959,13 +1936,13 @@ def edit_stoff(id):
         signalwort       = request.form.get('signalwort')
         stoff.signalwort = signalwort if signalwort else None
 
-        unterbereich_id = request.form.get('unterbereich_id')
-        if unterbereich_id:
-            unter = Unterbereich.query.get(unterbereich_id)
-            if unter and unter.bereich.id not in [b.id for b in bereiche]:
-                flash('Kein Zugriff auf diesen Standort.', 'error')
-                return redirect(url_for('edit_stoff', id=id))
-        stoff.unterbereich_id = unterbereich_id if unterbereich_id else None
+        # Ziel-Standort prüfen - dieselbe Prüfung wie in /add, /move und /copy.
+        unterbereich_id, fehler = ziel_standort_pruefen(
+            request.form.get('unterbereich_id'), bereiche)
+        if fehler:
+            flash(fehler, 'error')
+            return redirect(url_for('edit_stoff', id=id))
+        stoff.unterbereich_id = unterbereich_id
 
         piktogramme_list = request.form.getlist('piktogramme')
         stoff.piktogramme = ",".join(piktogramme_list) if piktogramme_list else None
@@ -989,6 +1966,13 @@ def edit_stoff(id):
         stoff.substitutionspruefung = request.form.get('substitutionspruefung')
         stoff.ersatzstoff = request.form.get('ersatzstoff') if stoff.substitutionspruefung == 'ja' else None
         stoff.begruendung = request.form.get('begruendung') if stoff.substitutionspruefung == 'nein' else None
+
+        try:
+            stoff.substitution_geprueft_am = _datum_aus_formular(
+                request.form.get('substitution_geprueft_am'))
+        except ValueError:
+            flash('Ungültiges Datum bei "Substitutionsprüfung zuletzt geprüft am".', 'error')
+            return redirect(url_for('edit_stoff', id=id))
 
         menge_str = request.form.get('menge')
         if menge_str:
@@ -1057,6 +2041,8 @@ def edit_stoff(id):
                 flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert! Hinweis: Er muss nun als CMR-Stoff neu freigegeben werden.', 'warning')
             else:
                 flash(f'Gefahrstoff "{stoff.name}" erfolgreich aktualisiert!', 'success')
+            # Mengenschwellen des Lagerabschnitts prüfen und warnen (nicht blockieren).
+            mengenschwellen_warnung_nach_speichern(stoff)
             return redirect(url_for('view_stoff', id=stoff.id))
         except Exception as e:
             db.session.rollback()
@@ -1096,10 +2082,22 @@ def move_stoff(id):
         return redirect(url_for('index'))
     bereiche = get_accessible_bereiche()
     if request.method == 'POST':
-        unterbereich_id = request.form.get('unterbereich_id')
-        stoff.unterbereich_id = unterbereich_id if unterbereich_id else None
+        # Das Ziel wird geprüft, bevor es gespeichert wird. /add und /edit prüfen
+        # an derselben Stelle gegen die zugänglichen Bereiche - /move war die
+        # einzige Ausnahme, sodass sich ein Gefahrstoff mit einem selbst gebauten
+        # Request in einen fremden Bereich schieben ließ.
+        ziel_id, fehler = ziel_standort_pruefen(request.form.get('unterbereich_id'), bereiche)
+        if fehler:
+            flash(fehler, 'error')
+            return redirect(url_for('move_stoff', id=id))
+
+        alter_standort = standort_text(stoff.unterbereich_id)
+        stoff.unterbereich_id = ziel_id
         try:
             db.session.commit()
+            log_audit_event('MOVE', 'Gefahrstoff', stoff.id,
+                            f'"{stoff.name}" verschoben: {alter_standort} -> '
+                            f'{standort_text(stoff.unterbereich_id)}.')
             flash(f'Gefahrstoff "{stoff.name}" erfolgreich verschoben!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
@@ -1117,26 +2115,47 @@ def copy_stoff(id):
         return redirect(url_for('index'))
     bereiche = get_accessible_bereiche()
     if request.method == 'POST':
-        unterbereich_id = request.form.get('unterbereich_id')
+        # Wie bei /move: die Kopie darf nicht in einem fremden Bereich landen.
+        ziel_id, fehler = ziel_standort_pruefen(request.form.get('unterbereich_id'), bereiche)
+        if fehler:
+            flash(fehler, 'error')
+            return redirect(url_for('copy_stoff', id=id))
+
         neuer_stoff = Gefahrstoff(
             name=stoff.name, cas_nummer=stoff.cas_nummer, eg_nummer=stoff.eg_nummer,
             signalwort=stoff.signalwort, piktogramme=stoff.piktogramme,
             h_saetze=stoff.h_saetze, p_saetze=stoff.p_saetze,
-            lagerort=stoff.lagerort, menge=stoff.menge, mengeneinheit=stoff.mengeneinheit,
+            gefahrenkategorien=stoff.gefahrenkategorien,
+            lagerort=stoff.lagerort, lagerklasse=stoff.lagerklasse,
+            menge=stoff.menge, mengeneinheit=stoff.mengeneinheit,
             sdb_datum=stoff.sdb_datum,
             substitutionspruefung=stoff.substitutionspruefung,
             ersatzstoff=stoff.ersatzstoff,
             begruendung=stoff.begruendung,
+            substitution_geprueft_am=stoff.substitution_geprueft_am,
             sicherheitsdatenblatt=stoff.sicherheitsdatenblatt,
             betriebsanweisung=stoff.betriebsanweisung,
             gefaehrdungsbeurteilung=stoff.gefaehrdungsbeurteilung,
-            unterbereich_id=unterbereich_id if unterbereich_id else None,
-            user_id=current_user.id
+            unterbereich_id=ziel_id,
+            user_id=current_user.id,
+            # Dieselbe Regel wie in /add. Ohne diese Zeile bekam die Kopie den
+            # Spaltenstandard True und war damit sofort sichtbar - auch bei einem
+            # CMR-Stoff, dessen Original auf Freigabe wartet. Damit ließ sich die
+            # Freigabe umgehen, indem man den Stoff direkt kopierte.
+            is_approved=not is_cmr_stoff(stoff.h_saetze)
         )
         try:
             db.session.add(neuer_stoff)
             db.session.commit()
-            flash(f'Gefahrstoff "{stoff.name}" erfolgreich kopiert!', 'success')
+            log_audit_event('COPY', 'Gefahrstoff', neuer_stoff.id,
+                            f'"{neuer_stoff.name}" aus Gefahrstoff #{stoff.id} kopiert, '
+                            f'Standort: {standort_text(neuer_stoff.unterbereich_id)}.')
+            if not neuer_stoff.is_approved:
+                flash(f'Gefahrstoff "{stoff.name}" kopiert. Hinweis: Da es sich um einen '
+                      f'CMR-Stoff handelt, muss die Kopie vor der Sichtbarkeit von einem '
+                      f'Moderator/Admin freigegeben werden.', 'warning')
+            else:
+                flash(f'Gefahrstoff "{stoff.name}" erfolgreich kopiert!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
@@ -1354,6 +2373,42 @@ def uploaded_file(filename):
 # ─── Profil & Freigaben ────────────────────────────────────────────────────────
 
 @app.context_processor
+def inject_fristen_zaehler():
+    """Zähler für den Navigationseintrag „Fristen".
+
+    Läuft bei jedem Seitenaufbau und liest dafür alle zugänglichen
+    Gefahrstoffe - das ist derselbe Aufwand, den index() ohnehin hat, und
+    fristen_alle() rechnet innerhalb eines Requests nur einmal. Bewusst nicht
+    als eigene Abfrage nachgebaut: sonst gäbe es wieder zwei Regeln, die
+    auseinanderlaufen können.
+    """
+    if not current_user.is_authenticated:
+        return dict(fristen_count=0)
+    try:
+        return dict(fristen_count=len(fristen_alle()))
+    except Exception as e:
+        # Ein Zähler darf nie eine Seite verhindern.
+        print(f"Fristenzähler nicht berechenbar: {e}")
+        return dict(fristen_count=0)
+
+
+@app.context_processor
+def inject_mengenschwellen_zaehler():
+    """Zähler für den Navigationseintrag „Mengenschwellen".
+
+    Wie beim Fristenzähler: dieselbe Berechnung wie die Seite, einmal pro
+    Request. Ein Fehler darf den Seitenaufbau nicht verhindern.
+    """
+    if not current_user.is_authenticated:
+        return dict(mengenschwellen_count=0)
+    try:
+        return dict(mengenschwellen_count=len(mengenschwellen_alle()))
+    except Exception as e:
+        print(f"Mengenschwellen-Zähler nicht berechenbar: {e}")
+        return dict(mengenschwellen_count=0)
+
+
+@app.context_processor
 def inject_pending_approvals():
     if current_user.is_authenticated and current_user.role in ['admin', 'moderator']:
         if current_user.is_admin:
@@ -1387,6 +2442,9 @@ def profile():
         else:
             current_user.set_password(new_password)
             db.session.commit()
+            # Wie bei der Unterschrift: nur das Ereignis, nie das Passwort.
+            log_audit_event('USER_PASSWORD', 'User', current_user.id,
+                            'Passwort im eigenen Profil geändert.')
             flash('Dein Passwort wurde erfolgreich geändert.', 'success')
             return redirect(url_for('profile'))
             
@@ -1429,6 +2487,11 @@ def approve_stoff(id):
     db.session.commit()
     log_audit_event('APPROVE', 'Gefahrstoff', stoff.id, {'name': stoff.name})
     flash(f'Gefahrstoff "{stoff.name}" wurde freigegeben.', 'success')
+    # Wurde von der Detailseite freigegeben, dort bleiben; sonst zurueck zur
+    # Freigabeliste. Nur relative Pfade (kein offenes Weiterleiten).
+    ziel = request.form.get('next', '')
+    if ziel.startswith('/'):
+        return redirect(ziel)
     return redirect(url_for('profile'))
 
 @app.route('/reject/<int:id>', methods=['POST'])
@@ -1523,6 +2586,8 @@ def create_user():
 
         try:
             db.session.commit()
+            log_audit_event('USER_CREATE', 'User', new_user.id,
+                            f'Benutzer "{username}" angelegt (Rolle: {role}).')
             flash(f'Benutzer "{username}" erfolgreich angelegt!', 'success')
             return redirect(url_for('users'))
         except Exception as e:
@@ -1554,8 +2619,23 @@ def set_role(id):
         flash('Ungültige Rolle.', 'error')
         return redirect(url_for('users'))
 
+    # Ein Moderator darf keinen Administrator anfassen. Erreichbar ist das,
+    # weil ein Administrator einen vom Moderator angelegten Benutzer später zum
+    # Administrator machen kann - über created_by bleibt der Moderator dann
+    # "Eigentümer" eines Kontos, das er nicht mehr verwalten dürfen soll.
+    if not current_user.is_admin and user.role == 'admin':
+        flash('Administratoren können nur von Administratoren geändert werden.', 'error')
+        return redirect(url_for('users'))
+
+    if new_role != 'admin' and is_last_admin(user):
+        flash('Der letzte Administrator kann nicht degradiert werden.', 'error')
+        return redirect(url_for('users'))
+
+    alte_rolle = user.role
     user.role = new_role
     db.session.commit()
+    log_audit_event('USER_ROLE', 'User', user.id,
+                    f'Rolle von "{user.username}" von "{alte_rolle}" auf "{new_role}" geändert.')
     flash(f'Rolle von "{user.username}" auf "{new_role}" gesetzt.', 'success')
     return redirect(url_for('users'))
 
@@ -1577,6 +2657,7 @@ def assign_bereiche(id):
     accessible_ids = {b.id for b in accessible}
 
     # Bestehende Zuweisungen in zugänglichen Bereichen entfernen, dann neu setzen
+    vorher = {b.name for b in user.assigned_bereiche.all()}
     current_assignments = user.assigned_bereiche.all()
     for b in current_assignments:
         if b.id in accessible_ids:
@@ -1589,6 +2670,11 @@ def assign_bereiche(id):
                 user.assigned_bereiche.append(b)
 
     db.session.commit()
+    nachher = {b.name for b in user.assigned_bereiche.all()}
+    log_audit_event('USER_BEREICHE', 'User', user.id,
+                    f'Bereichszuweisung für "{user.username}": '
+                    f'{", ".join(sorted(vorher)) or "keine"} -> '
+                    f'{", ".join(sorted(nachher)) or "keine"}.')
     flash(f'Bereichszuweisung für "{user.username}" aktualisiert.', 'success')
     return redirect(url_for('users'))
 
@@ -1608,6 +2694,10 @@ def edit_user(id):
         
     if current_user.role == 'moderator' and user.created_by != current_user.id:
         flash('Keine Berechtigung, diesen Benutzer zu bearbeiten.', 'error')
+        return redirect(url_for('users'))
+
+    if not current_user.is_admin and user.role == 'admin':
+        flash('Administratoren können nur von Administratoren bearbeitet werden.', 'error')
         return redirect(url_for('users'))
 
     allowed_roles = ['admin', 'moderator', 'benutzer', 'lesen'] if current_user.is_admin else ['benutzer', 'lesen']
@@ -1632,8 +2722,18 @@ def edit_user(id):
             flash('Dieser Benutzername ist bereits vergeben.', 'error')
             return redirect(url_for('edit_user', id=id))
 
+        # Ausgangszustand für die Systemhistorie festhalten, bevor die Felder
+        # überschrieben werden. Das Passwort wird dort nur als Ereignis vermerkt,
+        # nie im Klartext - es ist wie die Unterschrift ein personenbezogenes
+        # Datum und gehört nicht in die Historie.
+        alte_werte = (user.username, user.role)
+        vorher_bereiche = {b.name for b in user.assigned_bereiche.all()}
+
         user.username = username
         if user.username != 'admin':
+            if role != 'admin' and is_last_admin(user):
+                flash('Der letzte Administrator kann nicht degradiert werden.', 'error')
+                return redirect(url_for('edit_user', id=id))
             user.role = role
             
         if password:
@@ -1654,6 +2754,20 @@ def edit_user(id):
 
         try:
             db.session.commit()
+            aenderungen = []
+            if alte_werte[0] != user.username:
+                aenderungen.append(f'Benutzername "{alte_werte[0]}" -> "{user.username}"')
+            if alte_werte[1] != user.role:
+                aenderungen.append(f'Rolle "{alte_werte[1]}" -> "{user.role}"')
+            if password:
+                aenderungen.append('Passwort neu gesetzt')
+            nachher_bereiche = {b.name for b in user.assigned_bereiche.all()}
+            if vorher_bereiche != nachher_bereiche:
+                aenderungen.append(
+                    f'Bereiche: {", ".join(sorted(vorher_bereiche)) or "keine"} -> '
+                    f'{", ".join(sorted(nachher_bereiche)) or "keine"}')
+            log_audit_event('USER_UPDATE', 'User', user.id,
+                            '; '.join(aenderungen) if aenderungen else 'Ohne inhaltliche Änderung.')
             flash(f'Benutzer "{username}" erfolgreich aktualisiert!', 'success')
             return redirect(url_for('users'))
         except Exception as e:
@@ -1665,7 +2779,7 @@ def edit_user(id):
 @app.route('/users/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_user(id):
-    if current_user.role == 'benutzer':
+    if current_user.role in ('benutzer', 'lesen'):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
 
@@ -1683,9 +2797,30 @@ def delete_user(id):
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('users'))
 
+    if not current_user.is_admin and user.role == 'admin':
+        flash('Administratoren können nur von Administratoren gelöscht werden.', 'error')
+        return redirect(url_for('users'))
+
+    # Doppelt abgesichert: nach der Rollenprüfung oben kann hier nur noch ein
+    # Administrator stehen, der einen anderen Administrator löscht - dann gibt es
+    # aber mindestens zwei. Die Zeile greift, falls die Prüfung oben später
+    # einmal verändert wird.
+    if is_last_admin(user):
+        flash('Der letzte Administrator kann nicht gelöscht werden.', 'error')
+        return redirect(url_for('users'))
+
+    # Name und Rolle vor dem Löschen sichern: die Meldung und der Eintrag in der
+    # Systemhistorie sollen nicht von einem bereits gelöschten Objekt abhängen.
+    # Der Name steht mit im Eintrag, weil die Zeile selbst danach verschwindet.
+    geloeschter_name = user.username
+    geloeschte_rolle = user.role
+    geloeschte_id     = user.id
+
     db.session.delete(user)
     db.session.commit()
-    flash(f'Benutzer "{user.username}" wurde gelöscht.', 'info')
+    log_audit_event('USER_DELETE', 'User', geloeschte_id,
+                    f'Benutzer "{geloeschter_name}" (Rolle: {geloeschte_rolle}) gelöscht.')
+    flash(f'Benutzer "{geloeschter_name}" wurde gelöscht.', 'info')
     return redirect(url_for('users'))
 
 # ─── Datenbank-Init & Migration ──────────────────────────────────────────────
@@ -1981,18 +3116,27 @@ def update_repo():
     new_url = request.form.get('repo_url', '').strip()
     if not new_url:
         new_url = "https://github.com/Donmeusi/gefahrstoffverzeichnis"
+    erfolg = False
     try:
         subprocess.check_call(['git', 'remote', 'set-url', 'origin', new_url], stderr=subprocess.STDOUT)
         flash('Repository-URL erfolgreich aktualisiert.', 'success')
+        erfolg = True
     except subprocess.CalledProcessError:
         try:
             subprocess.check_call(['git', 'remote', 'add', 'origin', new_url], stderr=subprocess.STDOUT)
             flash('Repository-URL erfolgreich hinzugefügt.', 'success')
+            erfolg = True
         except Exception as e:
             flash(f'Fehler beim Setzen der URL: {e}', 'error')
     except Exception as e:
         flash(f'Ein unerwarteter Fehler ist aufgetreten: {e}', 'error')
-    
+
+    # Nur der erfolgreiche Fall wird protokolliert. Das Ziel der URL bestimmt,
+    # woher künftige Updates kommen - das ist eine sicherheitsrelevante Angabe.
+    if erfolg:
+        log_audit_event('SYSTEM_UPDATE', 'System', None,
+                        f'Repository-URL auf "{new_url}" gesetzt.')
+
     return redirect(url_for('admin_system'))
 
 @app.route('/admin/system/do_update', methods=['POST'])
@@ -2002,6 +3146,12 @@ def do_update():
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
     target_branch = request.form.get('target_branch', '').strip() or None
+
+    # Vor dem Start des Threads protokollieren, nicht darin: der Update-Thread
+    # beendet den Prozess am Ende mit os._exit(0), ein Eintrag aus dem Thread
+    # ginge dabei verloren.
+    log_audit_event('SYSTEM_UPDATE', 'System', None,
+                    f'Update ausgelöst (Ziel-Branch: {target_branch or "unverändert"}).')
 
     def trigger_update_script():
         import time, os, subprocess
@@ -2194,6 +3344,9 @@ if __name__ == '__main__':
             db.create_all()
             print("Datenbank gefahrstoffe.db erstellt.")
     
-    # Im Entwicklungsmodus laufen lassen
-    # Für Produktion nutzen Sie stattdessen run_prod.py
-    app.run(debug=True)
+    # Eingebauter Entwicklungsserver. Der Debugger ist standardmäßig AUS: er
+    # liefert bei einem Fehler eine Konsolenoberfläche aus, die beliebigen
+    # Python-Code ausführt und nur durch eine PIN im Klartext-Log geschützt ist.
+    # Einschalten bewusst über FLASK_DEBUG=1. Für den Dauerbetrieb run_prod.py
+    # (Waitress) verwenden.
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1')

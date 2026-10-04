@@ -6,8 +6,8 @@
 {% macro render_sidebar_unterbereiche(unterbereich, aktiver_unterbereich, level) %}
 <a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
    class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
-   style="padding-left: {{ 1.5 + level * 1 }}rem; font-size: 0.9em;">
-    <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size: 0.8em;"></i> {{ unterbereich.name }}
+   style="padding-left: {{ 1.5 + level * 1 }}rem;">
+    <i class="fa-solid fa-level-up-alt fa-rotate-90 text-light"></i> {{ unterbereich.name }}
 </a>
 {% for child in unterbereich.children %}
     {{ render_sidebar_unterbereiche(child, aktiver_unterbereich, level + 1) }}
@@ -16,25 +16,39 @@
 
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-table-list" style="color:var(--primary); margin-right:0.4rem;"></i> Gefahrstoff-Übersicht</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">
+        <h1><i class="fa-solid fa-table-list h1-icon" aria-hidden="true"></i> Gefahrstoff-Übersicht</h1>
+        {# Die Zahlen, die frueher zwei eigene Kacheln hatten, stehen hier -
+           eine Zeile statt zweier Karten ueber der Tabelle.
+           "belegte Standorte" ist woertlich zu nehmen: gezaehlt werden die
+           Unterbereiche, in denen etwas steht, nicht die vorhandenen. Ein
+           Stoff ohne Unterbereich (nur mit Lagerort) zaehlt nicht mit; die
+           Zahl entfaellt dann ganz, statt eine irreführende 0 zu zeigen. #}
+        <p class="text-muted subline">
             {% if aktiver_unterbereich %}
-                Standort: <strong>{{ aktiver_unterbereich.get_full_path()|striptags }}</strong>
+                Standort: <strong>{{ aktiver_unterbereich.get_full_path() }}</strong>
             {% elif aktiver_bereich %}
                 Standort: <strong>{{ aktiver_bereich.name }}</strong>
             {% else %}
                 Alle Standorte
             {% endif %}
-            · <strong>{{ gefahrstoffe|length }}</strong> Stoff(e)
+            · <strong>{{ gefahrstoffe|length }}</strong> {{ 'Stoff' if gefahrstoffe|length == 1 else 'Stoffe' }}
+            {%- if stats_locations %}
+            · <strong>{{ stats_locations }}</strong> {{ 'belegter Standort' if stats_locations == 1 else 'belegte Standorte' }}
+            {%- endif %}
         </p>
     </div>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+    {# Eine Hauptaktion: "Neuer Gefahrstoff" ist der einzige kräftige Knopf.
+       Die beiden Exporte trugen Grün und Rot und machten den Kopfbereich zu
+       einer Reihe gleich lauter Knöpfe - drei laute sind keiner. Sie sind
+       jetzt neutrale Umrissknöpfe; Symbol und Beschriftung sagen weiter, was
+       sie exportieren. #}
+    <div class="btn-row">
         {% if current_user.role != 'lesen' %}
-        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#10b981; color:#059669;">
-            <i class="fa-solid fa-file-excel"></i> Excel
+        <a href="{{ url_for('export_excel', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Excel
         </a>
-        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#dc2626;">
-            <i class="fa-solid fa-file-pdf"></i> PDF
+        <a href="{{ url_for('export_pdf', bereich_id=request.args.get('bereich_id'), unterbereich_id=request.args.get('unterbereich_id')) }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF
         </a>
         {% endif %}
         {% if current_user.can_write %}
@@ -69,60 +83,34 @@
     </aside>
 
     <!-- Main Content -->
-    <div class="main-content">
+    {# Ohne Klassennamen: "main-content" stand nur hier und war im Stylesheet
+       nie definiert. Das div bleibt, weil .index-grid zwei Kinder braucht. #}
+    <div>
         {% if gefahrstoffe %}
-        <!-- KPI Dashboard -->
-        <div class="kpi-dashboard">
-            <div class="kpi-card">
-                <div class="kpi-icon primary">
-                    <i class="fa-solid fa-flask"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ stats_total }}</span>
-                    <span class="kpi-label">Gefahrstoffe</span>
-                </div>
-            </div>
-            
-            <div class="kpi-card">
-                <div class="kpi-icon info">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ stats_locations }}</span>
-                    <span class="kpi-label">Standorte</span>
-                </div>
-            </div>
-
-            <div class="kpi-card">
-                <div class="kpi-icon {% if stats_expired_sdb > 0 %}danger{% else %}primary{% endif %}">
-                    <i class="fa-solid fa-file-pdf"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ stats_expired_sdb }}</span>
-                    <span class="kpi-label">Veraltete SDBs</span>
-                </div>
-            </div>
-        </div>
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem;">
-            <!-- View Controls -->
-            <div class="view-controls">
-                <button class="view-btn active" onclick="setView('table')" id="btnViewTable" title="Listenansicht">
-                    <i class="fa-solid fa-list"></i>
-                </button>
-                <button class="view-btn" onclick="setView('grid')" id="btnViewGrid" title="Kachelansicht">
-                    <i class="fa-solid fa-border-all"></i>
-                </button>
-            </div>
-
-            <!-- Filters & Live Search -->
-            <div style="display:flex; gap:0.5rem; flex:1; min-width:0; flex-wrap:wrap; align-items:center; justify-content:flex-end;" class="mobile-stack">
-                <select id="filterSignalwort" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:150px;">
+        {# Die Fristen-Kachel stand hier bis zum 03.10.2026. Sie ist entfallen:
+           die Fristen stehen als Menuepunkt in der Kopfzeile (mit Zaehler), und
+           die Liste zeigt dieselbe Zahl. Damit gibt es wieder nur eine Stelle,
+           an der die Fristenzahl steht, statt Kachel plus Liste. #}
+        <div class="list-toolbar">
+            <!-- Filter und Livesuche: links, weil sie die Daten einschraenken.
+                 Die Ansichtssteuerung steht rechts - sie aendert die
+                 Darstellung, nicht die Auswahl. Vorher war es umgekehrt. -->
+            <div class="filters mobile-stack">
+                {# Die drei Filterfelder hatten keine Beschriftung. Der erste
+                   <option>-Eintrag bzw. der Platzhaltertext ist kein Ersatz: der
+                   Platzhalter verschwindet beim Tippen, und ein Auswahlfeld wird
+                   ohne Label nur mit seinem Wert vorgelesen ("Gefahr"). Die
+                   Beschriftungen sind sr-only, weil die Felder optisch durch
+                   ihren Inhalt sprechen. #}
+                <label class="sr-only" for="filterSignalwort">Nach Signalwort filtern</label>
+                <select id="filterSignalwort" onchange="filterItems()" class="search-bar filter-select">
                     <option value="">Alle Signalwörter</option>
                     <option value="gefahr">Gefahr</option>
                     <option value="achtung">Achtung</option>
                     <option value="keines">Ohne Signalwort</option>
                 </select>
-                <select id="filterPiktogramm" onchange="filterItems()" class="search-bar" style="width:auto; padding-left:10px; min-width:170px;">
+                <label class="sr-only" for="filterPiktogramm">Nach Piktogramm filtern</label>
+                <select id="filterPiktogramm" onchange="filterItems()" class="search-bar filter-select">
                     <option value="">Alle Piktogramme</option>
                     <option value="ghs01">GHS01 (Explosiv)</option>
                     <option value="ghs02">GHS02 (Entzündbar)</option>
@@ -134,24 +122,74 @@
                     <option value="ghs08">GHS08 (Gesundheitsgefahr)</option>
                     <option value="ghs09">GHS09 (Umwelt)</option>
                 </select>
-                <div class="search-bar-wrapper" style="margin-bottom:0; flex:1; min-width:200px; max-width:400px; position:relative;">
-                    <i class="fa-solid fa-search" style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--text-light); pointer-events:none; z-index:10;"></i>
-                    <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()" style="padding-left: 2.75rem !important;">
+                {# Die Werte stehen in .search-field: min-width:0 statt der
+                   früheren 200px (die feste Mindestbreite erzwang 200 px in
+                   einem 171 px breiten Elternelement und schob die Seite 5 px
+                   über den Rand), max-width:400px hält die Breite in Grenzen,
+                   flex:1 verteilt den Rest.
+                   Der Inline-Stil des Lupensymbols wiederholte nur, was
+                   .search-bar-wrapper i längst sagt; padding-left am Eingabefeld
+                   stand doppelt (auch in .search-bar). #}
+                <div class="search-bar-wrapper search-field">
+                    <label class="sr-only" for="tableSearch">Gefahrstoffe durchsuchen (Name, CAS-Nummer, H-Satz)</label>
+                    <i class="fa-solid fa-search" aria-hidden="true"></i>
+                    <input type="text" class="search-bar" id="tableSearch" placeholder="Name, CAS, H-Satz…" oninput="filterItems()">
                 </div>
+            </div>
+
+            <div class="view-group">
+                {# Zwei Schaltflaechen ohne sichtbaren Text. Ihr Name kam bisher nur aus
+                   title - das werten Vorleseprogramme nicht zuverlaessig aus und auf
+                   Touchgeraeten erscheint es gar nicht. aria-label liefert den Namen,
+                   aria-pressed den Zustand; der wird in setView() mitgefuehrt, damit
+                   er auch beim Wiederherstellen der gespeicherten Ansicht stimmt. #}
+                <div class="view-controls">
+                    <button class="view-btn active" onclick="setView('table')" id="btnViewTable"
+                            title="Listenansicht" aria-label="Listenansicht" aria-pressed="true">
+                        <i class="fa-solid fa-list" aria-hidden="true"></i>
+                    </button>
+                    <button class="view-btn" onclick="setView('grid')" id="btnViewGrid"
+                            title="Kachelansicht" aria-label="Kachelansicht" aria-pressed="false">
+                        <i class="fa-solid fa-border-all" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                {# Spaltenauswahl. <details> statt Knopf+Panel: das Oeffnen und
+                   Schliessen braucht dann kein JavaScript. Es schliesst nur
+                   nicht von selbst beim Klick daneben - das erledigt der
+                   Click-Handler unten. Die Knoepfe sind absichtlich nicht im
+                   <summary>: ein Klick darin wuerde das Panel zuklappen.
+                   Name ist nicht abwaehlbar - sie traegt den Zeilentitel. #}
+                <details class="column-picker" id="columnPicker">
+                    <summary class="btn btn-outline btn-sm">
+                        <i class="fa-solid fa-table-columns" aria-hidden="true"></i> Spalten
+                    </summary>
+                    <div class="column-picker-panel">
+                        <p class="column-picker-hint">Sichtbare Spalten</p>
+                        <label class="pick-item"><input type="checkbox" value="cas" checked> CAS / EG-Nr.</label>
+                        <label class="pick-item"><input type="checkbox" value="standort" checked> Standort</label>
+                        <label class="pick-item"><input type="checkbox" value="signalwort" checked> Signalwort</label>
+                        <label class="pick-item"><input type="checkbox" value="piktogramme" checked> Piktogramme</label>
+                        <label class="pick-item"><input type="checkbox" value="menge" checked> Menge</label>
+                        <label class="pick-item"><input type="checkbox" value="dokumente" checked> Dokumente</label>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="alleSpaltenZeigen()">Alle anzeigen</button>
+                    </div>
+                </details>
             </div>
         </div>
 
         <div class="table-responsive">
-            <table class="data-table" id="gefahrstoffTable">
+            <table class="data-table data-table--dense" id="gefahrstoffTable">
+                <caption class="sr-only">Gefahrstoffe; welche Spalten sichtbar sind, wählt man in der Werkzeugleiste.</caption>
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>CAS / EG-Nr.</th>
-                        <th class="d-none-mobile">Standort</th>
-                        <th>Signalwort</th>
-                        <th>Piktogramme</th>
-                        <th class="d-none-mobile">Menge</th>
-                        <th class="d-none-mobile">Dokumente</th>
+                        <th scope="col">Name</th>
+                        <th scope="col" class="d-none-mobile" data-col="cas">CAS / EG-Nr.</th>
+                        <th scope="col" class="d-none-mobile" data-col="standort">Standort</th>
+                        <th scope="col" data-col="signalwort">Signalwort</th>
+                        <th scope="col" data-col="piktogramme">Piktogramme</th>
+                        <th scope="col" class="d-none-mobile" data-col="menge">Menge</th>
+                        <th scope="col" class="d-none-mobile" data-col="dokumente">Dokumente</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -160,40 +198,52 @@
                         data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
                         data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                         <td>
-                            <a href="{{ url_for('view_stoff', id=stoff.id) }}"
-                               style="color:var(--text-main); font-weight:600; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; line-height:1.3;">
+                            <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="table-link">
                                 <span>{{ stoff.name }}</span>
-                                <span style="display:inline-flex; align-items:center; gap:0.3rem;">
-                                    {% if stoff.trgs_warnings %}
-                                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                                <span class="inline-icons">
+                                    {# CMR-Stoff, wartet auf Freigabe - nur für
+                                       Moderator/Admin sichtbar. Ohne Zeichen
+                                       sähe er wie ein freigegebener aus. #}
+                                    {% if not stoff.is_approved %}
+                                    <i class="fa-solid fa-hourglass-half text-primary" title="Wartet auf Freigabe"></i>
                                     {% endif %}
-                                    <i class="fa-solid fa-chevron-right" style="font-size:0.7em; color:var(--primary); opacity:0.7;"></i>
+                                    {% if stoff.trgs_warnings %}
+                                    <i class="fa-solid fa-triangle-exclamation text-danger" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                                    {% endif %}
+                                    {# Mengenschwelle im Lagerabschnitt des Stoffes
+                                       überschritten (TRGS 510). Die IDs kommen
+                                       gesammelt aus index() - je Zeile neu zu
+                                       rechnen wäre derselbe Aufwand N-mal. #}
+                                    {% if stoff.unterbereich_id in mengen_auffaellig %}
+                                    <i class="fa-solid fa-scale-unbalanced text-danger" title="Mengenschwelle im Lagerabschnitt überschritten (TRGS 510)"></i>
+                                    {% endif %}
+                                    <i class="fa-solid fa-chevron-right row-caret" aria-hidden="true"></i>
                                 </span>
                             </a>
                         </td>
-                        <td style="font-size:0.85rem; white-space: nowrap;">
-                            <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                        <td class="text-sm nowrap d-none-mobile" data-col="cas">
+                            <div class="stack-xs">
                                 {% if stoff.cas_nummer %}
-                                <div class="font-mono"><span class="text-muted" style="font-size:0.75rem; margin-right:4px;">CAS</span>{{ stoff.cas_nummer }}</div>
+                                <div class="font-mono"><span class="text-muted unit-label">CAS</span>{{ stoff.cas_nummer }}</div>
                                 {% else %}
                                 <div class="text-muted">–</div>
                                 {% endif %}
                                 {% if stoff.eg_nummer %}
-                                <div class="font-mono"><span class="text-muted" style="font-size:0.75rem; margin-right:4px;">EG</span>{{ stoff.eg_nummer }}</div>
+                                <div class="font-mono"><span class="text-muted unit-label">EG</span>{{ stoff.eg_nummer }}</div>
                                 {% endif %}
                             </div>
                         </td>
-                        <td style="font-size:0.85rem;" class="d-none-mobile">
+                        <td class="text-sm d-none-mobile" data-col="standort">
                             {% if stoff.unterbereich %}
-                            <div style="display:flex; align-items:flex-start; gap:0.4rem; line-height:1.4;">
-                                <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.8em; margin-top:0.25em;"></i>
-                                <span style="word-break: break-word;">{{ stoff.unterbereich.get_full_path()|safe }}</span>
+                            <div class="standort-zelle">
+                                <i class="fa-solid fa-map-marker-alt" aria-hidden="true"></i>
+                                <span>{{ stoff.unterbereich.get_full_path() }}</span>
                             </div>
                             {% else %}
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-col="signalwort">
                             {% if stoff.signalwort == 'Gefahr' %}
                             <span class="badge badge-danger"><i class="fa-solid fa-skull-crossbones"></i> Gefahr</span>
                             {% elif stoff.signalwort == 'Achtung' %}
@@ -202,7 +252,7 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-col="piktogramme">
                             {% if stoff.piktogramme %}
                             <div class="pictogram-display">
                                 {% for code in stoff.piktogramme.split(',') %}
@@ -216,31 +266,29 @@
                             <span class="text-muted">–</span>
                             {% endif %}
                         </td>
-                        <td style="white-space: nowrap;" class="d-none-mobile">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
-                        <td class="d-none-mobile">
-                            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                        <td class="nowrap d-none-mobile" data-col="menge">{{ stoff.menge or '–' }} {{ stoff.mengeneinheit or '' }}</td>
+                        <td class="d-none-mobile" data-col="dokumente">
+                            <div class="doc-row">
                                 {% if stoff.sicherheitsdatenblatt %}
-                                    {% set sdb_warn = false %}
-                                    {% if stoff.sdb_datum %}
-                                        {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
-                                        {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
-                                    {% endif %}
+                                    {# Die Stufe kommt aus sdb_status() - die
+                                       Schwelle stand hier vorher als harte 3. #}
+                                    {% set sdb_warn = sdb_stufen[stoff.id] in ('dringend', 'pruefen') %}
                                     {% if current_user.role == 'lesen' %}
-                                        <span class="doc-btn doc-btn-sdb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                        <span class="doc-btn doc-btn-sdb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                             <i class="fa-solid fa-file-pdf"></i> SDB
                                         </span>
                                     {% else %}
                                         <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}"
                                            class="doc-btn doc-btn-sdb" title="Sicherheitsdatenblatt" target="_blank">
                                             <i class="fa-solid fa-file-pdf"></i> SDB
-                                            {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                                            {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation doc-warn" title="SDB ist veraltet"></i>{% endif %}
                                         </a>
                                     {% endif %}
                                 {% endif %}
                                 
                                 {% if stoff.betriebsanweisung %}
                                     {% if current_user.role == 'lesen' %}
-                                        <span class="doc-btn doc-btn-ba" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                        <span class="doc-btn doc-btn-ba doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                             <i class="fa-solid fa-file-word"></i> BA
                                         </span>
                                     {% else %}
@@ -253,7 +301,7 @@
 
                                 {% if stoff.gefaehrdungsbeurteilung %}
                                     {% if current_user.role == 'lesen' %}
-                                        <span class="doc-btn doc-btn-gb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                                        <span class="doc-btn doc-btn-gb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                             <i class="fa-solid fa-file-shield"></i> GB
                                         </span>
                                     {% else %}
@@ -280,7 +328,7 @@
             {% for stoff in gefahrstoffe %}
             {% set border_class = 'danger' if stoff.signalwort == 'Gefahr' else ('warning' if stoff.signalwort == 'Achtung' else 'normal') %}
             <div class="stoff-card {{ border_class }} filter-item" 
-                 data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|striptags|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
+                 data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
                  data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
                  data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
                 
@@ -289,7 +337,7 @@
                         <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">
                             {{ stoff.name }}
                             {% if stoff.trgs_warnings %}
-                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger); font-size: 0.8em;" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                            <i class="fa-solid fa-triangle-exclamation card-title-warn" title="Zusammenlagerungsverbot (TRGS 510)"></i>
                             {% endif %}
                         </a>
                         <div class="stoff-card-cas">{{ stoff.cas_nummer or 'Keine CAS' }}</div>
@@ -307,36 +355,32 @@
 
                 <div class="stoff-card-body">
                     <div class="stoff-card-info">
-                        <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); width:16px; text-align:center;"></i>
-                        <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|safe }}{% else %}Kein Standort{% endif %}</span>
+                        <i class="fa-solid fa-map-marker-alt icon-fixed" aria-hidden="true"></i>
+                        <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path() }}{% else %}Kein Standort{% endif %}</span>
                     </div>
                     <div class="stoff-card-info">
-                        <i class="fa-solid fa-scale-balanced" style="color:var(--info); width:16px; text-align:center;"></i>
-                        <span style="white-space: nowrap;">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
+                        <i class="fa-solid fa-scale-balanced icon-fixed" aria-hidden="true"></i>
+                        <span class="nowrap">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
                     </div>
                 </div>
 
                 <div class="stoff-card-actions">
                     {% if stoff.sicherheitsdatenblatt %}
-                        {% set sdb_warn = false %}
-                        {% if stoff.sdb_datum %}
-                            {% set diff_years = (today - stoff.sdb_datum).days / 365 %}
-                            {% if diff_years >= 3 %}{% set sdb_warn = true %}{% endif %}
-                        {% endif %}
+                        {% set sdb_warn = sdb_stufen[stoff.id] in ('dringend', 'pruefen') %}
                         {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-sdb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <span class="doc-btn doc-btn-sdb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                 <i class="fa-solid fa-file-pdf"></i> SDB
                             </span>
                         {% else %}
                             <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
-                                <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;" title="SDB ist veraltet"></i>{% endif %}
+                                <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation doc-warn" title="SDB ist veraltet"></i>{% endif %}
                             </a>
                         {% endif %}
                     {% endif %}
                     
                     {% if stoff.betriebsanweisung %}
                         {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-ba" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <span class="doc-btn doc-btn-ba doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                 <i class="fa-solid fa-file-word"></i> BA
                             </span>
                         {% else %}
@@ -348,7 +392,7 @@
 
                     {% if stoff.gefaehrdungsbeurteilung %}
                         {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-gb" style="opacity:0.65; cursor:not-allowed;" title="Download für Leser-Rolle deaktiviert">
+                            <span class="doc-btn doc-btn-gb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
                                 <i class="fa-solid fa-file-shield"></i> GB
                             </span>
                         {% else %}
@@ -362,8 +406,8 @@
             {% endfor %}
         </div>
 
-        <p id="noResultsMsg" style="display:none; text-align:center; padding:2rem; color:var(--text-muted);">
-            <i class="fa-solid fa-search" style="font-size:1.5rem; margin-bottom:0.5rem; display:block;"></i>
+        <p id="noResultsMsg" class="no-results" style="display:none;">
+            <i class="fa-solid fa-search" aria-hidden="true"></i>
             Keine Ergebnisse für diese Suche.
         </p>
         {% else %}
@@ -389,7 +433,12 @@ function setView(viewMode) {
     const gridView = document.getElementById('gefahrstoffGrid');
     const btnTable = document.getElementById('btnViewTable');
     const btnGrid = document.getElementById('btnViewGrid');
-    
+    // Die Spaltenauswahl gilt nur fuer die Tabelle - die Kachelansicht hat
+    // keine Spalten. In der Kachelansicht verschwindet sie deshalb, und ein
+    // offenes Panel wird geschlossen, sonst stuende es beim Zurueckschalten
+    // unvermittelt offen.
+    const picker = document.getElementById('columnPicker');
+
     if (!tableView || !gridView) return;
 
     if (viewMode === 'grid') {
@@ -397,13 +446,22 @@ function setView(viewMode) {
         gridView.style.display = 'grid';
         btnTable.classList.remove('active');
         btnGrid.classList.add('active');
+        btnTable.setAttribute('aria-pressed', 'false');
+        btnGrid.setAttribute('aria-pressed', 'true');
         localStorage.setItem('gefahrstoffe_view', 'grid');
+        if (picker) {
+            picker.open = false;
+            picker.classList.add('is-hidden');
+        }
     } else {
         tableView.style.display = 'block';
         gridView.style.display = 'none';
         btnTable.classList.add('active');
         btnGrid.classList.remove('active');
+        btnTable.setAttribute('aria-pressed', 'true');
+        btnGrid.setAttribute('aria-pressed', 'false');
         localStorage.setItem('gefahrstoffe_view', 'table');
+        if (picker) picker.classList.remove('is-hidden');
     }
 }
 
@@ -455,11 +513,100 @@ function filterItems() {
     document.getElementById('noResultsMsg').style.display = (visibleCount === 0 && (q || sig || pikto)) ? 'block' : 'none';
 }
 
+// ── Spaltenauswahl ──────────────────────────────────────────────────────────
+// Die Schluessel entsprechen data-col an den th/td der Tabelle. "name" fehlt
+// absichtlich: sie traegt den Zeilentitel und den Link und bleibt sichtbar.
+const SPALTEN = ['cas', 'standort', 'signalwort', 'piktogramme', 'menge', 'dokumente'];
+const SPALTEN_SCHLUESSEL = 'gefahrstoffe_spalten';
+// Diese blendet .d-none-mobile unter 600px ohnehin aus (siehe style.css).
+const SPALTEN_MOBIL_AUS = ['cas', 'standort', 'menge', 'dokumente'];
+
+// Gespeichert wird, was AUSGEBLENDET ist - nicht was sichtbar ist. Eine
+// spaeter ergaenzte Spalte fehlt in der Liste und ist damit von selbst
+// sichtbar, statt still versteckt zu sein.
+function spaltenMerken() {
+    let versteckt = [];
+    try {
+        versteckt = JSON.parse(localStorage.getItem(SPALTEN_SCHLUESSEL)) || [];
+    } catch (e) {
+        versteckt = [];
+    }
+    if (!Array.isArray(versteckt)) versteckt = [];
+    return versteckt.filter(s => SPALTEN.indexOf(s) > -1);
+}
+
+function spaltenAnwenden(versteckt) {
+    SPALTEN.forEach(s => {
+        const aus = versteckt.indexOf(s) > -1;
+        document.querySelectorAll('[data-col="' + s + '"]').forEach(el => {
+            el.classList.toggle('col-hidden', aus);
+        });
+        const kaestchen = document.querySelector('#columnPicker input[value="' + s + '"]');
+        if (kaestchen) kaestchen.checked = !aus;
+    });
+}
+
+function spaltenAusKaestchen() {
+    const versteckt = [];
+    document.querySelectorAll('#columnPicker input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) versteckt.push(cb.value);
+    });
+    try { localStorage.setItem(SPALTEN_SCHLUESSEL, JSON.stringify(versteckt)); } catch (e) { /* Privatmodus */ }
+    spaltenAnwenden(versteckt);
+}
+
+function alleSpaltenZeigen() {
+    document.querySelectorAll('#columnPicker input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+    spaltenAusKaestchen();
+}
+
+// Unter 600px ist ein Haken auf diesen drei Spalten wirkungslos, weil die
+// Media Query sie unabhaengig davon ausblendet. Gesperrt und erklaert ist
+// ehrlicher als ein Kaestchen, das nichts tut.
+function spaltenSperren() {
+    const schmal = window.matchMedia('(max-width: 600px)').matches;
+    SPALTEN_MOBIL_AUS.forEach(s => {
+        const kaestchen = document.querySelector('#columnPicker input[value="' + s + '"]');
+        if (!kaestchen) return;
+        kaestchen.disabled = schmal;
+        const zeile = kaestchen.closest('.pick-item');
+        if (zeile) {
+            zeile.classList.toggle('is-locked', schmal);
+            zeile.title = schmal ? 'Auf schmalen Bildschirmen ausgeblendet' : '';
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Restore preferred view
     const savedView = localStorage.getItem('gefahrstoffe_view');
     if (savedView === 'grid') {
         setView('grid');
+    }
+
+    // Spaltenauswahl wiederherstellen
+    if (document.getElementById('columnPicker')) {
+        spaltenAnwenden(spaltenMerken());
+        spaltenSperren();
+        window.matchMedia('(max-width: 600px)').addEventListener('change', spaltenSperren);
+        document.querySelectorAll('#columnPicker input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', spaltenAusKaestchen);
+        });
+    }
+});
+
+// <details> schliesst nicht von selbst, wenn man daneben klickt oder Escape
+// drueckt - beides hier nachgeholt.
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('columnPicker');
+    if (picker && picker.open && !picker.contains(e.target)) picker.open = false;
+});
+document.addEventListener('keydown', (e) => {
+    const picker = document.getElementById('columnPicker');
+    if (picker && picker.open && e.key === 'Escape') {
+        picker.open = false;
+        const kopf = picker.querySelector('summary');
+        if (kopf) kopf.focus();
     }
 });
 </script>
