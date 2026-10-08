@@ -157,10 +157,12 @@
                 {# Spaltenauswahl. <details> statt Knopf+Panel: das Oeffnen und
                    Schliessen braucht dann kein JavaScript. Es schliesst nur
                    nicht von selbst beim Klick daneben - das erledigt der
-                   Click-Handler unten. Die Knoepfe sind absichtlich nicht im
-                   <summary>: ein Klick darin wuerde das Panel zuklappen.
-                   Name ist nicht abwaehlbar - sie traegt den Zeilentitel. #}
-                <details class="column-picker" id="columnPicker">
+                   gemeinsame Handler in base.html (data-details-menu, dasselbe
+                   fuer die Aufklappmenues der Navigationsleiste). Die Knoepfe
+                   sind absichtlich nicht im <summary>: ein Klick darin wuerde
+                   das Panel zuklappen. Name ist nicht abwaehlbar - sie traegt
+                   den Zeilentitel. #}
+                <details class="column-picker" id="columnPicker" data-details-menu>
                     <summary class="btn btn-outline btn-sm">
                         <i class="fa-solid fa-table-columns" aria-hidden="true"></i> Spalten
                     </summary>
@@ -595,19 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// <details> schliesst nicht von selbst, wenn man daneben klickt oder Escape
-// drueckt - beides hier nachgeholt.
-document.addEventListener('click', (e) => {
-    const picker = document.getElementById('columnPicker');
-    if (picker && picker.open && !picker.contains(e.target)) picker.open = false;
-});
-document.addEventListener('keydown', (e) => {
-    const picker = document.getElementById('columnPicker');
-    if (picker && picker.open && e.key === 'Escape') {
-        picker.open = false;
-        const kopf = picker.querySelector('summary');
-        if (kopf) kopf.focus();
-    }
-});
+// Das Schliessen bei Klick daneben und bei Escape macht der gemeinsame Handler
+// in base.html (details[data-details-menu]) - hier steht es nicht mehr doppelt.
 </script>
 {% endblock %}

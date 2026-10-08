@@ -25,16 +25,16 @@
        DSB-Dokumentation, die einen reinen Intranet-Betrieb zusichert, und
        übertrug bei jedem Seitenaufruf IP und Referer an Dritte. #}
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/schriften.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ APP_VERSION|default('3.6') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ APP_VERSION }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}">
 </head>
 
 <body class="{% block body_class %}{% endblock %}">
 
     {# Sprungmarke: erster fokussierbarer Punkt der Seite. Überspringt die
-       Navigation, die bei einem Admin zehn Stationen umfasst - ohne sie muss
-       man sich auf jeder Seite neu durchtabben. Sichtbar wird der Link erst
-       beim Tabben (siehe .skip-link in style.css). #}
+       Navigation, die bei einem Admin neun Stationen umfasst (Leser: acht) -
+       ohne sie muss man sich auf jeder Seite neu durchtabben. Sichtbar wird der
+       Link erst beim Tabben (siehe .skip-link in style.css). #}
     <a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
 
     {% block navbar %}
@@ -44,73 +44,113 @@
                 <i class="fa-solid fa-flask"></i> Gefahrstoff-App
             </a>
 
-            {# Der Umschalter liegt AUSSERHALB von .nav-links: das wird unterhalb
-               1340px zu einem Klappmenue, der Knopf waere dort also nur nach dem
-               Aufklappen erreichbar. Hier sitzt er neben dem Menueknopf und
-               bleibt immer sichtbar. #}
-            <button class="theme-toggle" id="themeToggle" type="button"
-                    aria-label="Dunkelmodus umschalten" aria-pressed="false">
-                <i class="fa-solid fa-moon" aria-hidden="true"></i>
-            </button>
-
-            {# aria-expanded meldet den Zustand des ausklappbaren Menues; ohne das
-               hört man nur "Schaltfläche" und weiß nicht, ob das Menü offen ist. #}
-            <button class="nav-toggle" id="navToggle" aria-label="Navigation öffnen"
-                    aria-expanded="false" aria-controls="navLinks">
-                <i class="fa-solid fa-bars" aria-hidden="true"></i>
-            </button>
-
-            <ul class="nav-links" id="navLinks">
-                {% if current_user.is_authenticated %}
-                {# Die Farben standen hier als Inline-Styles: weiße Schrift auf
-                   hsl(38,95%,50%) (Admin) und hsl(217,91%,60%) (Mod) - beides
-                   unter dem Kontrast-Minimum für 0,7rem kleine Schrift. Jetzt
-                   Klassen mit den Tokens, siehe .role-badge in style.css. #}
-                <li>
-                    <span class="nav-user">
-                        <i class="fa-solid fa-circle nav-user-dot" aria-hidden="true"></i>
-                        {{ current_user.username }}
-                        {% if current_user.role == 'admin' %}
-                        <span class="role-badge role-admin">Admin</span>
-                        {% elif current_user.role == 'moderator' %}
-                        <span class="role-badge role-mod">Mod</span>
-                        {% elif current_user.role == 'lesen' %}
-                        <span class="role-badge role-leser">Leser</span>
-                        {% endif %}
-                    </span>
-                </li>
-                <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}aria-current="page"{% endif %}><i class="fa-solid fa-table-list"></i> Übersicht</a></li>
-                <li><a href="{{ url_for('betriebsanweisungen_list') }}" {% if request.endpoint == 'betriebsanweisungen_list' %}aria-current="page"{% endif %}><i class="fa-solid fa-file-pdf"></i> Betriebsanweisungen</a></li>
-                <li><a href="{{ url_for('sicherheitsdatenblaetter_list') }}" {% if request.endpoint == 'sicherheitsdatenblaetter_list' %}aria-current="page"{% endif %}><i class="fa-solid fa-file-shield"></i> Sicherheitsdatenblätter</a></li>
-                {# Der Zähler ist bewusst ein schmaler Aufsatz am Text statt eines
-                   absolut positionierten Punkts: der Navigationsbalken ist knapp
-                   (siehe die Kommentare in style.css zu den Breiten) und ein
-                   zusätzlicher Kasten würde ihn weiter verbreitern. #}
-                <li><a href="{{ url_for('fristen') }}" {% if request.endpoint == 'fristen' %}aria-current="page"{% endif %}><i class="fa-solid fa-clock"></i> Fristen{% if fristen_count and fristen_count > 0 %}<span class="nav-count">{{ fristen_count }}</span>{% endif %}</a></li>
-                <li><a href="{{ url_for('mengenschwellen_seite') }}" {% if request.endpoint == 'mengenschwellen_seite' %}aria-current="page"{% endif %}><i class="fa-solid fa-scale-unbalanced"></i> Mengenschwellen{% if mengenschwellen_count and mengenschwellen_count > 0 %}<span class="nav-count">{{ mengenschwellen_count }}</span>{% endif %}</a></li>
-                {% if current_user.role in ('admin', 'moderator') %}
-                <li><a href="{{ url_for('locations') }}" {% if request.endpoint == 'locations' %}aria-current="page"{% endif %}><i class="fa-solid fa-building"></i> Standorte</a></li>
-                {% endif %}
-                {% if current_user.role in ('admin', 'moderator') %}
-                <li><a href="{{ url_for('users') }}" {% if request.endpoint == 'users' %}aria-current="page"{% endif %}><i class="fa-solid fa-users-cog"></i> Benutzer</a></li>
-                {% endif %}
-                {% if current_user.role == 'admin' %}
-                <li><a href="{{ url_for('audit_logs') }}" {% if request.endpoint == 'audit_logs' %}aria-current="page"{% endif %}><i class="fa-solid fa-history"></i> Historie</a></li>
-                {% endif %}
-                <li><a href="{{ url_for('profile') }}" class="btn btn-outline btn-sm nav-profile">
-                    <i class="fa-solid fa-user-gear"></i> Profil
-                    {% if pending_approvals_count and pending_approvals_count > 0 %}
-                    {# Der Rand des Zählers stand auf var(--bg-color) - diese
-                       Variable gibt es im Stylesheet nicht, der Rand fiel also
-                       weg. Jetzt .nav-bubble mit --bg-card. #}
-                    <span class="nav-bubble">{{ pending_approvals_count }}</span>
+            {# Der rechte Block der Leiste. Er traegt margin-left:auto und bleibt
+               bewusst UNPOSITIONIERT: unterhalb der Schwelle wird .nav-links zu
+               einem Klappmenue, das an .navbar ankert (position:absolute gegen
+               die ganze Leiste). Waere dieser Block positioniert, spannte sich
+               das Klappmenue nur ueber den Block statt ueber die Leiste. #}
+            <div class="nav-actions">
+                <ul class="nav-links" id="navLinks">
+                    {% if current_user.is_authenticated %}
+                    {# Reihenfolge nach Wichtigkeit: erst die taegliche Arbeit,
+                       dann das Buendel der Verwaltung (siehe unten). #}
+                    <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}aria-current="page"{% endif %}><i class="fa-solid fa-table-list"></i> Übersicht</a></li>
+                    <li><a href="{{ url_for('betriebsanweisungen_list') }}" {% if request.endpoint == 'betriebsanweisungen_list' %}aria-current="page"{% endif %}><i class="fa-solid fa-file-pdf"></i> Betriebsanweisungen</a></li>
+                    <li><a href="{{ url_for('sicherheitsdatenblaetter_list') }}" {% if request.endpoint == 'sicherheitsdatenblaetter_list' %}aria-current="page"{% endif %}><i class="fa-solid fa-file-shield"></i> Sicherheitsdatenblätter</a></li>
+                    {# Der Zähler ist bewusst ein schmaler Aufsatz am Text statt eines
+                       absolut positionierten Punkts: der Navigationsbalken ist knapp
+                       (siehe die Kommentare in style.css zu den Breiten) und ein
+                       zusätzlicher Kasten würde ihn weiter verbreitern. #}
+                    <li><a href="{{ url_for('fristen') }}" {% if request.endpoint == 'fristen' %}aria-current="page"{% endif %}><i class="fa-solid fa-clock"></i> Fristen{% if fristen_count and fristen_count > 0 %}<span class="nav-count">{{ fristen_count }}</span>{% endif %}</a></li>
+                    <li><a href="{{ url_for('mengenschwellen_seite') }}" {% if request.endpoint == 'mengenschwellen_seite' %}aria-current="page"{% endif %}><i class="fa-solid fa-scale-unbalanced"></i> Mengenschwellen{% if mengenschwellen_count and mengenschwellen_count > 0 %}<span class="nav-count">{{ mengenschwellen_count }}</span>{% endif %}</a></li>
+                    {% if current_user.role in ('admin', 'moderator') %}
+                    {# Standorte, Benutzer und Historie standen als eigene Eintraege
+                       in der Leiste. Mit "Mengenschwellen" waren es elf Eintraege,
+                       und die Leiste lief ueber den Rand (Messung in style.css).
+                       Jetzt gebuendelt: eine Rolle, fuer die hier nichts uebrig
+                       bleibt (Leser), bekommt gar keinen Ausloeser. #}
+                    {% set verwalten_aktiv = request.endpoint in ('locations', 'users', 'audit_logs') %}
+                    <li>
+                        <details class="nav-menu" data-details-menu>
+                            <summary class="nav-menu-trigger{% if verwalten_aktiv %} is-current{% endif %}"
+                                     {%- if verwalten_aktiv %} aria-current="true"{% endif %}>
+                                <i class="fa-solid fa-gears" aria-hidden="true"></i>
+                                Verwalten
+                                <i class="fa-solid fa-chevron-down nav-caret" aria-hidden="true"></i>
+                            </summary>
+                            <ul class="nav-menu-panel">
+                                <li><a href="{{ url_for('locations') }}" {% if request.endpoint == 'locations' %}aria-current="page"{% endif %}><i class="fa-solid fa-building"></i> Standorte</a></li>
+                                <li><a href="{{ url_for('users') }}" {% if request.endpoint == 'users' %}aria-current="page"{% endif %}><i class="fa-solid fa-users-cog"></i> Benutzer</a></li>
+                                {% if current_user.role == 'admin' %}
+                                <li><a href="{{ url_for('audit_logs') }}" {% if request.endpoint == 'audit_logs' %}aria-current="page"{% endif %}><i class="fa-solid fa-history"></i> Historie</a></li>
+                                {% endif %}
+                            </ul>
+                        </details>
+                    </li>
                     {% endif %}
-                </a></li>
-                <li><a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
-                {% else %}
-                <li><a href="{{ url_for('login') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>
+                    {% else %}
+                    <li><a href="{{ url_for('login') }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>
+                    {% endif %}
+                </ul>
+
+            {# Konto-Menue: Profil und Logout lagen als eigene Knoepfe in der
+               Leiste. Es liegt AUSSERHALB von .nav-links - das wird unterhalb
+               der Schwelle zum Klappmenue, Logout waere dort nur nach dem
+               Aufklappen erreichbar (dieselbe Ueberlegung wie beim
+               Dunkelmodus-Knopf). Zugleich die einzige Stelle, an der der
+               Freigabe-Zaehler sichtbar bleibt, wenn das Menue zu ist: wandert
+               er mit ins Panel, verschwindet das Signal "hier wartet etwas". #}
+                {% if current_user.is_authenticated %}
+                <details class="nav-menu nav-account" data-details-menu>
+                    <summary class="nav-account-trigger{% if request.endpoint == 'profile' %} is-current{% endif %}"
+                             {%- if request.endpoint == 'profile' %} aria-current="true"{% endif %}>
+                        {# sr-only: gibt dem Ausloeser auch dann einen Namen, wenn
+                           mobil nur der Punkt sichtbar ist. #}
+                        <span class="sr-only">Konto:</span>
+                        <i class="fa-solid fa-circle nav-user-dot" aria-hidden="true"></i>
+                        <span class="nav-account-name">{{ current_user.username }}</span>
+                        {% if pending_approvals_count and pending_approvals_count > 0 %}
+                        <span class="nav-count">{{ pending_approvals_count }}</span>
+                        {% endif %}
+                        <i class="fa-solid fa-chevron-down nav-caret" aria-hidden="true"></i>
+                    </summary>
+                    <ul class="nav-menu-panel nav-account-panel">
+                        {# Der Benutzername stand frueher mit Rollen-Abzeichen in der
+                           Leiste; beides kostete Breite und steht jetzt im Panel. #}
+                        <li class="nav-account-head">
+                            <span class="nav-user">
+                                {{ current_user.username }}
+                                {% if current_user.role == 'admin' %}
+                                <span class="role-badge role-admin">Admin</span>
+                                {% elif current_user.role == 'moderator' %}
+                                <span class="role-badge role-mod">Mod</span>
+                                {% elif current_user.role == 'lesen' %}
+                                <span class="role-badge role-leser">Leser</span>
+                                {% endif %}
+                            </span>
+                        </li>
+                        <li><a href="{{ url_for('profile') }}" {% if request.endpoint == 'profile' %}aria-current="page"{% endif %}><i class="fa-solid fa-user-gear"></i> Profil{% if pending_approvals_count and pending_approvals_count > 0 %}<span class="nav-count">{{ pending_approvals_count }}</span>{% endif %}</a></li>
+                        <li><a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                    </ul>
+                </details>
                 {% endif %}
-            </ul>
+
+                {# Der Dunkelmodus-Knopf bleibt ausserhalb von .nav-links: das wird
+                   unterhalb der Schwelle zu einem Klappmenue, der Knopf waere dort
+                   also nur nach dem Aufklappen erreichbar. Hier sitzt er neben dem
+                   Menueknopf und bleibt immer sichtbar. #}
+                <button class="theme-toggle" id="themeToggle" type="button"
+                        aria-label="Dunkelmodus umschalten" aria-pressed="false">
+                    <i class="fa-solid fa-moon" aria-hidden="true"></i>
+                </button>
+
+                {# aria-expanded meldet den Zustand des ausklappbaren Menues; ohne das
+                   hört man nur "Schaltfläche" und weiß nicht, ob das Menü offen ist. #}
+                <button class="nav-toggle" id="navToggle" aria-label="Navigation öffnen"
+                        aria-expanded="false" aria-controls="navLinks">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
+            </div>
         </div>
     </nav>
     {% endblock %}
@@ -174,12 +214,58 @@
 
     <script src="{{ url_for('static', filename='hp_modal.js') }}"></script>
     <script>
-        // Mobile nav toggle
-        document.getElementById('navToggle').addEventListener('click', function() {
-            const offen = document.getElementById('navLinks').classList.toggle('open');
-            this.setAttribute('aria-expanded', offen ? 'true' : 'false');
-            this.setAttribute('aria-label', offen ? 'Navigation schließen' : 'Navigation öffnen');
-        });
+        // Navigation: das Klappmenue fuer schmale Bildschirme und die beiden
+        // Aufklappmenues darin bzw. daneben ("Verwalten", Konto).
+        (function () {
+            const knopf = document.getElementById('navToggle');
+            const liste = document.getElementById('navLinks');
+            // Seiten ohne Navigationsleiste (Anmeldung) haben beides nicht.
+            // Bis 08.10. lief die Bindung ungeschuetzt und warf dort einen
+            // TypeError, der den ganzen restlichen Block abbrach.
+            if (!knopf || !liste) return;
+
+            const menues = Array.from(document.querySelectorAll('details[data-details-menu]'));
+
+            function klappmenue(offen) {
+                liste.classList.toggle('open', offen);
+                knopf.setAttribute('aria-expanded', offen ? 'true' : 'false');
+                knopf.setAttribute('aria-label', offen ? 'Navigation schließen' : 'Navigation öffnen');
+                // Innere Aufklappmenues zuruecksetzen, sonst stehen sie beim
+                // naechsten Oeffnen wieder offen da.
+                if (!offen) menues.forEach(function (m) { m.open = false; });
+            }
+
+            knopf.addEventListener('click', function () {
+                klappmenue(!liste.classList.contains('open'));
+            });
+
+            // <details> schliesst nicht von selbst, wenn man daneben klickt -
+            // hier nachgeholt (dasselbe Muster wie die Spaltenauswahl auf der
+            // Uebersicht, die es vorher als einzige Stelle hatte).
+            document.addEventListener('click', function (e) {
+                menues.forEach(function (m) {
+                    if (m.open && !m.contains(e.target)) m.open = false;
+                });
+            });
+
+            // Escape schliesst zuerst ein offenes Aufklappmenue und gibt den
+            // Fokus an dessen Ausloeser zurueck; ist keins offen, schliesst es
+            // das Klappmenue und setzt den Fokus auf den Menueknopf.
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Escape') return;
+                const offen = menues.find(function (m) { return m.open; });
+                if (offen) {
+                    offen.open = false;
+                    const kopf = offen.querySelector('summary');
+                    if (kopf) kopf.focus();
+                    return;
+                }
+                if (liste.classList.contains('open')) {
+                    klappmenue(false);
+                    knopf.focus();
+                }
+            });
+        })();
 
         // Dunkelmodus: Knopf schaltet um und merkt sich die Wahl. Den Modus
         // selbst setzt schon das Inline-Script im <head> (ohne Aufblitzen);

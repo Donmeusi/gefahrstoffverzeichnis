@@ -35,17 +35,23 @@ ZIEL = os.path.join(REPO, 'handbuch-bilder')
 CHROME = os.environ.get(
     'CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
-# Breite und Höhe der Aufnahmen. 1440 px Breite entspricht der Breite, in der
-# die Navigation unverdichtet sichtbar ist; die Höhen sind je Seite so gewählt,
-# dass der interessante Teil vollständig im Bild ist.
+# Breite und Höhe der Aufnahmen. 1440 px ist die Breite, in der die
+# Navigationsleiste ihre verdichtete Fassung zeigt (Schwelle 1200 px, siehe den
+# Kommentar in style.css: darueber dieselbe Fassung, darunter das Klappmenue);
+# die Höhen sind je Seite so gewählt, dass der interessante Teil vollständig im
+# Bild ist.
+# (Name, Kürzel, Breite, Höhe, eingeloggt, Menüs offen)
 SEITEN = [
-    ('00-login', '/login', 1440, 760, False),
-    ('01-dashboard', '/', 1440, 1000, True),
-    ('02-gefahrstoff-anlegen', '/add', 1440, 1700, True),
-    ('03-gefahrstoff-detail', '@aceton', 1440, 1000, True),
-    ('04-fristen', '/fristen', 1440, 900, True),
-    ('05-schrank-aushang', '@lager/print', 1440, 1150, True),
-    ('06-betriebsanweisung', '@aceton/ba', 1440, 1250, True),
+    ('00-login', '/login', 1440, 760, False, False),
+    ('01-dashboard', '/', 1440, 1000, True, False),
+    # Für Abschnitt 3.1 des Handbuchs: beide Aufklappmenüs der Leiste offen,
+    # sonst sind Standorte, Benutzer, Historie, Profil und Logout auf keinem Bild.
+    ('01b-dashboard-menue', '/', 1440, 1000, True, True),
+    ('02-gefahrstoff-anlegen', '/add', 1440, 1700, True, False),
+    ('03-gefahrstoff-detail', '@aceton', 1440, 1000, True, False),
+    ('04-fristen', '/fristen', 1440, 900, True, False),
+    ('05-schrank-aushang', '@lager/print', 1440, 1150, True, False),
+    ('06-betriebsanweisung', '@aceton/ba', 1440, 1250, True, False),
 ]
 
 
@@ -227,7 +233,7 @@ def aufnahmen_machen(m, aceton_id, lager_id, arbeitsverzeichnis):
                 follow_redirects=True)
 
     os.makedirs(ZIEL, exist_ok=True)
-    for name, kuerzel, breite, hoehe, eingeloggt in SEITEN:
+    for name, kuerzel, breite, hoehe, eingeloggt, menues_offen in SEITEN:
         pfad = pfad_aufloesen(kuerzel, aceton_id, lager_id)
         c = client if eingeloggt else m.app.test_client()
         antwort = c.get(pfad)
@@ -247,6 +253,15 @@ def aufnahmen_machen(m, aceton_id, lager_id, arbeitsverzeichnis):
         html = html.replace('<html lang="de">', '<html lang="de" data-theme="light">')
         html = html.replace('href="/static/', f'href="file://{REPO}/static/')
         html = html.replace('src="/static/', f'src="file://{REPO}/static/')
+        if menues_offen:
+            # Beide Aufklappmenüs der Leiste öffnen (Verwalten und Konto), damit
+            # das Handbuch ihre Einträge zeigen kann. Bewusst nur .nav-menu:
+            # die Spaltenauswahl der Übersicht trägt dasselbe data-Attribut
+            # (gemeinsamer Schließ-Handler) und würde sonst mit aufklappen.
+            html = html.replace(
+                '</body>',
+                '<script>document.querySelectorAll("details.nav-menu")'
+                '.forEach(function (d) { d.open = true; });</script></body>')
         quelle = os.path.join(arbeitsverzeichnis, f'{name}.html')
         with open(quelle, 'w', encoding='utf-8') as f:
             f.write(html)

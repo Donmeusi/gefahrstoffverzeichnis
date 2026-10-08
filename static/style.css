@@ -127,8 +127,8 @@
        0,9 · 0,925 · 0,95 rem) - und die dichten Stellen waren zu klein: der
        Tabellenkopf lag bei 11,2 px. Jetzt vier Stufen, eine Stufe größer.
        Ausgenommen bleibt die Navigation: ihre Schriftgrößen hängen an den
-       gemessenen Überlauf-Schwellen im Kommentar bei @media (min-width:1340px).
-       Wird dort etwas größer, stimmen 1340 und 1750 px nicht mehr. */
+       gemessenen Überlauf-Schwelle im Kommentar bei @media (min-width:1200px).
+       Wird dort etwas größer, stimmt die 1180 px nicht mehr. */
     --fs-xs:          0.8rem;    /* Abzeichen, Kleinsttexte, Hinweise */
     --fs-sm:          0.9rem;    /* Nebentexte, Knöpfe, Beschriftungen */
     --fs-base:        1rem;      /* Fließtext, Tabellen, Eingabefelder */
@@ -332,6 +332,7 @@ img { display: block; max-width: 100%; }
    sie haben ihren eigenen Ring, sonst lägen zwei Anzeigen übereinander. */
 a:focus-visible,
 button:focus-visible,
+summary:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:focus-visible {
     outline: 2px solid var(--primary);
@@ -341,7 +342,8 @@ button:focus-visible,
 /* Sprungmarke ("Zum Inhalt springen", base.html).
    Erster fokussierbarer Punkt der Seite, gedacht nur für die Tastatur: ohne
    sie muss man sich auf jeder Seite erst durch die Navigation tabben -
-   gemessen sind das bei einem Admin zehn Stationen, bei einem Leser sieben.
+   gemessen sind das bei einem Admin neun Stationen, bei einem Leser acht
+   (nach dem Buendeln der Menuepunkte am 08.10.2026; vorher zehn bzw. sieben).
    Der Link ist unsichtbar, bis er den Fokus hat; Mausnutzer sehen ihn nie.
    position: fixed statt absolute, damit der Browser ihn beim Tabben nicht
    erst herbeiscrollen muss. */
@@ -564,6 +566,20 @@ h4 { font-size: var(--fs-h4); }
     min-width: 0;
 }
 
+/* Der rechte Block der Leiste: Menuepunkte, Konto-Menue, Dunkelmodus-Knopf und
+   der Menueknopf fuer schmale Bildschirme. margin-left:auto schiebt ihn als
+   Ganzes nach rechts - vorher erledigte das .theme-toggle allein.
+   ⚠️ Der Block muss UNPOSITIONIERT bleiben: unterhalb der Schwelle ist
+   .nav-links ein Klappmenue mit position:absolute gegen .navbar; waere dieser
+   Block positioniert, spannte sich das Menue nur ueber den Block. */
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
+    min-width: 0;
+}
+
 .navbar-brand {
     display: flex;
     align-items: center;
@@ -599,7 +615,12 @@ h4 { font-size: var(--fs-h4); }
 
 .nav-links li { display: flex; align-items: center; }
 
-.nav-links a {
+/* Der Ausloeser eines Aufklappmenues ("Verwalten") traegt dieselbe Gestaltung
+   wie ein Menuepunkt und steht deshalb in derselben Selektorliste: eine eigene
+   Klasse mit gleicher Spezifitaet (0,1,0) wuerde gegen (0,1,1) verlieren und
+   beim naechsten Umbau auseinanderlaufen. */
+.nav-links a,
+.nav-links .nav-menu > summary {
     color: var(--text-muted);
     font-weight: 500;
     font-size: 0.875rem;
@@ -612,7 +633,8 @@ h4 { font-size: var(--fs-h4); }
     gap: 0.4rem;
 }
 
-.nav-links a:hover {
+.nav-links a:hover,
+.nav-links .nav-menu > summary:hover {
     color: var(--primary-ink);
     background: var(--primary-light);
 }
@@ -620,7 +642,8 @@ h4 { font-size: var(--fs-h4); }
 /* Der aktive Navigationspunkt. Es gab bisher keinen - man sah nirgends, auf
    welcher Seite man ist. aria-current wird in base.html gesetzt; der Wert
    traegt auch screen reader. Bewusst KEIN font-weight: der Navigationsbalken
-   ist eng (Schwellen bei 1340/1750px), ein fetter Punkt wuerde ihn breiter
+   ist eng (Schwelle bei 1180 px, siehe den Kommentar dort), ein fetter Punkt
+   wuerde ihn breiter
    machen und die gemessenen Schwellen verschieben. */
 .nav-links a[aria-current="page"] {
     color: var(--primary-ink);
@@ -641,11 +664,10 @@ h4 { font-size: var(--fs-h4); }
 }
 
 /* Umschalter fuer den Dunkelmodus. Liegt ausserhalb von .nav-links (das klappt
-   unter 1340px zu) und wird per margin-left:auto nach rechts geschoben - so
-   steht er neben Menueknopf und Navigation, ohne den Knopf in die Mitte zu
-   setzen (space-between haette das getan). */
+   unter der Schwelle zu) und bleibt dadurch immer in der Leiste sichtbar.
+   Das margin-left:auto stand hier bis 08.10. und schob den Knopf allein nach
+   rechts; jetzt traegt .nav-actions als Ganzes margin-left:auto. */
 .theme-toggle {
-    margin-left: auto;
     background: none;
     border: none;
     cursor: pointer;
@@ -660,54 +682,176 @@ h4 { font-size: var(--fs-h4); }
 }
 .theme-toggle:hover { color: var(--primary-ink); background: var(--primary-light); }
 
-/* Zwischenbereich 1340–1750 px: Die vollständige Navigation braucht rund
-   1380 px (nachgemessen), verdichtet ~1307 px. Ohne Verdichtung lief sie
-   zwischen 901 und 1465 px über den Rand (+378 px bei 1000, +98 px bei 1280,
-   +18 px bei 1440) — das traf jede Seite und genau die üblichen
-   Laptop-Breiten. Das Hamburger-Menü greift deshalb unter 1340 px.
+/* ============================================================
+   AUFKLAPPMENUES DER NAVIGATION
+   "Verwalten" (Standorte, Benutzer, Historie) und das Konto-Menue (Profil,
+   Logout) sind <details>-Elemente. Natives <details> bringt das Oeffnen, die
+   Tastaturbedienung und die Ansage des Zustands mit; nachgeholt werden muss nur
+   "Klick daneben" und "Escape" - das erledigt das Skript in base.html
+   (dasselbe Muster wie die Spaltenauswahl auf der Uebersicht).
 
-   ⚠️ Beide Werte waren bis v3.18 1240 und 1500. Der Navigationseintrag
-   "Fristen" (mit Zähler) kostet gemessen 110 px verdichtet und 128 px
-   unverdichtet - der Balken hatte davor praktisch keine Luft (bei 1240 px
-   genau 0 px Überlauf), deshalb mussten beide Schwellen mitwandern.
+   position: relative ist der Anker des Panels. Ohne ihn haengt es an .navbar
+   (position: sticky) und right: 0 springt an den Rand des Containers statt
+   unter den Eintrag - dieselbe Ueberlegung wie bei .column-picker. */
+.nav-menu { position: relative; }
 
-   Die Tabelle beschreibt die beiden Stufen selbst, nicht welche Stufe bei
-   welcher Fensterbreite greift:
+/* Der Marker des <summary> verschwindet - der Ausloeser sieht wie ein
+   Menuepunkt aus. Safari braucht beide Zeilen. */
+.nav-menu > summary { list-style: none; cursor: pointer; }
+.nav-menu > summary::-webkit-details-marker { display: none; }
 
-     Breite | Nav verdichtet | Nav unverdichtet | Überlauf (vorher)
-       1240 |           1307 |                — |      +67   (vorher 0)
-       1340 |           1307 |                — |        0
-       1520 |              — |             1507 |     +107
-       1751 |              — |             1507 |        0
+.nav-caret {
+    font-size: 0.65em;
+    /* transform allein: transition:all am Summary wuerde beim Aufklappen auch
+       Polster und Hintergrund mitanimieren. */
+    transition: transform var(--transition);
+}
+.nav-menu[open] .nav-caret { transform: rotate(180deg); }
 
-   Mit diesen Schwellen nachgeprüft: von 320 bis 2560 px kein Überlauf mehr.
+/* Das Panel. right: 0 verankert es an der rechten Kante des Ausloesers - bei
+   "Verwalten" sitzt der nahe am rechten Rand, linksbuendig liefe das Panel
+   dort hinaus. max-width haelt es auch bei 320 px Fensterbreite im Bild
+   (dort ist der Inhalt nur 272 px breit). */
+.nav-menu .nav-menu-panel {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    z-index: 20;
+    min-width: 200px;
+    max-width: min(280px, calc(100vw - 2rem));
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    list-style: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+}
 
-   ⚠️ Beide Schwellen sind seitdem zweimal gewandert.
-   1. Mit dem Dunkelmodus-Knopf (1340->1375, 1750->1785): der Knopf sitzt neben
-      dem Menueknopf und kostet rund 40 px.
-   2. Mit der Schrift "Amt & Akte" (1375->1290, 1785->1450): Source Sans 3 ist
-      schmaler als Inter. Nachgemessen braucht die Leiste jetzt 1225 px
-      verdichtet (vorher 1307) und 1416 px unverdichtet (vorher 1507) — der
-      Hamburger griff dadurch gute 85 px zu frueh, die volle Fassung gut 335 px
-      zu spaet. Nachgemessen mit messen.py bei 1289/1290/1291 und 1449/1450/1451.
+/* Die Eintraege im Panel. Die hoehere Spezifitaet (0,2,1) ist Absicht: bei
+   "Verwalten" liegen sie innerhalb von .nav-links, wo die Verdichtungs-Regel
+   (.nav-links a, 0,1,1) Schrift und Polster kleiner zieht - das Panel saehe
+   sonst je nach Fensterbreite anders aus als das Konto-Panel. */
+.nav-menu .nav-menu-panel a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    transition: all var(--transition);
+}
+.nav-menu .nav-menu-panel a:hover,
+.nav-menu .nav-menu-panel a[aria-current="page"] {
+    color: var(--primary-ink);
+    background: var(--primary-light);
+}
 
-   Folge, die man kennen sollte: unter 1290 px zeigt die Seite das
-   Hamburger-Menü. Wer das zurückhaben will, muss den Balken an anderer Stelle
-   entlasten (das längste Element ist "Sicherheitsdatenblätter" mit rund
-   150 px) oder auf den Navigationseintrag verzichten. */
-@media (min-width: 1290px) and (max-width: 1610px) {
+/* Ausloeser offen bzw. aktiver Punkt im Untermenue: ohne den Marker sieht man
+   bei geschlossenem Menue nicht, wo man ist. */
+.nav-menu[open] > summary,
+.nav-menu > summary.is-current {
+    color: var(--primary-ink);
+    background: var(--primary-light);
+}
+
+/* --- Konto-Menue (Benutzername, Profil, Logout) ---
+   Steht ausserhalb von .nav-links: das wird unterhalb der Schwelle zum
+   Klappmenue, Logout waere dort nur nach dem Aufklappen erreichbar. */
+.nav-account > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all var(--transition);
+}
+.nav-account > summary:hover,
+.nav-account > summary.is-current,
+.nav-account[open] > summary {
+    color: var(--primary-ink);
+    background: var(--primary-light);
+}
+/* Der Punkt stand als .nav-user-dot in 0,45em - hier winziger, weil er ohne
+   den Benutzernamen daneben steht. */
+.nav-account .nav-user-dot { font-size: 0.5rem; }
+.nav-account-panel { min-width: 210px; }
+/* Kopfzeile des Panels: hier stehen Benutzername und Rolle, die bis 08.10.
+   in der Leiste selbst standen (und dort Breite kosteten). */
+.nav-account-head {
+    padding: 0.15rem 0.35rem 0.4rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+.nav-account-head .nav-user { padding: 0; }
+
+/* Verdichtete Navigation ab 1180 px, darunter Klappmenue.
+
+   Warum verdichtet: die Leiste sitzt in .container (max-width 1280px, innen
+   also 1232 px) und wird auf einem breiteren Schirm NICHT breiter. Die volle
+   Fassung (0,875rem) braucht aber mehr als diese 1232 px - sie passt auf keiner
+   Fensterbreite. Es gibt deshalb seit 08.10.2026 nur noch EINE Stufe.
+
+   ⚠️ Die Historie, weil sie zweimal danebenging:
+     1240/1500 -> 1340/1750 (Eintrag "Fristen" kam dazu)
+     1340/1750 -> 1375/1785 (Dunkelmodus-Knopf, ca. 40 px)
+     1375/1785 -> 1290/1440 (Schrift "Amt & Akte" - Source Sans 3 ist schmaler)
+   Der letzte Schritt setzte die obere Grenze auf 1610 statt 1440 und war damit
+   falsch herum: oberhalb 1610 px schaltete die Leiste auf die volle Fassung und
+   brauchte 214 px MEHR. Gemessen (isolierte Leiste, Admin, 08.10.2026):
+     - 1290-1610 px: Leiste 1404 px bei 1232 px Platz -> 172 px Ueberlauf
+     - ab 1611 px:   Leiste 1618 px -> 338 px Ueberlauf
+   Jedes Fenster zwischen 1290 und ~2000 px scrollte waagerecht. Ausgeloest
+   hatte das der Menuepunkt "Mengenschwellen" (168 px), der NACH dem Nachziehen
+   der Schwellen hinzukam - und dessen Kosten niemand nachgemessen hat.
+
+   Deshalb jetzt nicht wieder Schwellen nachziehen, sondern entlasten: Standorte,
+   Benutzer und Historie liegen in "Verwalten", Profil/Logout im Konto-Menue
+   (siehe base.html). Die Eintraege sind dadurch 1201 -> ~920 px, die Leiste
+   ~1126 px bei 1232 px Platz - rund 100 px Luft fuer den naechsten Bereich.
+
+   Messwerte dieses Umbaus (08.10.2026, mit werkzeuge/navbreiten.py nachgemessen,
+   alle drei Rollen): Die gebuendelte Leiste braucht 1100 px, davon 48 px Polster -
+   also 1052 px Inhalt. Vorher waren es 1404 px (Inhalt 1356) - das Buendeln hat
+   rund 300 px freigemacht.
+
+   ⚠️ Die 1232 px sind eine harte Obergrenze, keine Fensterfrage: .container ist
+   auf 1280 px gedeckelt, die Leiste wird auf einem 2560er Schirm nicht breiter.
+   Passt die verdichtete Fassung nicht hinein, hilft eine hoehere Schwelle nicht.
+
+   Deshalb steht die Schwelle auf 1200 px: mit klassischen Scrollbalken bleiben
+   dort 85 px Luft (Fenster 1200 - 15 px Balken - 48 px Polster = 1137 px fuer
+   1052 px Inhalt). Der naechste Menuepunkt darf also bis rund 80 px kosten, ohne
+   dass hier etwas nachgezogen werden muss. Nachgemessen bei 1199/1200/1201. */
+@media (min-width: 1200px) {
     .navbar-brand { font-size: 1.05rem; }
     .nav-links { gap: 0; }
-    .nav-links a {
-        padding: 0.4rem 0.45rem;
+    .nav-actions { gap: 0.1rem; }
+    /* Das <summary> der Aufklappmenues gehoert in dieselbe Regel: bleibt es
+       aussen vor, behaelt es Schrift und Polster in voller Groesse und die
+       gemessene Schwelle stimmt nicht mehr. */
+    .nav-links a,
+    .nav-links .nav-menu > summary {
+        padding: 0.4rem 0.35rem;
         font-size: 0.8rem;
     }
-    .nav-links a i { margin-right: 0.1rem; }
+    .nav-links a i,
+    .nav-links .nav-menu > summary i:first-child { margin-right: 0.1rem; }
+    .nav-account > summary { padding: 0.35rem 0.45rem; }
     .nav-links .btn { margin-left: 0.1rem; }
 }
 
-@media (max-width: 1289px) {
+@media (max-width: 1199px) {
     .nav-toggle { display: flex; align-items: center; }
+    .nav-actions { gap: 0.15rem; }
     .nav-links {
         display: none;
         position: absolute;
@@ -726,6 +870,24 @@ h4 { font-size: var(--fs-h4); }
     .nav-links li { width: 100%; }
     .nav-links a { width: 100%; display: block; }
     .navbar { position: relative; }
+    /* Die Regeln fuer li und a erfassen <summary> nicht - ein Ausloeser bliebe
+       schmal und links haengen. */
+    .nav-links li > details { width: 100%; }
+    .nav-links li > details > summary { width: 100%; display: flex; }
+    /* Im Klappmenue kein schwebendes Panel, sondern eine eingerueckte Liste -
+       sonst deckte sie den Menuepunkt darunter zu. */
+    .nav-menu .nav-menu-panel {
+        position: static;
+        right: auto;
+        min-width: 0;
+        max-width: none;
+        box-shadow: none;
+        border: 0;
+        padding: 0.25rem 0 0.25rem 1.5rem;
+    }
+    /* Am Konto-Ausloeser bleibt in der schmalen Leiste nur der Punkt; der
+       Name steht im Panel (und als sr-only im Ausloeser). */
+    .nav-account-name { display: none; }
 }
 
 /* ============================================================
@@ -1276,24 +1438,6 @@ h4 { font-size: var(--fs-h4); }
     padding: 1px 7px;
     font-size: 0.72rem;
     font-weight: 700;
-}
-.nav-profile { position: relative; }
-.nav-bubble {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    background: var(--danger-hover);
-    color: var(--on-solid);
-    border-radius: var(--radius-full);
-    font-size: 0.7rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 2px var(--bg-card);
 }
 
 /* ============================================================

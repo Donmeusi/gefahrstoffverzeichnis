@@ -47,14 +47,15 @@ an (siehe Abschnitt 13).
 
 ### 2.3 Passwort ändern
 
-Über **Profil** in der Navigation. Das Passwort muss mindestens vier Zeichen
-haben. Jede Änderung wird in der Systemhistorie vermerkt — ohne das Passwort
-selbst (Abschnitt 14).
+Über **Profil** im Konto-Menü oben rechts (am Benutzernamen). Das Passwort muss
+mindestens vier Zeichen haben. Jede Änderung wird in der Systemhistorie vermerkt
+— ohne das Passwort selbst (Abschnitt 14).
 
 ### 2.4 Abmelden
 
-Über **Logout**. Schließen Sie den Browser auf gemeinsam genutzten Geräten
-zusätzlich, damit die Sitzung nicht wiederhergestellt wird.
+Über **Logout** im Konto-Menü oben rechts. Schließen Sie den Browser auf
+gemeinsam genutzten Geräten zusätzlich, damit die Sitzung nicht
+wiederhergestellt wird.
 
 ## 3. Die Oberfläche
 
@@ -72,13 +73,16 @@ ab:
 | **Sicherheitsdatenblätter** | Sammelliste aller Datenblätter mit Aktualitätsstand |
 | **Fristen** | Offene Aufgaben, mit der Anzahl im Menüpunkt |
 | **Mengenschwellen** | Überschrittene Mengenschwellen nach TRGS 510, mit der Anzahl im Menüpunkt |
-| **Standorte** | Bereiche und Unterbereiche, QR-Codes, Inventur (ab Moderator) |
-| **Benutzer** | Benutzerverwaltung (ab Moderator) |
-| **Historie** | Systemhistorie (nur Administrator) |
-| **Profil** | Eigenes Passwort, offene Freigaben |
+| **Verwalten ▾** | Aufklappmenü: **Standorte** (Bereiche und Unterbereiche, QR-Codes, Inventur), **Benutzer** (Benutzerverwaltung) — beide ab Moderator — und **Historie** (Systemhistorie, nur Administrator). Leser sehen diesen Punkt nicht. |
+| **Konto-Menü** (oben rechts am Benutzernamen) | Aufklappmenü: **Profil** (eigenes Passwort, offene Freigaben) und **Logout**. Die Zahl offener Freigaben steht als roter Zähler am Benutzernamen. |
 
-Auf schmalen Bildschirmen — auf dem Tablet oder Telefon unter etwa 1375 Pixel —
-klappt die Navigation zu einem Menüknopf zusammen.
+Auf schmalen Bildschirmen — auf dem Tablet oder Telefon unter etwa 1200 Pixel —
+klappt die Navigation zu einem Menüknopf zusammen. Das Konto-Menü und der
+Hell/Dunkel-Knopf bleiben dabei sichtbar.
+
+Die beiden Aufklappmenüs geöffnet:
+
+![Navigationsleiste mit geöffneten Menüs](handbuch-bilder/01b-dashboard-menue.png)
 
 **Hell und dunkel:** Rechts in der Kopfzeile sitzt ein kleiner Knopf mit einem
 Mond- (oder Sonnen-)Symbol. Er schaltet die Oberfläche zwischen der hellen und
@@ -467,8 +471,8 @@ Anlegen nicht sofort sichtbar. Sie warten auf eine Freigabe:
 
 1. Wer den Stoff anlegt, sieht ihn danach **nicht** in der Liste — das ist
    gewollt, aber leicht zu übersehen. Merken Sie sich den Namen.
-2. Moderatorinnen, Moderatoren und Administratoren sehen die offenen Fälle in
-   ihrem **Profil** und in der Navigation am Zähler.
+2. Moderatorinnen, Moderatoren und Administratoren sehen die offenen Fälle am
+   **Konto-Menü** oben rechts (roter Zähler) und in ihrem **Profil**.
 3. Dort wird **freigegeben** oder **abgelehnt**.
 
 Der Grund: Für CMR-Stoffe ist die Substitutionsprüfung nach §7 GefStoffV
@@ -643,9 +647,11 @@ steht im Kopfbereich der Seite.
 Nein. Ändern ja (Abschnitt 2.3), zurücksetzen muss ein Administrator.
 
 **Warum ist die Schrift im Menü kleiner als sonst?**
-Auf Bildschirmen zwischen 1375 und 1785 Pixel verdichtet die Anwendung die
-Navigation, damit sie ohne Umbruch passt. Darunter klappt sie zum Menüknopf
-zusammen.
+Die Menüleiste hat eine feste Höchstbreite. Ab 1200 Pixel Fensterbreite zeigt die
+Anwendung die Menüpunkte deshalb in der schmaleren Fassung, damit alle ohne
+Umbruch in die Leiste passen; darunter klappt sie zum Menüknopf zusammen.
+Selbstverwaltung und seltenere Ziele liegen in den beiden Aufklappmenüs
+**Verwalten** und **Konto**.
 
 ## 18. Glossar
 
