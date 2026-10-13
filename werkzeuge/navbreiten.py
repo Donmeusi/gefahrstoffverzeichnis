@@ -55,7 +55,7 @@ def repo_finden():
         if os.path.exists(os.path.join(d, 'main.py')):
             return d
         d = os.path.dirname(d)
-    return '/Users/donmeusi/projects/gefahrstoffverzeichnis'
+    return os.path.expanduser('~/Desktop/Code/gefahrstoffverzeichnis')
 
 
 REPO = repo_finden()
