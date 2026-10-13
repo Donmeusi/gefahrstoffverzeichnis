@@ -278,9 +278,25 @@ body {
     animation: fadeIn 0.4s ease both;
 }
 
+/* ⚠️ Nur die Deckkraft - hier stand bis 13.10.2026 zusaetzlich
+   "transform: translateY(6px)" bzw. "translateY(0)".
+
+   Das war ein ernster Fehler, der nicht nach einem aussah: body hat
+   "animation: fadeIn 0.4s ease both", und mit fill-mode "both" bleibt der
+   ENDZUSTAND der Animation stehen. `translateY(0)` ist zwar eine
+   Einheitsmatrix, aber ein transform - auch ein wirkungsloses - macht ein
+   Element zum Bezugsrahmen fuer `position: fixed`. Beide Dialoge der App
+   (.modal-overlay, H-Saetze und Stoffbezeichnung) richteten sich dadurch am
+   DOKUMENT aus statt am Fenster: Auf der Anlege-Seite (2405 px hoch, Fenster
+   773 px) oeffnete der Dialog bei y=909 - also unterhalb des sichtbaren
+   Bereichs, waehrend die Seite ringsum abgedunkelt und verschwommen war.
+
+   Nachgemessen im Browser: mit dem transform ist die Flaeche 2405 px hoch,
+   ohne es sind es 773 px - die Fensterhoehe. Der 6-px-Slide beim Seitenaufruf
+   ist der Preis dafuer; er war ohnehin kaum zu sehen. */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 a {
@@ -2939,6 +2955,12 @@ footer i { color: var(--primary-ink); }
    aus der label-Regel, hier nur die Anordnung. */
 .pick-item { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
 .pick-item input[type="checkbox"] { width: 15px; height: 15px; }
+/* Die Auswahl der Stoffbezeichnung ist eine Einfachauswahl, also Kaestchen in
+   Rundform. Ohne diese Zeile haetten die Radioknoepfe die Vorgabegroesse des
+   Browsers und staenden groesser da als die Kaestchen daneben. */
+.pick-item input[type="radio"] { width: 15px; height: 15px; }
+/* Hinweis hinter der Bezeichnung, die zur PubChem-Kennung passt. */
+.pick-item .pick-hint { margin-left: auto; color: var(--text-muted); font-size: var(--fs-sm); }
 
 /* Eine Zeile in der reinen Info-Fassung des Kastens. */
 .framed-row {
