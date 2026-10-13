@@ -29,6 +29,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from ldap_auth import authenticate_ldap, is_ldap_enabled
 import mengenschwellen
+import wikidata
+from piktogramme import piktogramme_fuer, signalwort_fuer, codes_aus_text, unbekannte_codes
 from types import SimpleNamespace
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -78,7 +80,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.5.1"
 
 @app.context_processor
 def inject_globals():
@@ -3029,20 +3031,15 @@ def parse_sdb():
 
         if len(name) > 100: name = name[:100]
                 
-        # Piktogramme explizit suchen und aus H-Sätzen ableiten (nur in Abschnitt 2)
-        piktogramme = set(re.findall(r'\b(GHS0[1-9])\b', search_text, re.IGNORECASE))
-        piktogramme = {p.upper() for p in piktogramme}
-        for h in h_saetze:
-            if h in ['H200', 'H201', 'H202', 'H203', 'H204', 'H240', 'H241']: piktogramme.add('GHS01')
-            elif h.startswith('H22') or h in ['H241', 'H242', 'H250', 'H251', 'H252', 'H260', 'H261']: piktogramme.add('GHS02')
-            elif h in ['H270', 'H271', 'H272']: piktogramme.add('GHS03')
-            elif h in ['H280', 'H281']: piktogramme.add('GHS04')
-            elif h in ['H290', 'H314', 'H318']: piktogramme.add('GHS05')
-            elif h in ['H300', 'H301', 'H310', 'H311', 'H330', 'H331']: piktogramme.add('GHS06')
-            elif h in ['H302', 'H312', 'H332', 'H315', 'H317', 'H319', 'H335', 'H336']: piktogramme.add('GHS07')
-            elif h in ['H304', 'H334', 'H340', 'H341', 'H350', 'H351', 'H360', 'H361', 'H362', 'H370', 'H371', 'H372', 'H373', 'H373**']: piktogramme.add('GHS08')
-            elif h in ['H400', 'H410', 'H411']: piktogramme.add('GHS09')
-            
+        # Piktogramme: die im Abschnitt genannten GHS-Codes plus die aus den
+        # H-Saetzen abgeleiteten. Die Ableitung steht in piktogramme.py und
+        # stammt aus Anhang I/V der CLP-VO.
+        # ⚠️ Hier stand bis 13.10.2026 eine if/elif-Kette, die je H-Satz nur
+        # EIN Piktogramm liefern konnte - H241 traegt GHS01 und GHS02, bekam
+        # aber nur das erste. Ausserdem kannte sie 31 der 91 H-Saetze nicht.
+        piktogramme = {p.upper() for p in re.findall(r'\b(GHS0[1-9])\b', search_text, re.IGNORECASE)}
+        piktogramme.update(piktogramme_fuer(h_saetze))
+
         # Extract Lagerklasse (robuste Suche mit Validierung)
         valid_lgk = {'1', '2A', '2B', '3', '4.1A', '4.1B', '4.2', '4.3', '5.1A', '5.1B', '5.1C', '5.2', '6.1A', '6.1B', '6.1C', '6.1D', '6.2', '7', '8A', '8B', '10', '11', '12', '13'}
         lagerklasse = ""
@@ -3223,7 +3220,26 @@ def api_autofill(cas_nummer):
             name = name_res['PropertyTable']['Properties'][0]['Title']
         except Exception:
             name = ""
-            
+
+        # Deutsche Bezeichnung aus Wikidata. PubChem kennt nur englische Namen
+        # ("formaldehyde"), die H-/P-Saetze sind dagegen Codes und damit
+        # sprachneutral. Die Abfrage ist Beiwerk: liefert sie nichts - kein Netz,
+        # kein Wikidata-Eintrag - bleibt es beim PubChem-Namen. Welcher der
+        # Treffer passt, entscheidet der Nutzer (mehrere gibt es z. B. bei
+        # Salzsaeure: Gas und waessrige Loesung); hier wird nur sortiert.
+        namen = wikidata.namen_zu_cas(cas, cid)
+        quelle = 'wikidata'
+        if namen:
+            name = namen[0]['name']
+        else:
+            # Kein Wikidata-Treffer: kein Eintrag, kein Netz oder eine
+            # Drosselung (Wikidata begrenzt schnelle Folgen). Dann bleibt der
+            # PubChem-Name - und der ist englisch. Die Herkunft wird
+            # mitgeliefert, damit die Oberflaeche das sagen kann, statt den
+            # Nutzer raten zu lassen.
+            quelle = 'pubchem'
+
+
         url2 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards'
         try:
             req2 = urllib.request.urlopen(url2, timeout=5)
@@ -3233,12 +3249,22 @@ def api_autofill(cas_nummer):
             
         ghs_data = {
             'name': name,
+            # Alle deutschen Bezeichnungen zur Auswahl; 'name' ist der erste
+            # (nach PubChem-Kennung passende) Treffer, damit aeltere Aufrufer
+            # unveraendert weiterarbeiten.
+            'namen': namen,
+            # 'wikidata' (deutsch) oder 'pubchem' (dann ist der Name englisch)
+            'name_quelle': quelle,
             'signalwort': '',
             'h_saetze': [],
             'p_saetze': [],
-            'piktogramme': []
+            'piktogramme': [],
+            'unbekannte_h_saetze': []
         }
-        
+        # PubChem-Piktogramme getrennt sammeln: sie sind nur noch Rueckfall
+        # fuer Codes, die piktogramme.py nicht kennt.
+        piktos_pubchem = []
+
         references = {ref.get('ReferenceNumber'): ref.get('SourceName', '') for ref in res2.get('Record', {}).get('Reference', [])}
         
         def get_best_reference(info_list):
@@ -3282,33 +3308,48 @@ def api_autofill(cas_nummer):
                                                 url = mk.get('URL', '')
                                                 match = re.search(r'(GHS0\d)', url, re.IGNORECASE)
                                                 if match:
-                                                    ghs_data['piktogramme'].append(match.group(1).upper())
-                                    
-                                    elif name_val == 'Signal':
-                                        if markup:
-                                            signal_en = markup[0].get('String', '').lower()
-                                            if 'danger' in signal_en:
-                                                ghs_data['signalwort'] = 'Gefahr'
-                                            elif 'warning' in signal_en:
-                                                ghs_data['signalwort'] = 'Achtung'
-                                                
+                                                    piktos_pubchem.append(match.group(1).upper())
+
                                     elif name_val == 'GHS Hazard Statements':
+                                        # ⚠️ Hier stand ein eigenes Muster
+                                        # r'(H\d{3}[a-zA-Z]*)'. Es las aus einer
+                                        # Zeile "EUH014: Reagiert heftig mit
+                                        # Wasser" ein "H014" heraus - ein
+                                        # Code, den es nicht gibt, der aber im
+                                        # Feld H-Saetze landete. codes_aus_text
+                                        # grenzt nach links ab.
                                         for m in markup:
-                                            s = m.get('String', '')
-                                            match = re.search(r'(H\d{3}[a-zA-Z]*)', s)
-                                            if match:
-                                                ghs_data['h_saetze'].append(match.group(1))
-                                                
+                                            ghs_data['h_saetze'].extend(
+                                                codes_aus_text(m.get('String', '')))
+
                                     elif name_val == 'Precautionary Statement Codes':
                                         for m in markup:
                                             s = m.get('String', '')
                                             matches = re.findall(r'(P\d{3}[a-zA-Z]*)', s)
                                             ghs_data['p_saetze'].extend(matches)
-                                            
-        ghs_data['piktogramme'] = list(set(ghs_data['piktogramme']))
-        ghs_data['h_saetze'] = ", ".join(sorted(list(set(ghs_data['h_saetze']))))
-        ghs_data['p_saetze'] = ", ".join(sorted(list(set(ghs_data['p_saetze']))))
-        
+
+        ghs_data['h_saetze'] = ", ".join(sorted(set(ghs_data['h_saetze'])))
+        ghs_data['p_saetze'] = ", ".join(sorted(set(ghs_data['p_saetze'])))
+
+        # Piktogramme und Signalwort werden aus den H-Saetzen abgeleitet, nicht
+        # von PubChem uebernommen. Grund: PubChem mischt zu einer CAS-Nummer
+        # Quellen verschiedener Rechtsraeume - zu Salzsaeure steht dort neben
+        # der EU-Einstufung auch japanisches Recht (NITE-CMC) mit ganz anderen
+        # Codes. Die H-Satz-Codes sind dagegen sprachneutral und eindeutig; die
+        # Zuordnung steht in piktogramme.py und stammt aus der CLP-VO.
+        ghs_data['piktogramme'] = piktogramme_fuer(ghs_data['h_saetze'])
+        ghs_data['signalwort'] = signalwort_fuer(ghs_data['h_saetze']) or ''
+
+        # Fuer Codes ausserhalb der Tabelle kann die Ableitung nichts sagen.
+        # Dann bleibt die PubChem-Angabe als Rueckfall stehen - lieber ein
+        # Piktogramm zu viel zum Pruefen als eines zu wenig.
+        unbekannt = unbekannte_codes(ghs_data['h_saetze'])
+        if unbekannt:
+            app.logger.info('Autofill: H-Saetze ohne Zuordnung in piktogramme.py: %s',
+                            ', '.join(unbekannt))
+            ghs_data['piktogramme'] = sorted(set(ghs_data['piktogramme']) | set(piktos_pubchem))
+        ghs_data['unbekannte_h_saetze'] = unbekannt
+
         return jsonify(ghs_data)
         
     except Exception as e:

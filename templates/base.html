@@ -212,7 +212,34 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='hp_modal.js') }}"></script>
+    <!-- Auswahl der Stoffbezeichnung (Autovervollstaendigung) -->
+    <!-- Zu einer CAS-Nummer gibt es oft mehrere deutsche Bezeichnungen, und
+         keine ist falsch: zu 7647-01-0 stehen bei Wikidata sowohl
+         "Chlorwasserstoff" (das Gas) als auch "Salzsaeure" (die waessrige
+         Loesung). Deshalb eine Auswahl statt einer stillen Entscheidung. -->
+    <div id="nameModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="nameModalTitle"><i class="fa-solid fa-tag text-primary"></i> Bezeichnung wählen</h3>
+                <button type="button" class="btn-icon" onclick="closeNameModal()" aria-label="Schließen"><i class="fa-solid fa-times" aria-hidden="true"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted text-sm">Zu dieser CAS-Nummer gibt es mehrere deutsche Bezeichnungen. Wähle die, die in euer Verzeichnis gehört.</p>
+                <div id="nameModalList" class="hp-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeNameModal()">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="applyNameSelection()"><i class="fa-solid fa-check"></i> Übernehmen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚠️ Der Cache-Buster ist hier Pflicht, nicht Zierde: ohne ihn liefern
+         die Browser nach einer Skript-Aenderung weiter die alte Fassung aus
+         ihrem Cache, und die Aenderung wirkt beim Nutzer nicht - derselbe
+         Mechanismus wie bei style.css. Bei autofill.js fehlte er bis zum
+         13.10.2026. -->
+    <script src="{{ url_for('static', filename='hp_modal.js') }}?v={{ APP_VERSION }}"></script>
     <script>
         // Navigation: das Klappmenue fuer schmale Bildschirme und die beiden
         // Aufklappmenues darin bzw. daneben ("Verwalten", Konto).

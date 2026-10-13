@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.30 – Deutsche Bezeichnungen und Piktogramme aus der CLP (Oktober 2026, APP_VERSION 2.5.1)
+
+* Die Autovervollständigung holt den Stoffnamen jetzt deutsch aus Wikidata (CAS-Nummer → P231). PubChem kennt nur englische Namen („formaldehyde", „Isopropanol").
+* Bei mehreren Treffern erscheint ein Auswahldialog (Salzsäure: „Chlorwasserstoff" oder „Salzsäure"); der Treffer mit passender PubChem-Kennung steht vorn. Schlägt Wikidata fehl, bleibt der PubChem-Name — die Rückfrage sagt dann, dass er nicht übersetzt ist.
+* **Neu `piktogramme.py`:** Zuordnung H-Code → Piktogramm und Signalwort nach Anhang I/V der CLP-VO, alle 91 H-Sätze inklusive der zwölf Kombinationssätze.
+* Piktogramme und Signalwort werden daraus **abgeleitet** statt von PubChem übernommen — dort mischen sich zu einer CAS-Nummer EU- und Nicht-EU-Quellen (zu Salzsäure auch japanisches Recht).
+* Der SDB-Parser nutzt dieselbe Ableitung; seine frühere `if/elif`-Kette lieferte je H-Satz nur **ein** Piktogramm (H241 trägt GHS01 und GHS02) und kannte 31 Codes nicht.
+* **Behoben:** `EUH014` wurde als H-Satz `H014` gelesen — im Autofill und im Parser.
+* **Behoben:** `body` behielt über `animation: fadeIn … both` dauerhaft ein `transform`. Das macht ein Element zum Bezugsrahmen für `position: fixed`; beide Dialoge richteten sich am Dokument statt am Fenster aus und öffneten außerhalb des sichtbaren Bereichs.
+* Cache-Buster an `autofill.js` und `hp_modal.js` ergänzt (er fehlte).
+* Neu: `test_piktogramme.py` (21 Tests), `test_wikidata.py` (8). Gesamtstand 197.
+
 ### v3.29 – Layout nutzt große Schirme (Oktober 2026, APP_VERSION 2.5.0)
 
 * Inhaltsrahmen wächst mit dem Fenster bis 1600 px (vorher fest 1280 px).
