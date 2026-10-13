@@ -35,7 +35,11 @@ Vorgehen:
   * Chrome beendet sich bei --dump-dom nicht von selbst - hier wird gepollt
     und danach beendet.
 
-Aufruf:  ~/.venvs/gsv/bin/python werkzeuge/navbreiten.py
+Aufruf:  ~/.venvs/gsv/bin/python werkzeuge/navbreiten.py [breite ...]
+
+Ohne Argumente laeuft die volle Liste (BREITEN unten). Fuer eine einzelne Frage
+kann man Breiten angeben; jede Messung ist ein eigener Chrome-Start, der
+volle Durchlauf dauert deshalb Minuten.
 """
 import html as htmlmodul
 import json
@@ -97,6 +101,13 @@ MESS_SCRIPT = """
     if (!pre) {
       pre = document.createElement('pre');
       pre.id = 'messwerte';
+      // ⚠️ Das <pre> darf die Seite nicht selbst breiter machen: sein Inhalt
+      // steht in EINER langen Zeile, und ein <pre> bricht nicht um. Ungeformt
+      // schob es die Seite um bis zu 100 px auseinander - gemessen wurde dann
+      // der eigene Messaufbau, und "seite" (der Seitenueberlauf) war zu gross.
+      // Auf "leiste" wirkte sich das nicht aus, auf "seite" schon.
+      pre.style.cssText = 'position:absolute;top:0;left:0;width:1px;'
+                        + 'margin:0;overflow:hidden;white-space:normal;';
       document.body.appendChild(pre);
     }
     pre.textContent = JSON.stringify(aus);
@@ -170,7 +181,9 @@ def einmal_messen(datei, breite, profil):
         for _ in range(30):
             time.sleep(0.5)
             inhalt = open(zieldatei, encoding='utf-8', errors='replace').read()
-            m = re.search(r'<pre id="messwerte">(.*?)</pre>', inhalt, re.S)
+            # Attribute nach der id zulassen - das <pre> traegt seit der
+            # Korrektur oben ein style-Attribut.
+            m = re.search(r'<pre id="messwerte"[^>]*>(.*?)</pre>', inhalt, re.S)
             if m and 'Source Sans 3' in m.group(1):
                 return json.loads(htmlmodul.unescape(m.group(1)))
     finally:
@@ -182,6 +195,8 @@ def main():
     if not os.path.exists(CHROME):
         raise SystemExit(f'Chrome nicht gefunden: {CHROME} '
                          '(Pfad ueber die Umgebungsvariable CHROME setzen)')
+
+    breiten = [int(a) for a in sys.argv[1:]] or BREITEN
 
     m, _ = hb.instanz_laden()
     hb.daten_anlegen(m, _)
@@ -195,7 +210,7 @@ def main():
     dateien['admin-offen'] = seite_rendern(
         m, 'admin', os.path.join(arbeit, 'seite-admin-offen.html'), menues_offen=True)
 
-    faelle = [('admin', dateien['admin'], b, 'zu') for b in BREITEN]
+    faelle = [('admin', dateien['admin'], b, 'zu') for b in breiten]
     for rolle in ('moderator', 'lesen'):
         faelle += [(rolle, dateien[rolle], b, 'zu') for b in BREITEN_KURZ]
     faelle += [('admin', dateien['admin-offen'], b, 'offen')

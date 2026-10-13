@@ -369,9 +369,23 @@ main:focus { outline: none; }
 /* ============================================================
    LAYOUT
    ============================================================ */
+/* Der Seitenrahmen waechst mit dem Fenster, bis 1600 px.
+ *
+ * Hier stand bis 13.10.2026 max-width: 1280px. Das war ein fester Deckel: auf
+ * einem 2560er Schirm blieben je 640 px leer - die halbe Flaeche. Unterhalb
+ * 1280 px aendert sich durch die Erhoehung nichts, dort begrenzt wie bisher das
+ * Fenster selbst (width: 100%).
+ *
+ * Warum genau 1600 und nicht mehr (Nutzerentscheidung 13.10.2026): die
+ * 7-spaltige Uebersichtstabelle ist das breitenhungrigste Element der App. Sie
+ * bekommt neben der 220-px-Sidebar bei 1600 px Rahmen 1600 - 48 (Polster) - 220
+ * - 32 (Abstand) = 1300 px, die Tabelle selbst braucht 1047 px. Darueber hinaus
+ * gewinnt sie nichts mehr, waehrend die Zeilen immer laenger werden und das Auge
+ * weiter wandern muss. Gemessen mit werkzeuge/seitenbreiten.py.
+ */
 .container {
     width: 100%;
-    max-width: 1280px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 0 1.5rem;
 }
@@ -388,9 +402,9 @@ main {
    kam nie an, und die 1600px waren wirkungslos. Folge: Seiten ohne Kopfbereich
    (die Fehlerseiten) klebten direkt unter der Navigationsleiste. Diese Regel
    hat .containers Spezifitaet und holt das senkrechte Polster zurueck; seitlich
-   und in der Breite bleibt alles wie gehabt (die 1280er-Deckelung ist gewollt,
-   siehe .data-table--dense). Oben genau 1.5rem - der Wert, den die Kopfbereiche
-   vorher ueber margin-top beisteuerten (die haben ihn jetzt abgegeben). */
+   und in der Breite bleibt alles wie gehabt (die Deckelung auf 1600px steht in
+   .container). Oben genau 1.5rem - der Wert, den die Kopfbereiche vorher ueber
+   margin-top beisteuerten (die haben ihn jetzt abgegeben). */
 main.container { padding: 1.5rem 1.5rem 2rem; }
 
 /* Grid utilities */
@@ -793,12 +807,26 @@ h4 { font-size: var(--fs-h4); }
 }
 .nav-account-head .nav-user { padding: 0; }
 
-/* Verdichtete Navigation ab 1180 px, darunter Klappmenue.
+/* Zwei Stufen: verdichtet von 1200 bis 1399 px, volle Schrift ab 1400 px.
+   Unter 1200 px uebernimmt das Klappmenue.
 
-   Warum verdichtet: die Leiste sitzt in .container (max-width 1280px, innen
-   also 1232 px) und wird auf einem breiteren Schirm NICHT breiter. Die volle
-   Fassung (0,875rem) braucht aber mehr als diese 1232 px - sie passt auf keiner
-   Fensterbreite. Es gibt deshalb seit 08.10.2026 nur noch EINE Stufe.
+   ⚠️ Bis 13.10.2026 war das eine EINZIGE Stufe ab 1200 px, also verdichtet auf
+   jeder Desktopbreite. Die Begruendung von damals war richtig und ist jetzt
+   ueberholt: .container war auf 1280 px gedeckelt, die Leiste bekam also nie
+   mehr als 1232 px - und die volle Fassung (0,875rem) braucht 1266 px. Seit der
+   Rahmen bis 1600 px mitwaechst (siehe .container), ist der Platz da.
+
+   Nachgemessen am 13.10.2026 (werkzeuge/navbreiten.py, Admin):
+     - Leiste in voller Schrift braucht 1266 px.
+     - 1200 px Fenster: 66 px Ueberlauf. 1240: 26 px. Ab 1280: 0 px.
+   Die 1400 sind deshalb bewusst NICHT die gemessene Grenze (1280), sondern
+   lassen rund 130 px Luft: ein zusaetzlicher Menuepunkt kostete zuletzt 110 bis
+   168 px, und die Historie unten zeigt, dass zu knappe Schwellen hier dreimal
+   danebengingen. Bleibt die Luft nicht, zuerst in "Verwalten" buendeln, statt
+   die Schwelle nachzuziehen.
+
+   Warum ueberhaupt verdichtet (die untere Stufe bleibt noetig): im Fenster
+   unter 1200 px ist fuer 1266 px kein Platz.
 
    ⚠️ Die Historie, weil sie zweimal danebenging:
      1240/1500 -> 1340/1750 (Eintrag "Fristen" kam dazu)
@@ -823,15 +851,16 @@ h4 { font-size: var(--fs-h4); }
    also 1052 px Inhalt. Vorher waren es 1404 px (Inhalt 1356) - das Buendeln hat
    rund 300 px freigemacht.
 
-   ⚠️ Die 1232 px sind eine harte Obergrenze, keine Fensterfrage: .container ist
-   auf 1280 px gedeckelt, die Leiste wird auf einem 2560er Schirm nicht breiter.
-   Passt die verdichtete Fassung nicht hinein, hilft eine hoehere Schwelle nicht.
+   ⚠️ Die 1232 px waren eine harte Obergrenze, keine Fensterfrage: solange
+   .container auf 1280 px gedeckelt war, wurde die Leiste auf einem 2560er
+   Schirm nicht breiter. Diese Deckelung gibt es seit 13.10.2026 nicht mehr -
+   die Aussage gilt nur noch fuer die untere Stufe.
 
-   Deshalb steht die Schwelle auf 1200 px: mit klassischen Scrollbalken bleiben
+   Die untere Schwelle bleibt bei 1200 px: mit klassischen Scrollbalken bleiben
    dort 85 px Luft (Fenster 1200 - 15 px Balken - 48 px Polster = 1137 px fuer
    1052 px Inhalt). Der naechste Menuepunkt darf also bis rund 80 px kosten, ohne
    dass hier etwas nachgezogen werden muss. Nachgemessen bei 1199/1200/1201. */
-@media (min-width: 1200px) {
+@media (min-width: 1200px) and (max-width: 1399px) {
     .navbar-brand { font-size: 1.05rem; }
     .nav-links { gap: 0; }
     .nav-actions { gap: 0.1rem; }
@@ -1132,10 +1161,23 @@ h4 { font-size: var(--fs-h4); }
 
 .card-body { padding: 2rem; }
 
-/* Schmale, mittige Karte fuer ein einzelnes Formular (Benutzer anlegen und
-   bearbeiten). Die Systemansicht nutzt .card-narrow - gleicher Zweck, andere
-   Breite, siehe SYSTEMANSICHT. */
-.card-form { max-width: 640px; margin: 0 auto; }
+/* Schmale, mittige Karte fuer ein einzelnes Formular. Sitzt in create_user.html,
+   edit_user.html sowie - seit 13.10.2026 - in add.html und edit.html (Gefahrstoff
+   anlegen und bearbeiten). Die Systemansicht nutzt .card-narrow - gleicher Zweck,
+   gleiche Breite, eigene Klasse, siehe SYSTEMANSICHT.
+
+   ⚠️ add.html und edit.html hatten bis dahin nur .card, also gar keine
+   Begrenzung. Solange .container auf 1280 px gedeckelt war, fiel das nicht auf -
+   die Karte war eben so breit wie der Rahmen (1232 px). Nach der Verbreiterung
+   liefen die Eingabefelder ueber die vollen 1552 px; im Bild sah man, dass das
+   Feld "Name des Gefahrstoffs" die ganze Seite einnahm.
+
+   640 -> 900 px am 13.10.2026: die Formulare haben zweispaltige Feldzeilen
+   (.form-row), und die wurden bei 640 px auf zwei 300-px-Spalten zusammengedrueckt.
+   Mit 900 px bekommt jede Spalte rund 430 px, die Felder bleiben trotzdem deutlich
+   schmaler als der Bildschirm - ein 2560 px breites Eingabefeld liest sich schlecht.
+   Die Karte ist mittig, waechst aber nur bis 900 px mit. */
+.card-form { max-width: 900px; margin: 0 auto; }
 
 /* Kopfbereich einer Karte: getoente Flaeche, zentriert, mit Trennlinie
    darunter. Stand als Inline-Stil in move_copy.html. */
@@ -2581,6 +2623,16 @@ footer i { color: var(--primary-ink); }
    Tabelle - ohne es laeuft sie bei JEDER Desktopbreite ueber (gemessen bei
    1440 px: +69 px), mit ihm passt sie ab 1280 px Fensterbreite.
 
+   ⚠️ Nachtrag 13.10.2026: Die Begruendung oben ist teilweise ueberholt - der
+   Deckel liegt jetzt bei 1600 px, nicht mehr bei 1280 (siehe .container). Die
+   REGEL bleibt aber noetig, nur eben nicht mehr ueberall: ohne das engere
+   Polster laeuft die Tabelle unterhalb von rund 1340 px Fensterbreite ueber
+   (nachgemessen mit werkzeuge/seitenbreiten.py: bei 1280 px fehlen 49 px, ab
+   1360 px ist der Ueberlauf 0). Sie deshalb in eine Media Query zu packen waere
+   moeglich, bringt aber nichts Sichtbares: oberhalb der Schwelle ist die
+   Tabelle breit:100 %, der gewonnene Platz verteilt sich ohnehin auf die
+   Spalten. Eine Schwelle mehr waere hier nur eine Fehlerquelle mehr.
+
    Nicht die Polster aller Tabellen kuerzen: die Uebersicht ist die einzige
    mit sieben Spalten, alle anderen haben Luft. */
 .data-table--dense th,
@@ -2843,7 +2895,12 @@ footer i { color: var(--primary-ink); }
    ohne Karte direkt auf dem Seitenhintergrund - kein Hintergrund, kein
    Rahmen, kein Schatten, keine Polsterung. Sie nutzen jetzt .card und
    .card-body wie jede andere Seite. */
-.card-narrow { max-width: 800px; }
+/* Gleiche Breite wie .card-form (900 px) seit 13.10.2026: beide Karten halten
+   ein einzelnes Formular, und die Systemansicht hat mit der Versionspruefung
+   ebenfalls eine zweispaltige Zeile (.row) darin. Die beiden Klassen bleiben
+   getrennt, weil sie in verschiedenen Templates haengen und auseinanderlaufen
+   koennen - die Zahl ist aber bewusst dieselbe. */
+.card-narrow { max-width: 900px; }
 
 /* Ueberschrift mit Symbol davor (Systemseite). Nicht .section-header: das
    zieht eine Trennlinie und andere Abstaende. */
