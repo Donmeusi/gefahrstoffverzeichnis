@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}Mengenschwellen – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1>
+        <div class="page-icon page-icon-warning">
+            <i class="fa-solid fa-scale-unbalanced"></i>
+        </div>
+        Mengenschwellen (TRGS 510)
+    </h1>
+    <div class="search-bar-wrapper search-header">
+        <label class="sr-only" for="searchInput">Mengenschwellen durchsuchen (Standort oder Gruppe)</label>
+        <i class="fa-solid fa-search" aria-hidden="true"></i>
+        <input type="text" class="search-bar" id="searchInput" placeholder="Nach Standort oder Gruppe suchen…" oninput="filterTable()">
+    </div>
+</div>
+
+{# Aufschlüsselung nach Art des Befunds. Die Kachel „Kleinmenge
+   überschritten" ist die eigentliche Arbeitszahl: ab dort ist die Lagerung
+   außerhalb eines Lagers nicht mehr zulässig. „Zusatzschwelle" ist die
+   schwerere Stufe (zusätzliche Schutzmaßnahmen nach TRGS 510). #}
+<div class="tile-row">
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+            <span class="tile-value">{{ uebersicht.ueberschritten }}</span>
+            <span class="text-muted text-sm">Kleinmenge überschritten</span>
+        </div>
+    </div>
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-fire-flame-simple text-danger"></i>
+            <span class="tile-value">{{ uebersicht.zusatz }}</span>
+            <span class="text-muted text-sm">Zusatzmaßnahmen erreicht</span>
+        </div>
+    </div>
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-cubes-stacked text-accent"></i>
+            <span class="tile-value">{{ uebersicht.gesamt }}</span>
+            <span class="text-muted text-sm">Gesamtmenge über {{ gesamtgrenze|int }} kg</span>
+        </div>
+    </div>
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-map-location-dot text-primary"></i>
+            <span class="tile-value">{{ uebersicht.abschnitte }}</span>
+            <span class="text-muted text-sm">betroffene Lagerabschnitte</span>
+        </div>
+        {# Stoffe ohne rechenbare Menge (Stück, keine Menge erfasst) fehlen in
+           jeder Summe. Als Zahl bleibt die Lücke sichtbar - die Liste kann sie
+           nicht zeigen, weil sie nicht Teil einer Summe sind. #}
+        {% if uebersicht.ohne_menge %}
+        <div class="tile-note text-xs text-light">
+            <i class="fa-solid fa-circle-info icon-leading"></i>
+            {{ uebersicht.ohne_menge }} Stoff(e) ohne rechenbare Menge
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# Kurzhinweis auf die Methode. Ohne ihn sind die Zahlen nicht einzuordnen:
+   geprüft wird über die H-Sätze (ersatzweise die Lagerklasse), Mengen in L
+   werden ohne Dichte wie kg behandelt, und Bezugsebene ist der Lagerabschnitt
+   (= Unterbereich des Standortbaums). #}
+<div class="content-card mb-4">
+    <div class="text-sm text-muted">
+        <i class="fa-solid fa-circle-info icon-leading"></i>
+        Geprüft wird je <strong>Lagerabschnitt</strong> (Unterbereich des Standorts) über die
+        <strong>H-Sätze</strong>, ersatzweise über die Lagerklasse. Mengen in Liter werden ohne
+        Dichte wie Kilogramm gerechnet; „Stück“ zählt nicht mit. Ab der Kleinmenge ist eine
+        Lagerung außerhalb eines Lagers nicht mehr zulässig, ab der Zusatzschwelle greifen die
+        zusätzlichen Schutzmaßnahmen der TRGS 510. Die Schwellen folgen Tabelle 1 der TRGS 510
+        (Ausgabe Dezember 2020); sie sind eine Arbeitshilfe und kein Ersatz für die
+        Gefährdungsbeurteilung.
+    </div>
+</div>
+
+<div class="content-card">
+    <div class="table-responsive">
+    <table class="data-table" id="mengenTable">
+        <caption class="sr-only">Überschrittene Mengenschwellen nach TRGS 510</caption>
+        <thead>
+            <tr>
+                <th scope="col">Lagerabschnitt</th>
+                <th scope="col">Gruppe</th>
+                <th scope="col">Menge / Kleinmenge</th>
+                <th scope="col" class="d-none-mobile">Betroffene Stoffe</th>
+                <th scope="col" class="col-action">Aktion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in eintraege %}
+            <tr class="frist-row">
+                <td>
+                    <a href="{{ e.objekt_link }}" class="frist-objekt">{{ e.objekt }}</a>
+                </td>
+                <td>
+                    {{ e.bezeichnung }}
+                    <div class="mt-2">
+                        {% if e.status == 'zusatz' %}
+                            <span class="badge badge-danger">Zusätzliche Schutzmaßnahmen erforderlich</span>
+                        {% elif e.status == 'gesamt' %}
+                            <span class="badge badge-warning">Gesamtmenge über {{ gesamtgrenze|int }} kg</span>
+                        {% else %}
+                            <span class="badge badge-warning">Kleinmenge überschritten</span>
+                        {% endif %}
+                    </div>
+                    {# Was die App nicht prüfen kann (Gebindezahl, Einheiten),
+                       steht als Hinweis an der Zeile - sonst sähe der Befund
+                       vollständiger aus, als er ist. #}
+                    {% if e.hinweis %}
+                    <div class="text-xs text-light mt-2">
+                        <i class="fa-solid fa-circle-info icon-leading"></i>{{ e.hinweis }}
+                    </div>
+                    {% endif %}
+                </td>
+                <td class="nowrap">
+                    <strong>{{ e.summe_kg|round(1) }}</strong> kg
+                    <span class="text-muted">/ {{ e.kleinmenge_kg|round(1) }} kg</span>
+                    <br><span class="text-xs text-light">
+                        +{{ e.ueberschreitung_kg|round(1) }} kg über der Kleinmenge
+                        {%- if e.zusatz_ab_kg is not none %}
+                        <br>Zusatzschwelle {{ e.zusatz_ab_kg|int }} kg
+                        {%- endif %}
+                    </span>
+                </td>
+                <td class="d-none-mobile text-sm">
+                    {% if e.stoffnamen %}
+                        {{ e.stoffnamen|join(', ') }}
+                    {% else %}
+                        <span class="text-muted">alle Stoffe des Abschnitts</span>
+                    {% endif %}
+                </td>
+                <td class="cell-right">
+                    <a href="{{ e.objekt_link }}" class="btn btn-outline btn-sm" aria-label="Lagerabschnitt öffnen">
+                        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i><span class="d-none-mobile"> Öffnen</span>
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty-hint">
+                    <div class="empty-hint-icon is-success">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <h3>Keine überschrittenen Mengenschwellen</h3>
+                    <p>In keinem Lagerabschnitt ist eine Kleinmenge nach TRGS 510 überschritten.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<script>
+function filterTable() {
+    const input = document.getElementById('searchInput');
+    const filter = input.value.toLowerCase();
+    const rows = document.getElementsByClassName('frist-row');
+
+    for (let i = 0; i < rows.length; i++) {
+        const txt = rows[i].textContent || rows[i].innerText;
+        rows[i].style.display = txt.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+    }
+}
+</script>
+{% endblock %}

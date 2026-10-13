@@ -1,10 +1,13 @@
-# Technical Documentation & Data Protection Concept (GDPR / DSGVO)
-## Gefahrstoff-Verwaltungsanwendung (Gefahrstoffverzeichnis)
+# 🔒 Technische Dokumentation & Datenschutzkonzept (DSGVO)
+
+**Gefahrstoff-Verwaltungsanwendung (Gefahrstoffverzeichnis)**
 
 > **Dokumententyp:** Technische Systemdokumentation & Technisch-Organisatorische Maßnahmen (TOM) gemäß Art. 32 DSGVO  
 > **Zielgruppe:** Datenschutzbeauftragte (DSB), IT-Administrator:innen, Informationssicherheitsbeauftragte (ISB)  
-> **Stand:** 2026 Edition  
-> **Betriebsmodus:** Intranet / On-Premises (Self-Hosted)
+> **Stand:** Fassung vom 27.09.2026  
+> **Betriebsmodus:** Intranet / On-Premises (Self-Hosted). Die Anwendung ist dafür ausgelegt; **die tatsächliche Erreichbarkeit einer Installation ist festzustellen und zu dokumentieren** (siehe `TOM.md`, Risiko R-1).
+
+> **Ergänzendes Dokument:** Das vollständige Maßnahmenverzeichnis nach Art. 32 DSGVO führt **`TOM.md`**.
 
 ---
 
@@ -16,10 +19,10 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 ### 1.2 Systemarchitektur & Deployment
 * **Architektur:** 3-Schichten-Webanwendung (Frontend, Backend, Datenbank).
 * **Backend Framework:** Python 3.11, Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF.
-* **Produktions-Webserver (WSGI):** Waitress (Multi-Threaded WSGI HTTP Server).
+* **Produktions-Webserver (WSGI):** Waitress (Multi-Threaded WSGI HTTP Server) über `run_prod.py` — beide Startwege verwenden ihn: der Container über `docker-entrypoint.sh`, die native Ausführung über `update.sh`.
 * **Datenbank:** SQLite 3 (`gefahrstoffe.db`).
 * **Deployment:** Native Ausführung auf Linux/Windows-Servern oder containerisiert via Docker (`docker-compose`).
-* **Netzwerkeinbindung:** Ausschließlicher Betrieb im internen Firmennetzwerk (Intranet). Keine Anbindung an extern betriebene Cloud-Services.
+* **Netzwerkeinbindung:** Die Anwendung setzt **keine** extern betriebenen Cloud-Dienste voraus und ist für den Betrieb im internen Firmennetzwerk ausgelegt. **Ob eine konkrete Installation ausschließlich intern erreichbar ist, ist installationsabhängig festzustellen und zu dokumentieren** (siehe `TOM.md`, Risiko **R-1**).
 
 ---
 
@@ -30,22 +33,42 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 | Datenkategorie | Konkrete Datenfelder | Verarbeitungszweck | Speicherort & Schutz |
 | :--- | :--- | :--- | :--- |
 | **Benutzer-Stammdaten** | Benutzername, Ersteller-ID | Authentifizierung, Zuordnung von Datenbesitz | SQLite DB (`user`-Tabelle) |
-| **Authentifizierungsdaten** | Passwort-Hash (PBKDF2:SHA256 via `Werkzeug`) | Autorisierung beim Systemzugang | Verschlüsselt gehasht, Passwörter werden **niemals** im Klartext gespeichert |
+| **Authentifizierungsdaten** | Passwort-Hash (`scrypt:32768:8:1` über `werkzeug.security`, geprüft am 27.09.2026 mit Werkzeug 3.1.8) | Autorisierung beim Systemzugang | Einweg-Hash, Passwörter werden **niemals** im Klartext gespeichert |
 | **Rollen & Rechte** | Systemrolle (`admin`, `moderator`, `benutzer`, `lesen`), Bereichszuweisungen | Zugriffsbeschränkung gemäß Minimalprinzip (Need-to-know) | SQLite DB (`user`-Tabelle & `user_bereiche`) |
 | **Audit- & Protokolldaten** | User-ID, Aktions-Typ (`CREATE`, `UPDATE`, `DELETE`, `APPROVE`, `REJECT`, `LOGIN`), Datum/Uhrzeit (UTC), Details | Nachvollziehbarkeit & Rechenschaftspflicht (Art. 5 Abs. 2 DSGVO) | SQLite DB (`audit_log`-Tabelle) |
 | **Session & Sicherheit** | Session-Cookie (`session`), CSRF-Token | Sitzungssteuerung & Schutz vor Cross-Site Request Forgery | In-Memory Session / Browser-Cookie (`HTTPOnly`, `SameSite=Lax`, `Secure`) |
+| **Unterschrift der Betriebsanweisung** | Name (Klartext, max. 80 Zeichen) **oder** Unterschriftsbild (PNG als Data-URL, max. 300 kB) | Nachweis der erstellten bzw. unterwiesenen Betriebsanweisung | SQLite DB, Spalte `ba_unterschrift` am jeweiligen Gefahrstoff |
 
 ### 2.2 Sach- & Betriebsdaten
 * **Gefahrstoffdaten:** Stoffname, CAS-Nummer, EG-Nummer, GHS-Piktogramme, Signalwort, Gefahrenkategorien, H-Sätze, P-Sätze, Lagerklasse (LGK), Mengen und Mengeneinheiten.
 * **Standortdaten:** Hierarchische Bezeichnungen von Standorten, Hauptbereichen und Unterbereichen/Schränken.
 * **Dokumente:** Sicherheitsdatenblätter (SDB), Betriebsanweisungen (BA), Gefährdungsbeurteilungen (GB) im PDF- oder DOC-Format.
 
+### 2.3 Unterschrift zur Betriebsanweisung
+
+Dieser Punkt ist gesondert zu betrachten, weil er sich von allen übrigen Datenkategorien unterscheidet.
+
+* **Betroffene Personen sind nicht zwingend Systemnutzer.** Die Unterschrift leistet, wer die Betriebsanweisung erstellt oder die Unterweisung bestätigt — typischerweise Beschäftigte **ohne** Benutzerkonto. Die Anwendung kann damit personenbezogene Daten von Personen speichern, die keinen Zugang zum System haben; die Informationspflicht nach Art. 13 DSGVO lässt sich nicht über die Anwendung selbst erfüllen.
+* **Zwei Formen mit unterschiedlicher Aussagekraft:** ein eingetippter Name (wird als Text „gez. …“ gedruckt, kein Bild) oder ein gezeichnetes Unterschriftsbild (PNG). Beides ist eine *einfache* elektronische Signatur im Sinne von eIDAS, **keine qualifizierte (QES)**. Eine Identitätsprüfung findet nicht statt. Für Nachweispflichten, die eine QES verlangen, reicht es nicht.
+* **Bewusste Ausnahme von der Protokollierung:** Das Audit-Log hält nur „Unterschrift gesetzt“ bzw. „entfernt“ fest — **nicht** Name oder Bild. Begründung: das Audit-Log ist für Administratoren breit einsehbar und wird länger aufbewahrt als der Gefahrstoff-Datensatz; der Unterschriftsinhalt gehört dort nicht hinein. Dieses Verhalten weicht bewusst vom Grundsatz „sämtliche Änderungen werden protokolliert“ (Abschnitt 4.2) ab.
+* **Zugriffsschutz:** Die Betriebsanweisung und damit die Unterschrift sind nur für Nutzer sichtbar, die dem Bereich des Gefahrstoffs zugewiesen sind (`get_gefahrstoff_query()` in `betriebsanweisung_print`). Die Rolle `Lesen` kann die Seite ansehen, aber nicht speichern.
+* **Grenze dieser Schutzmaßnahme:** Wer die Betriebsanweisung am Bildschirm sehen darf, kann sie auch drucken oder abfotografieren. Der Ausdruck erfolgt im Browser und lässt sich durch die Anwendung nicht unterbinden. Der Schutz der Unterschrift stützt sich damit auf die Bereichszuordnung, nicht auf eine technische Sperre.
+* **Löschung:** Das Leeren des Unterschriftenfelds setzt den Wert auf `NULL`. Bei Soft-Delete eines Gefahrstoffs bleibt die Unterschrift — wie die übrigen Betriebsanweisungsdaten — erhalten.
+* **Rechtsgrundlage:** *[vom DSB zu bestätigen — naheliegend Art. 6 Abs. 1 lit. c DSGVO i. V. m. den Unterweisungs- und Dokumentationspflichten der GefStoffV, andernfalls lit. f]*
+
+⚠️ **Zwei Punkte brauchen eine Entscheidung des DSB, nicht des Betreibers:**
+
+1. Ob eine Unterschrift beim Soft-Delete eines Gefahrstoffs mitarchiviert werden darf oder zu löschen ist.
+2. Ob eine Rechtsgrundlage für das Speichern von Unterschriftsbildern *ohne* Einbeziehung der betroffenen Beschäftigten trägt.
+
 ---
 
 ## 3. Netzwerkeinbindung, HTTPS & Sicherheitsarchitektur
 
 ### 3.1 HTTPS & Reverse Proxy Architektur
-Die Anwendung wird im Intranet hinter einem **TLS/SSL-terminierenden Reverse Proxy** (z. B. Nginx, Apache HTTP Server, Traefik oder Nginx Proxy Manager) betrieben.
+Die Anwendung ist für den Betrieb hinter einem **TLS/SSL-terminierenden Reverse Proxy** (z. B. Nginx, Apache HTTP Server, Traefik, Pangolin oder Nginx Proxy Manager) ausgelegt. Das folgende Schema zeigt diese Referenzkonfiguration.
+
+**Ob eine Installation über den Proxy hinaus aus dem Internet erreichbar ist, ist installationsabhängig festzustellen und zu dokumentieren** — die Angaben zur Netzwerkeinbindung in Abschnitt 1.2 und das Fazit in Abschnitt 6 gehen vom reinen Intranetbetrieb aus. Siehe `TOM.md`, Risiko **R-1**.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -80,6 +103,18 @@ Die Anwendung wird im Intranet hinter einem **TLS/SSL-terminierenden Reverse Pro
 
 ### 3.3 Externe Datenabfragen (PubChem / GESTIS)
 * **PubChem / NIH API:** Beim Aufruf des optionalen *PubChem-Autofills* werden ausschließlich CAS-Nummern (rein anonyme Sachdaten) per verschlüsselter HTTPS-Anfrage an die offizielle Datenbank der U.S. National Library of Medicine geschickt. Es werden **keine** personenbezogenen Daten oder Firmen-IPs übermittelt.
+* **GESTIS-Stoffdatenbank (DGUV):** Die Anwendung verlinkt in Stoffansicht, Anlage und Bearbeitung auf `gestis.dguv.de`. Dies sind **reine Verweise** (`<a href>`), die **erst beim Klick** eine Verbindung aufbauen. Beim bloßen Aufruf einer Seite der Anwendung werden keine Daten an die DGUV übertragen. Beim Klick verlässt der Nutzer die Anwendung; dabei wird die IP-Adresse des aufrufenden Arbeitsplatzes an die DGUV übertragen. Das ist ein üblicher, vom Nutzer ausgelöster Vorgang, sollte dem DSB aber bekannt sein.
+
+### 3.4 Ausgelieferte Ressourcen (keine externen Aufrufe)
+
+Die Anwendung lädt beim Seitenaufruf **keine Ressourcen von Dritten**. Schriften und Symbole werden aus dem eigenen Verzeichnis `static/` ausgeliefert.
+
+* **Schrift:** Inter v20 als Variable Font (`static/fonts/`), Lizenz **SIL OFL 1.1**.
+* **Symbole der Oberfläche:** Font Awesome 6.4.0 Free (`static/vendor/font-awesome/`), Lizenzen **Icons CC BY 4.0, Fonts SIL OFL 1.1, Code MIT**. Die Lizenz verlangt Namensnennung; die mitgelieferte Lizenzdatei stellt jedoch klar, dass die ausgelieferten Dateien die erforderliche Attribution bereits eingebettet enthalten („*Downloaded Font Awesome Free files already contain embedded comments with sufficient attribution, so you shouldn't need to do anything additional when using these files normally.*"). Es ist daher **keine** Attributionsangabe in der Oberfläche oder im Ausdruck erforderlich.
+* **Herkunft und Prüfsummen:** pro Datei in `static/vendor/SOURCES.md` festgehalten (Quell-URL, Version, Lizenz, SHA-256).
+* **Symbole der Betriebsanweisung:** Die ISO-7010-Zeichen in `static/symbols/` sind gemeinfrei; Herkunft und Prüfsummen stehen in `static/symbols/SOURCES.md`.
+
+⚠️ **Dieser Abschnitt ist eine Korrektur.** Bis zum 25.09.2026 luden `base.html`, `ba_print.html`, `location_print.html` und `print_qr.html` Google Fonts und Font Awesome von `fonts.googleapis.com` und `cdnjs.cloudflare.com`. Die Zusicherung „Keine Anbindung an extern betriebene Cloud-Services" (Abschnitt 1.2) und „Kein Datenabfluss" (Abschnitt 6) traf damit **nicht zu**: bei jedem Seitenaufruf wurden IP-Adresse und Referer an Dritte übertragen. Das ist behoben; die Zusicherungen treffen jetzt zu.
 
 ---
 
@@ -91,7 +126,7 @@ Die Anwendung wird im Intranet hinter einem **TLS/SSL-terminierenden Reverse Pro
 * Der Anwendungsserver steht im gesicherten Rechenzentrum / Serverraum des Unternehmens mit physikalischer Zutrittsbeschränkung (Schließsystem / Chipkarten).
 
 #### Zugangskontrolle (Authentifizierung)
-* **Passwort-Policy:** Passwort-Speicherung erfolgt ausschließlich mit starken Einweg-Hashfunktionen (`werkzeug.security.generate_password_hash` mit PBKDF2:SHA256).
+* **Passwort-Policy:** Passwort-Speicherung erfolgt ausschließlich mit starken Einweg-Hashfunktionen (`werkzeug.security.generate_password_hash`, Verfahren `scrypt:32768:8:1` — geprüft am 27.09.2026 mit Werkzeug 3.1.8).
 * **LDAPs-Integration (LDAP over SSL/TLS):** Optionale Anbindung an das zentrale Unternehmens-Directory (Active Directory / OpenLDAP) über Port 636 oder StartTLS. Dadurch entfallen lokale Zweit-Passwörter.
 * **Registrierungssperre:** Die freie Benutzerregistrierung ist nach der Erstanlegung des ersten Administrators deaktiviert. Neue Konten können nur durch Berechtigte angelegt werden.
 
@@ -143,15 +178,17 @@ Die Anwendung erzwingt ein striktes **Rollen- und Rechte-Modell (RBAC)** auf Dat
 ## 5. Lösch- & Aufbewahrungskonzept
 
 * **Betriebsdaten / Gefahrstoffe:** Aufbewahrung während des aktiven Betriebs der Betriebsstätte gemäß GefStoffV. Nach Außerdienststellung eines Stoffes erfolgt die Soft-Delete Archivierung zur Einhaltung von Nachweispflichten bei Gewerbeaufsichts- und Berufsgenossenschaftsprüfungen.
-* **Benutzerkonten:** Beim Ausscheiden von Mitarbeiter:innen können deren Konten durch den Administrator gelöscht werden. Bereits getätigte Audit-Log-Einträge bleiben zur Einhaltung der Rechenschaftspflicht pseudonymisiert erhalten.
+* **Benutzerkonten:** Beim Ausscheiden von Mitarbeiter:innen können deren Konten durch den Administrator gelöscht werden. Bereits getätigte Audit-Log-Einträge bleiben zur Einhaltung der Rechenschaftspflicht **pseudonymisiert** erhalten: Der Name wird nicht aufbewahrt, der Eintrag nennt in der Oberfläche nur noch „Benutzer #<ID> (gelöscht)". Die technische Umsetzung ist eine bewusste Entscheidung gegen das Mitschreiben des Namens in die Historie: Die Benutzer-ID bleibt erhalten, damit die Einträge eines Kontos einander zuordenbar bleiben; der Name wird nicht aufbewahrt, sodass kein Personenbezug bestehen bleibt.
+  * **Einschränkung, die dokumentiert sein sollte:** Der Vorgang des Löschens selbst nennt den Namen im Klartext (`Benutzer "max.mustermann" (Rolle: benutzer) gelöscht.`), damit nachvollziehbar bleibt, wer gelöscht wurde. Ohne diese Angabe wäre eine Löschung nicht überprüfbar. Damit bleibt der Name in genau einem Eintrag erhalten; die Pseudonymisierung betrifft die übrigen Einträge des Kontos.
+* **Unterschriften:** Das Feld `ba_unterschrift` wird beim Leeren bzw. über „Zurücksetzen“ auf `NULL` gesetzt. Beim Soft-Delete eines Gefahrstoffs bleibt die Unterschrift zunächst erhalten; die Aufbewahrungsdauer folgt damit der des Gefahrstoffs und ist nicht eigenständig begrenzt. Siehe die offenen Punkte in Abschnitt 2.3.
 
 ---
 
 ## 6. Fazit für den Datenschutzbeauftragten (DSB)
 
-Die Gefahrstoff-App erfüllt alle Anforderungen an den **Datenschutz durch Technikgestaltung (Privacy by Design)** und **datenschutzfreundliche Voreinstellungen (Privacy by Default)** gemäß Art. 25 DSGVO:
+Die Gefahrstoff-App erfüllt die Anforderungen an den **Datenschutz durch Technikgestaltung (Privacy by Design)** und **datenschutzfreundliche Voreinstellungen (Privacy by Default)** gemäß Art. 25 DSGVO in den umgesetzten Maßnahmen. **Die offenen Punkte — insbesondere die Frage der Erreichbarkeit (R-1) — stehen in `TOM.md`, Abschnitt 9**; sie sind vor einem Produktivbetrieb mit echten Beschäftigtendaten zu klären.
 
-1. **Kein Datenabfluss:** Alle Daten verbleiben zu 100 % lokal auf der Intranet-Infrastruktur Ihres Unternehmens.
+1. **Kein Datenabfluss an Dritte:** Beim Seitenaufruf lädt die Anwendung keine externen Ressourcen — nachgeprüft, siehe Abschnitt 3.4. Alle Daten verbleiben auf der Infrastruktur des Betreibers. Die einzige ausgehende Verbindung ist das vom Nutzer ausgelöste PubChem-Autofill (Abschnitt 3.3). Ob die Instanz ausschließlich intern erreichbar ist, ist installationsabhängig festzustellen (`TOM.md`, Risiko R-1).
 2. **Minimalprinzip:** Es werden nur technisch und gesetzlich zwingend erforderliche Daten erhoben.
 3. **Schutz der Integrität:** Passwörter werden nie im Klartext gespeichert; Schreib- und Export-Rechte sind durch das neue Rollenmodell `Lesen` feingranular steuerbar.
 4. **Vollständige Transparenz:** Ein integriertes Audit-Log garantiert die lückenlose Revisionsfähigkeit aller Aktionen.

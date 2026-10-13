@@ -19,7 +19,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
-    <div class="alert alert-{{ category }}" style="margin-bottom:1.25rem;">
+    <div class="alert alert-{{ category }}">
         <i class="fa-solid fa-circle-xmark"></i>
         <span>{{ message }}</span>
     </div>
@@ -29,15 +29,19 @@
 
     <form method="POST" action="{{ url_for('login') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {# autocomplete fehlte: ohne diese Angaben koennen Passwortmanager die
+           Felder nicht sicher zuordnen und fuellen nicht aus. #}
         <div class="form-group">
             <label for="username">Benutzername</label>
-            <input type="text" id="username" name="username" required autofocus placeholder="Dein Benutzername">
+            <input type="text" id="username" name="username" required autofocus
+                   autocomplete="username" placeholder="Dein Benutzername">
         </div>
 
         <div class="form-group">
             <label for="password">Passwort</label>
             <div class="password-field">
-                <input type="password" id="password" name="password" required placeholder="••••••••">
+                <input type="password" id="password" name="password" required
+                       autocomplete="current-password" placeholder="••••••••">
                 <button type="button" class="password-toggle" onclick="togglePw('password', this)">
                     <i class="fa-solid fa-eye"></i>
                 </button>

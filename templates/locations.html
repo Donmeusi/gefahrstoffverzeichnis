@@ -10,58 +10,77 @@
 {% endfor %}
 {% endmacro %}
 
-{% macro render_unterbereich_list(unterbereich, level) %}
-<div class="unterbereich-item" style="margin-left: {{ level * 1.5 }}rem; {% if level > 0 %}border-left: 2px solid var(--border); padding-left: 0.5rem;{% endif %} margin-bottom: 0.5rem;">
-    <span>
-        <i class="fa-solid fa-level-up-alt fa-rotate-90" style="color:var(--text-light); font-size:0.75em;"></i>
-        {{ unterbereich.name }}
-        <span class="count-chip">{{ unterbereich.gefahrstoffe|length }} Stoff(e)</span>
-    </span>
-    <div style="display: flex; gap: 0.6rem; align-items: center;">
-        <a href="{{ url_for('location_inventur', id=unterbereich.id) }}" class="btn-icon" title="Schnell-Inventur durchführen" style="color:var(--success); font-size:0.95rem;">
-            <i class="fa-solid fa-clipboard-check"></i>
-        </a>
-        <a href="{{ url_for('location_print', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="Schrank-Aushang (A4) drucken" style="color:var(--primary); font-size:0.9rem;">
-            <i class="fa-solid fa-print"></i>
-        </a>
-        <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon" title="QR-Code generieren" style="color:var(--text-light); font-size:0.9rem;">
-            <i class="fa-solid fa-qrcode"></i>
-        </a>
-        <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST" style="margin:0;"
-              onsubmit="return confirm('Unterbereich löschen? Stoffe verlieren ihren Standort.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            {% if current_user.is_admin or unterbereich.bereich.owner_id == current_user.id %}
-            <button type="submit" class="btn-icon" title="Unterbereich löschen"
-                    style="color:var(--danger); font-size:0.8rem;">
-                <i class="fa-solid fa-times"></i>
-            </button>
-            {% endif %}
-        </form>
+{# Eine Zeile des Standortbaums. Die Einrueckung der Ebene kommt aus dem CSS
+   (die senkrechte Linie an .tree-node > .tree-children), nicht mehr aus einem
+   Inline-Abstand. Die Stoffzahl fuehrt in die Schnell-Inventur - damit ist das
+   eigene Inventur-Symbol daneben entbehrlich. #}
+{% macro render_unterbereich_list(unterbereich) %}
+<div class="tree-node">
+    <div class="tree-row">
+        <span class="tree-label">
+            <i class="fa-solid fa-folder" aria-hidden="true"></i>
+            {{ unterbereich.name }}
+            <a class="count-chip chip-link" href="{{ url_for('location_inventur', id=unterbereich.id) }}"
+               title="Schnell-Inventur für {{ unterbereich.name }} öffnen">{{ unterbereich.gefahrstoffe|length }} Stoff(e)</a>
+        </span>
+        <div class="tree-actions">
+            <a href="{{ url_for('location_print', id=unterbereich.id) }}" target="_blank" class="btn-icon text-primary text-sm" title="Schrank-Aushang (A4) drucken" aria-label="Schrank-Aushang (A4) drucken">
+                <i class="fa-solid fa-print" aria-hidden="true"></i>
+            </a>
+            <a href="{{ url_for('location_qr', id=unterbereich.id) }}" target="_blank" class="btn-icon text-light text-sm" title="QR-Code generieren" aria-label="QR-Code generieren">
+                <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
+            </a>
+            <form action="{{ url_for('delete_unterbereich', id=unterbereich.id) }}" method="POST"
+                  onsubmit="return confirm('Unterbereich löschen? Stoffe verlieren ihren Standort.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% if current_user.is_admin or unterbereich.bereich.owner_id == current_user.id %}
+                {# Der Name nennt den Unterbereich: sonst heißen alle Löschknöpfe
+                   einer Liste gleich und man hört nicht, welcher gemeint ist. #}
+                <button type="submit" class="btn-icon text-danger text-sm" title="Unterbereich löschen"
+                        aria-label="Unterbereich {{ unterbereich.name }} löschen">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+                {% endif %}
+            </form>
+        </div>
     </div>
+    {% if unterbereich.children %}
+    <div class="tree-children">
+        {% for child in unterbereich.children %}
+            {{ render_unterbereich_list(child) }}
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
-{% for child in unterbereich.children %}
-    {{ render_unterbereich_list(child, level + 1) }}
-{% endfor %}
 {% endmacro %}
 
 <div class="page-header">
     <div>
-        <h1><i class="fa-solid fa-sitemap" style="color:var(--primary); margin-right:0.4rem;"></i> Standorte verwalten</h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">Bereiche und Unterbereiche verwalten</p>
+        <h1><i class="fa-solid fa-sitemap h1-icon"></i> Standorte verwalten</h1>
+        <p class="text-muted subline">Bereiche und Unterbereiche verwalten</p>
     </div>
     <a href="{{ url_for('index') }}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Zurück</a>
 </div>
 
-<!-- Forms grid -->
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2rem;">
-    <!-- Neuen Bereich -->
-    <div class="card">
-        <div class="card-body">
-            <div class="section-header">
-                <i class="fa-solid fa-building icon-primary"></i>
-                <h3>Neuen Bereich anlegen</h3>
-            </div>
-            <p class="text-muted mb-3" style="font-size:0.875rem;">
+{# Anlegen: ein Formular statt zwei. Der Umschalter waehlt die Art; das jeweils
+   andere Feld bleibt verborgen. Damit gibt es nur EINEN Speichern-Knopf - zwei
+   gleich laute waren keiner (wie in der Detailsicht). #}
+<div class="card mb-5">
+    <div class="card-body">
+        <div class="section-header">
+            <i class="fa-solid fa-plus icon-primary"></i>
+            <h3>Neuen Standort anlegen</h3>
+        </div>
+
+        <div class="tab-switch">
+            <input type="radio" name="standort_art" id="art_bereich" value="bereich" checked>
+            <label for="art_bereich"><i class="fa-solid fa-building" aria-hidden="true"></i> Bereich</label>
+            <input type="radio" name="standort_art" id="art_unterbereich" value="unterbereich" {% if not bereiche %}disabled{% endif %}>
+            <label for="art_unterbereich"><i class="fa-solid fa-door-open" aria-hidden="true"></i> Unterbereich</label>
+        </div>
+
+        <div id="pane-bereich">
+            <p class="text-muted text-sm mb-3">
                 Ein Bereich repräsentiert z.B. ein Gebäude, eine Halle oder eine Abteilung.
             </p>
             <form action="{{ url_for('locations') }}" method="POST">
@@ -72,21 +91,16 @@
                     <input type="text" id="bereich_name" name="bereich_name" required
                            placeholder="z.B. Lager A, Halle 1">
                 </div>
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fa-solid fa-plus"></i> Bereich speichern
-                </button>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Bereich speichern
+                    </button>
+                </div>
             </form>
         </div>
-    </div>
 
-    <!-- Neuen Unterbereich -->
-    <div class="card">
-        <div class="card-body">
-            <div class="section-header">
-                <i class="fa-solid fa-door-open icon-success"></i>
-                <h3>Neuen Unterbereich anlegen</h3>
-            </div>
-            <p class="text-muted mb-3" style="font-size:0.875rem;">
+        <div id="pane-unterbereich" class="is-hidden">
+            <p class="text-muted text-sm mb-3">
                 Ein Unterbereich ist einem Bereich zugeordnet (z.B. Raum 101, Giftschrank).
             </p>
             <form action="{{ url_for('locations') }}" method="POST">
@@ -97,7 +111,7 @@
                     <select id="parent_selection" name="parent_selection" required>
                         <option value="" disabled selected>Bitte wählen…</option>
                         {% for bereich in bereiche %}
-                        <option value="B_{{ bereich.id }}" style="font-weight:bold;">{{ bereich.name }}</option>
+                        <option value="B_{{ bereich.id }}" class="option-strong">{{ bereich.name }}</option>
                         {% for unter in bereich.unterbereiche %}
                             {% if not unter.parent_id %}
                                 {{ render_unterbereich_options(unter, 1) }}
@@ -111,15 +125,11 @@
                     <input type="text" id="unterbereich_name" name="unterbereich_name" required
                            placeholder="z.B. Raum 101, Giftschrank">
                 </div>
-                {% if bereiche %}
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fa-solid fa-plus"></i> Unterbereich speichern
-                </button>
-                {% else %}
-                <button type="submit" class="btn btn-primary w-100" disabled>
-                    <i class="fa-solid fa-info-circle"></i> Erst einen Bereich anlegen
-                </button>
-                {% endif %}
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Unterbereich speichern
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -134,38 +144,45 @@
         </div>
 
         {% if bereiche %}
-        <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+        <div class="standort-tree">
             {% for bereich in bereiche %}
-            <div class="bereich-card-new">
-                <div class="bereich-header">
-                    <h4>
-                        <i class="fa-solid fa-building"></i>
+            <div class="tree-bereich">
+                <div class="tree-bereich-head">
+                    <span class="tree-bereich-name">
+                        <i class="fa-solid fa-building" aria-hidden="true"></i>
                         {{ bereich.name }}
-                        <span class="count-chip" style="margin-left:0.5rem;">{{ bereich.unterbereiche|length }} Unterbereich(e)</span>
-                    </h4>
-                    <form action="{{ url_for('delete_bereich', id=bereich.id) }}" method="POST" style="margin:0;"
+                        <span class="count-chip">{{ bereich.unterbereiche|length }} Unterbereich(e)</span>
+                    </span>
+                    <form action="{{ url_for('delete_bereich', id=bereich.id) }}" method="POST"
                           onsubmit="return confirm('Bereich und alle Unterbereiche wirklich löschen?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         {% if current_user.is_admin or bereich.owner_id == current_user.id %}
-                        <button type="submit" class="btn-icon text-danger" title="Bereich löschen" style="color:var(--danger);">
-                            <i class="fa-solid fa-trash"></i>
+                        <button type="submit" class="btn-icon text-danger" title="Bereich löschen"
+                                aria-label="Bereich {{ bereich.name }} löschen">
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
                         </button>
                         {% else %}
-                        <span style="font-size:0.75rem; color:var(--text-light); font-style:italic;"><i class="fa-solid fa-lock"></i></span>
+                        {# Das Schloss sagt "keine Berechtigung" allein ueber das
+                           Symbol. Fuer Vorleseprogramme steht der Satz daneben. #}
+                        <span class="text-xs text-light text-italic">
+                            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                            <span class="sr-only">Keine Berechtigung zum Löschen</span>
+                        </span>
                         {% endif %}
                     </form>
                 </div>
 
                 {% if bereich.unterbereiche %}
-                <div class="unterbereich-list">
+                <div class="tree-children">
                     {% for unter in bereich.unterbereiche %}
                         {% if not unter.parent_id %}
-                            {{ render_unterbereich_list(unter, 0) }}
+                            {{ render_unterbereich_list(unter) }}
                         {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}
-                <div style="padding:0.5rem 1.25rem 0.75rem; color:var(--text-light); font-size:0.85rem; font-style:italic;">
+                <div class="tree-empty">
+                    <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
                     Noch keine Unterbereiche angelegt.
                 </div>
                 {% endif %}
@@ -180,4 +197,26 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Umschalter über dem Anlegeformular: zeigt entweder das Bereich- oder das
+    // Unterbereich-Feld. Die Radios sind echt (Tastatur, Vorleseprogramm), nur
+    // die Kästchen selbst sind versteckt.
+    (function () {
+        var bereich = document.getElementById('art_bereich');
+        var unterbereich = document.getElementById('art_unterbereich');
+        var paneB = document.getElementById('pane-bereich');
+        var paneU = document.getElementById('pane-unterbereich');
+        if (!bereich || !unterbereich) return;
+        function zeige(art) {
+            var istBereich = art === 'bereich';
+            paneB.classList.toggle('is-hidden', !istBereich);
+            paneU.classList.toggle('is-hidden', istBereich);
+        }
+        bereich.addEventListener('change', function () { zeige('bereich'); });
+        unterbereich.addEventListener('change', function () { zeige('unterbereich'); });
+    })();
+</script>
 {% endblock %}

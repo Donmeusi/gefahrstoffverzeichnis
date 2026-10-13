@@ -1,0 +1,17 @@
+/* Fußzeile für das PDF der Datenschutz-Dokumentation.
+   Wird NACH handbuch-druck.css geladen und überschreibt nur den Titel in der
+   Fußzeile — die Typografie (A4, Seitenzahlen im Inhaltsverzeichnis, Tabellen
+   ohne Seitenumbruch) kommt aus der gemeinsamen Vorlage:
+
+     pandoc DATENSCHUTZ_UND_TOM.md -o <ziel>.pdf --pdf-engine=weasyprint \
+            --css=handbuch-druck.css --css=datenschutz-druck.css \
+            --toc --toc-depth=2
+*/
+
+@page {
+    @bottom-center {
+        content: "Gefahrstoffverzeichnis · Datenschutz-Dokumentation · Seite " counter(page) " von " counter(pages);
+        font-size: 8pt;
+        color: #64748b;
+    }
+}

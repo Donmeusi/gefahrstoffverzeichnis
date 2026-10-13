@@ -1,3 +1,16 @@
+"""Zusammenlagerung nach TRGS 510.
+
+Dieses Modul prüft ausschließlich die Zusammenlagerung (welche Lagerklassen
+dürfen im selben Lagerabschnitt stehen). Die Mengenprüfung - ob die gelagerten
+Mengen die Kleinmengen der TRGS 510 überschreiten - steht in mengenschwellen.py.
+Beide Prüfungen beziehen sich auf dieselbe Ebene, den Unterbereich des
+Standortbaums ("Lagerabschnitt").
+
+Die Matrix unten ist bewusst eine vereinfachte Fassung der Anlage 1 der
+TRGS 510 und deckt die wichtigsten Verbote ab, nicht die vollständige Tabelle.
+"""
+
+
 def check_zusammenlagerung(lgk1: str, lgk2: str):
     """
     Überprüft die Zusammenlagerung nach TRGS 510.

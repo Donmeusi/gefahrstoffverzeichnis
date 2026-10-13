@@ -19,5 +19,5 @@ if [ -d "migrations" ]; then
     flask db upgrade
 fi
 
-echo "Starting Flask Server..."
-exec flask run --host=0.0.0.0 --port=5000
+echo "Starting WSGI Server (Waitress)..."
+exec python run_prod.py

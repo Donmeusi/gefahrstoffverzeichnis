@@ -54,21 +54,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
                 
-                // Erfolgsmeldung Button kurz grün färben
+                // Erfolgsmeldung Button kurz grün färben (Klasse statt
+                // Inline-Farben - die hätten den Dunkelmodus übergangen)
                 btnAutofill.innerHTML = '<i class="fa-solid fa-check"></i> Fertig!';
                 btnAutofill.classList.remove('btn-outline');
-                btnAutofill.classList.add('btn-primary');
-                btnAutofill.style.backgroundColor = '#10b981'; // Grün
-                btnAutofill.style.borderColor = '#10b981';
-                btnAutofill.style.color = '#ffffff';
-                
+                btnAutofill.classList.add('btn-primary', 'is-ok');
+
                 setTimeout(() => {
                     btnAutofill.innerHTML = originalText;
                     btnAutofill.classList.add('btn-outline');
-                    btnAutofill.classList.remove('btn-primary');
-                    btnAutofill.style.backgroundColor = '';
-                    btnAutofill.style.borderColor = '';
-                    btnAutofill.style.color = '';
+                    btnAutofill.classList.remove('btn-primary', 'is-ok');
                     btnAutofill.disabled = false;
                 }, 3000);
                 

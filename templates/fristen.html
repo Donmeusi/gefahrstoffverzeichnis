@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block title %}Fristen – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1>
+        <div class="page-icon page-icon-warning">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        Fristen
+    </h1>
+    <div class="search-bar-wrapper search-header">
+        <label class="sr-only" for="searchInput">Fristen durchsuchen (Gefahrstoff oder Ort)</label>
+        <i class="fa-solid fa-search" aria-hidden="true"></i>
+        <input type="text" class="search-bar" id="searchInput" placeholder="Nach Stoff oder Ort suchen…" oninput="filterTable()">
+    </div>
+</div>
+
+{# Aufschlüsselung: die Kachel auf der Startseite zählt nur die veralteten
+   Sicherheitsdatenblätter, hier stehen zusätzlich fehlende Dokumente und
+   fällige Inventuren. Ohne diese Zeile wären die beiden Zahlen nicht
+   vergleichbar. #}
+<div class="tile-row">
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-file-pdf text-danger"></i>
+            <span class="tile-value">{{ uebersicht.sdb_faellig }}</span>
+            <span class="text-muted text-sm">SDB veraltet</span>
+        </div>
+    </div>
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+            <span class="tile-value">{{ uebersicht.sdb_fehlend }}</span>
+            <span class="text-muted text-sm">SDB fehlt oder ohne Datum</span>
+        </div>
+    </div>
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-flask-vial text-accent"></i>
+            <span class="tile-value">{{ uebersicht.substitution }}</span>
+            <span class="text-muted text-sm">Substitutionsprüfung</span>
+        </div>
+        {# "noch nie geprüft" wird bewusst nicht als Zeile geführt (das wäre bei
+           einem gewachsenen Verzeichnis jeder Stoff). Als Zahl bleibt die Lücke
+           trotzdem sichtbar - und sie zählt nicht in die Kachelzahl hinein,
+           damit diese weiterhin zur Liste passt. #}
+        {% if uebersicht.subst_ungeprueft %}
+        <div class="tile-note text-xs text-light">
+            <i class="fa-solid fa-circle-info icon-leading"></i>
+            {{ uebersicht.subst_ungeprueft }} noch nie geprüft
+        </div>
+        {% endif %}
+    </div>
+    <div class="content-card cell-tile">
+        <div class="inline-row">
+            <i class="fa-solid fa-clipboard-check text-primary"></i>
+            <span class="tile-value">{{ uebersicht.inventur }}</span>
+            <span class="text-muted text-sm">Inventur fällig</span>
+        </div>
+    </div>
+</div>
+
+<div class="content-card">
+    <div class="table-responsive">
+    <table class="data-table" id="fristenTable">
+        <caption class="sr-only">Offene Fristen</caption>
+        <thead>
+            <tr>
+                <th scope="col">Objekt</th>
+                <th scope="col">Kategorie</th>
+                <th scope="col" class="d-none-mobile">Fällig seit</th>
+                <th scope="col" class="d-none-mobile">Ort</th>
+                <th scope="col" class="col-action">Aktion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in eintraege %}
+            <tr class="frist-row">
+                <td>
+                    <a href="{{ e.objekt_link }}" class="frist-objekt">
+                        {{ e.objekt }}
+                    </a>
+                </td>
+                <td>
+                    {# Die Stufe kommt aus sdb_status(), substitution_status() bzw.
+                       fristen_liste(); hier stehen nur Beschriftung und Farbe.
+                       Nach Kategorie unterschieden, weil "fehlt" bei SDB etwas
+                       anderes heißt als bei der Substitutionsprüfung. #}
+                    {% if e.kategorie == 'SDB' %}
+                        {% if e.stufe == 'fehlt' %}
+                            <span class="badge badge-danger">Kein SDB hinterlegt</span>
+                        {% elif e.stufe == 'dringend' %}
+                            <span class="badge badge-danger">SDB dringend aktualisieren</span>
+                        {% elif e.stufe == 'ohne_datum' %}
+                            <span class="badge badge-warning">SDB-Datum fehlt</span>
+                        {% else %}
+                            <span class="badge badge-warning">SDB prüfen</span>
+                        {% endif %}
+                    {% elif e.kategorie == 'Substitution' %}
+                        {% if e.stufe == 'fehlt' %}
+                            <span class="badge badge-accent">Substitutionsprüfung fehlt</span>
+                        {% elif e.stufe == 'ohne_datum' %}
+                            <span class="badge badge-warning">Prüfdatum fehlt</span>
+                        {% else %}
+                            <span class="badge badge-accent">Prüfung wiederholen</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge badge-info">Inventur fällig</span>
+                    {% endif %}
+                </td>
+                <td class="nowrap d-none-mobile">
+                    {% if e.faellig_seit %}
+                        <span class="text-muted">{{ e.faellig_seit.strftime('%d.%m.%Y') }}</span>
+                        {% if e.tage_ueberfaellig is not none %}
+                            <br><span class="text-xs text-light">vor {{ e.tage_ueberfaellig }} Tagen</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted text-sm">noch nie erfasst</span>
+                    {% endif %}
+                </td>
+                <td class="d-none-mobile">
+                    <span class="text-muted text-sm">{{ e.ort }}</span>
+                </td>
+                <td class="cell-right">
+                    {# aktion_link ist nur für schreibberechtigte Rollen gesetzt -
+                       die Rolle "lesen" sieht hier bewusst keinen Knopf. #}
+                    {% if e.aktion_link %}
+                        {# Auf schmalen Bildschirmen nur das Symbol - die lange
+                           Beschriftung ("SDB-Datum eintragen") hielte die
+                           Aktionsspalte breit. aria-label traegt den Text. #}
+                        <a href="{{ e.aktion_link }}" class="btn btn-primary btn-sm" aria-label="{{ e.aktion_text }}">
+                            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i><span class="d-none-mobile"> {{ e.aktion_text }}</span>
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty-hint">
+                    <div class="empty-hint-icon is-success">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <h3>Keine offenen Fristen</h3>
+                    <p>Alle Sicherheitsdatenblätter sind aktuell und die Inventuren sind durchgeführt.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<script>
+function filterTable() {
+    const input = document.getElementById('searchInput');
+    const filter = input.value.toLowerCase();
+    const rows = document.getElementsByClassName('frist-row');
+
+    for (let i = 0; i < rows.length; i++) {
+        const txt = rows[i].textContent || rows[i].innerText;
+        rows[i].style.display = txt.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+    }
+}
+</script>
+{% endblock %}

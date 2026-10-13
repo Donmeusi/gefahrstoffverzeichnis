@@ -6,29 +6,28 @@
 <div class="page-header">
     <div>
         <h1>
-            <i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %}"
-               style="color:var(--primary); margin-right:0.4rem;"></i>
+            <i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %} h1-icon"></i>
             Gefahrstoff {{ action|lower }}
         </h1>
-        <p class="text-muted" style="margin-top:0.2rem; font-size:0.875rem;">{{ stoff.name }}</p>
+        <p class="text-muted subline">{{ stoff.name }}</p>
     </div>
     <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline">
         <i class="fa-solid fa-arrow-left"></i> Zurück
     </a>
 </div>
 
-<div class="card" style="max-width:600px; margin:0 auto;">
+<div class="card card-form">
     <!-- Stoff Info Header -->
-    <div style="padding:1.5rem; background:linear-gradient(135deg, var(--primary-light), transparent); border-bottom:1px solid var(--border); text-align:center;">
-        <p style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem;">Ausgewählter Stoff</p>
-        <h2 style="font-size:1.25rem; color:var(--primary-hover); margin-bottom:0.4rem;">{{ stoff.name }}</h2>
+    <div class="card-hero">
+        <p class="field-label">Ausgewählter Stoff</p>
+        <h2>{{ stoff.name }}</h2>
         {% if stoff.unterbereich %}
-        <p class="text-muted" style="font-size:0.875rem; margin:0;">
-            <i class="fa-solid fa-map-marker-alt" style="color:var(--primary); font-size:0.8em;"></i>
+        <p class="text-muted text-sm">
+            <i class="fa-solid fa-map-marker-alt text-primary icon-sm"></i>
             Aktuell: {{ stoff.unterbereich.bereich.name }} &rsaquo; {{ stoff.unterbereich.name }}
         </p>
         {% else %}
-        <p class="text-muted" style="font-size:0.875rem; margin:0;">
+        <p class="text-muted text-sm">
             <i class="fa-solid fa-question-circle"></i> Noch keinem Standort zugewiesen
         </p>
         {% endif %}
@@ -36,12 +35,12 @@
 
     <div class="card-body">
         {% if action == 'Kopieren' %}
-        <div class="alert alert-info" style="margin-bottom:1.5rem;">
+        <div class="alert alert-info mb-4">
             <i class="fa-solid fa-circle-info"></i>
             <span>Beim Kopieren wird ein identischer neuer Eintrag für diesen Gefahrstoff erstellt und dem Zielort zugewiesen. Der ursprüngliche Eintrag bleibt unverändert.</span>
         </div>
         {% else %}
-        <div class="alert alert-warning" style="margin-bottom:1.5rem;">
+        <div class="alert alert-warning mb-4">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <span>Beim Verschieben wird lediglich der Standort dieses Gefahrstoffs geändert.</span>
         </div>
@@ -52,7 +51,7 @@
             <div class="form-group">
                 <label for="unterbereich_id">Neuer Zielort (Unterbereich)</label>
                 <select id="unterbereich_id" name="unterbereich_id" required size="7"
-                        style="padding:0.5rem;">
+                        class="select-list">
                     {% if not bereiche %}
                     <option disabled>Keine Bereiche vorhanden – zuerst Standorte anlegen.</option>
                     {% else %}
@@ -70,12 +69,12 @@
                 </select>
             </div>
 
-            <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+            <div class="inline-row inline-row--wide mt-3">
                 <button type="submit" class="btn btn-primary w-100" {% if not bereiche %}disabled{% endif %}>
                     <i class="fa-solid {% if action == 'Kopieren' %}fa-copy{% else %}fa-dolly{% endif %}"></i>
                     Jetzt {{ action|lower }}
                 </button>
-                <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline" style="white-space:nowrap;">
+                <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="btn btn-outline nowrap">
                     Abbrechen
                 </a>
             </div>
