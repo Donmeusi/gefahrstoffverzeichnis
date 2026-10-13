@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.31 – Amtliche Einstufung aus Anhang VI der CLP (Oktober 2026, APP_VERSION 2.5.2)
+
+* **Neu `echa_anhang_vi.json` + `echa_anhang_vi.py`:** die harmonisierte Einstufung nach Anhang VI der CLP-Verordnung, 4.643 Einträge, lokal und ohne Netzzugriff. Erzeugt von `werkzeuge/echa_import.py` aus der ECHA-Tabelle.
+* Der Autofill nimmt H-Sätze, Gefahrenkategorien, Piktogramme und Signalwort jetzt von dort, wenn der Stoff harmonisiert eingestuft ist. P-Sätze weiter aus PubChem — die sind nicht harmonisiert, sondern werden vom Hersteller gewählt.
+* Das Feld **Gefahrenkategorien** wird damit erstmals automatisch gefüllt.
+* Der Knopf sagt, woher die Daten kommen: **„Fertig! (amtlich)"** aus Anhang VI, **„Fertig! (abgeleitet)"** aus den H-Sätzen, wenn der Stoff dort nicht steht.
+* **Warum die amtliche Quelle besser ist als die Ableitung:** Das Piktogramm folgt nach CLP aus der **Gefahrenklasse**, nicht aus dem Gefahrenhinweis. Chlorwasserstoff ist „Press. Gas" und trägt deshalb GHS04 — aus H331 und H314 allein lässt sich das nicht herleiten. Die Ableitung bleibt für selbsteingestufte Stoffe.
+* ⚠️ **Die ECHA-Datei führt auch noch nicht geltendes Recht** (ATP23 gilt ab 01.02.2027). Der Ausleser wählt je Index-Nummer die letzte Fassung mit Geltungsbeginn ≤ Stichtag; ein Test sichert ab, dass keine künftige Fassung in den Daten landet.
+* Mehrstoff-Einträge (166) sind unter jeder ihrer CAS-Nummern auffindbar, 475 Einträge ohne CAS über die EG-Nummer. Über die EG-Nummer erreichbar ist zum Beispiel **„Salzsäure … %" (017-002-01-X)** — die Lösung hat einen eigenen Eintrag ohne CAS, der über 7647-01-0 nicht gefunden würde.
+* Fällt Wikidata aus, wird die dann englische Bezeichnung (amtlich oder aus PubChem) nur nach Rückfrage übernommen statt still eingetragen.
+* Neu: `test_echa_anhang_vi.py` (13 Tests). Gesamtstand 210.
+
 ### v3.30 – Deutsche Bezeichnungen und Piktogramme aus der CLP (Oktober 2026, APP_VERSION 2.5.1)
 
 * Die Autovervollständigung holt den Stoffnamen jetzt deutsch aus Wikidata (CAS-Nummer → P231). PubChem kennt nur englische Namen („formaldehyde", „Isopropanol").

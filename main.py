@@ -30,6 +30,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from ldap_auth import authenticate_ldap, is_ldap_enabled
 import mengenschwellen
 import wikidata
+import echa_anhang_vi
 from piktogramme import piktogramme_fuer, signalwort_fuer, codes_aus_text, unbekannte_codes
 from types import SimpleNamespace
 
@@ -80,7 +81,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2"
 
 @app.context_processor
 def inject_globals():
@@ -3186,8 +3187,74 @@ def do_update():
     import threading
     threading.Thread(target=trigger_update_script).start()
     
-    flash('Update wird im Hintergrund ausgeführt. Der Server startet in wenigen Sekunden neu.', 'success')
+    flash('Update wird im Hintergrund ausgeführt. Der Server startet neu.', 'success')
     return redirect(url_for('index'))
+
+
+# ─── PubChem-Hilfen für den Autofill ─────────────────────────────────────────
+
+def pubchem_bevorzugte_referenz(info_liste, quellen):
+    """Waehlt unter mehreren Quellenangaben die EU-Referenz.
+
+    ⚠️ Nötig, weil PubChem zu einer CAS-Nummer Einstufungen aus verschiedenen
+    Rechtsräumen führt: zu Salzsäure steht dort neben der VO (EG) 1272/2008
+    auch japanisches Recht (NITE-CMC) mit H330, H334, H370 und H372. Ohne diese
+    Wahl landete je nach Stoff irgendeine Jurisdiktion im Verzeichnis.
+    Reihenfolge: EU-Quelle, sonst die erste genannte, sonst None.
+    """
+    eu, alle = [], []
+    for info in info_liste:
+        nummer = info.get('ReferenceNumber')
+        if not nummer:
+            continue
+        if nummer not in alle:
+            alle.append(nummer)
+        name = quellen.get(nummer, '')
+        if any(m in name for m in ('EU', 'European', 'ECHA', '1272/2008')):
+            if nummer not in eu:
+                eu.append(nummer)
+    return (eu or alle or [None])[0]
+
+
+def pubchem_p_saetze(cid):
+    """Die P-Satz-Codes eines Stoffes aus PubChem.
+
+    P-Sätze sind **nicht** harmonisiert - sie werden vom Hersteller ausgewählt,
+    dafür gibt es keine amtliche Liste. Sie kommen deshalb weiter von dort.
+    Gibt bei jedem Fehler eine leere Liste zurück: die P-Sätze sind Zugabe und
+    dürfen den Autofill nicht scheitern lassen.
+    """
+    url = (f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}'
+           '/JSON/?heading=Safety+and+Hazards')
+    try:
+        res = json.loads(urllib.request.urlopen(url, timeout=5).read())
+    except Exception:
+        return []
+
+    record = res.get('Record', {})
+    quellen = {r.get('ReferenceNumber'): r.get('SourceName', '')
+               for r in record.get('Reference', [])}
+    codes = []
+    for sec in record.get('Section', []):
+        if sec.get('TOCHeading') != 'Safety and Hazards':
+            continue
+        for s1 in sec.get('Section', []):
+            if s1.get('TOCHeading') != 'Hazards Identification':
+                continue
+            for s2 in s1.get('Section', []):
+                if s2.get('TOCHeading') != 'GHS Classification':
+                    continue
+                info_liste = s2.get('Information', [])
+                best = pubchem_bevorzugte_referenz(info_liste, quellen)
+                for info in info_liste:
+                    if info.get('Name') != 'Precautionary Statement Codes':
+                        continue
+                    if best and info.get('ReferenceNumber') != best:
+                        continue
+                    for m in info.get('Value', {}).get('StringWithMarkup', []):
+                        codes += re.findall(r'P\d{3}[a-zA-Z]*', m.get('String', ''))
+    return codes
+
 
 @app.route('/api/autofill/<cas_nummer>')
 @login_required
@@ -3205,40 +3272,80 @@ def api_autofill(cas_nummer):
         return jsonify({'error': 'Keine CAS-Nummer angegeben'}), 400
         
     try:
+        # 1) Amtliche harmonisierte Einstufung aus Anhang VI der CLP-VO. Die
+        # Tabelle liegt lokal (echa_anhang_vi.json, erzeugt von
+        # werkzeuge/echa_import.py) und braucht kein Netz. Steht der Stoff
+        # darin, gilt sie - das Piktogramm folgt nach CLP aus der
+        # Gefahrenklasse, nicht aus dem H-Satz, und ist aus den H-Saetzen
+        # allein nicht immer herzuleiten.
+        echa = echa_anhang_vi.eintrag(cas=cas)
+
+        # 2) PubChem liefert weiter die P-Saetze. Die sind nicht harmonisiert,
+        # sondern werden vom Hersteller ausgewaehlt - dafuer gibt es keine
+        # amtliche Liste. Ausserdem dient PubChem als Rueckfall, wenn der Stoff
+        # nicht in Anhang VI steht (selbsteingestufte Stoffe).
+        cid = None
         url1 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{urllib.parse.quote(cas)}/cids/JSON'
         try:
             req1 = urllib.request.urlopen(url1, timeout=5)
             res1 = json.loads(req1.read())
             cid = res1['IdentifierList']['CID'][0]
         except Exception:
-            return jsonify({'error': 'CAS-Nummer in PubChem nicht gefunden.'}), 404
-            
-        name_url = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/Title/JSON'
-        try:
-            name_req = urllib.request.urlopen(name_url, timeout=5)
-            name_res = json.loads(name_req.read())
-            name = name_res['PropertyTable']['Properties'][0]['Title']
-        except Exception:
-            name = ""
+            cid = None
 
-        # Deutsche Bezeichnung aus Wikidata. PubChem kennt nur englische Namen
-        # ("formaldehyde"), die H-/P-Saetze sind dagegen Codes und damit
-        # sprachneutral. Die Abfrage ist Beiwerk: liefert sie nichts - kein Netz,
-        # kein Wikidata-Eintrag - bleibt es beim PubChem-Namen. Welcher der
-        # Treffer passt, entscheidet der Nutzer (mehrere gibt es z. B. bei
-        # Salzsaeure: Gas und waessrige Loesung); hier wird nur sortiert.
+        if cid is None and not echa:
+            return jsonify({'error': 'CAS-Nummer ist weder in Anhang VI der '
+                                     'CLP-Verordnung noch bei PubChem zu finden.'}), 404
+
+        name = ""
+        if cid is not None:
+            name_url = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/Title/JSON'
+            try:
+                name_req = urllib.request.urlopen(name_url, timeout=5)
+                name_res = json.loads(name_req.read())
+                name = name_res['PropertyTable']['Properties'][0]['Title']
+            except Exception:
+                name = ""
+
+        # Deutsche Bezeichnung aus Wikidata. Die Namen in der ECHA-Tabelle sind
+        # englisch ("hydrogen chloride"), PubChem kennt ebenfalls nur englische.
+        # Die Abfrage ist Beiwerk: liefert sie nichts - kein Netz, kein
+        # Wikidata-Eintrag, eine Drosselung -, bleibt es beim Namen aus der
+        # amtlichen Tabelle bzw. bei PubChem. Welcher der Treffer passt,
+        # entscheidet der Nutzer (mehrere gibt es z. B. bei Salzsaeure: Gas und
+        # waessrige Loesung); hier wird nur sortiert.
         namen = wikidata.namen_zu_cas(cas, cid)
         quelle = 'wikidata'
         if namen:
             name = namen[0]['name']
+        elif echa:
+            name = echa.get('n', '')
+            quelle = 'echa'
         else:
-            # Kein Wikidata-Treffer: kein Eintrag, kein Netz oder eine
-            # Drosselung (Wikidata begrenzt schnelle Folgen). Dann bleibt der
-            # PubChem-Name - und der ist englisch. Die Herkunft wird
-            # mitgeliefert, damit die Oberflaeche das sagen kann, statt den
-            # Nutzer raten zu lassen.
             quelle = 'pubchem'
 
+        # 3) Gefahrendaten. Steht der Stoff in Anhang VI, kommen H-Saetze,
+        # Gefahrenkategorien, Piktogramme und Signalwort von dort; die
+        # P-Saetze weiter aus PubChem.
+        if echa:
+            werte = echa_anhang_vi.formularwerte(echa)
+            p_saetze = []
+            if cid is not None:
+                p_saetze = pubchem_p_saetze(cid)
+            return jsonify({
+                'name': name,
+                'namen': namen,
+                'name_quelle': quelle,
+                'h_saetze': werte['h_saetze'],
+                'p_saetze': ', '.join(sorted(set(p_saetze))),
+                'piktogramme': werte['piktogramme'],
+                'signalwort': werte['signalwort'],
+                'gefahrenkategorien': werte['gefahrenkategorien'],
+                'unbekannte_h_saetze': [],
+                'quelle': 'echa',
+                'index_nummer': werte['index_nummer'],
+                'atp': werte['atp'],
+            })
 
         url2 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards'
         try:
@@ -3259,31 +3366,23 @@ def api_autofill(cas_nummer):
             'h_saetze': [],
             'p_saetze': [],
             'piktogramme': [],
-            'unbekannte_h_saetze': []
+            'unbekannte_h_saetze': [],
+            # Der Stoff steht nicht in Anhang VI: Hier ist die Ableitung aus
+            # den H-Saetzen die einzige Quelle, und Gefahrenkategorien liefert
+            # PubChem nicht in der Notation des Verzeichnisses.
+            'gefahrenkategorien': '',
+            'quelle': 'pubchem',
         }
         # PubChem-Piktogramme getrennt sammeln: sie sind nur noch Rueckfall
         # fuer Codes, die piktogramme.py nicht kennt.
         piktos_pubchem = []
 
         references = {ref.get('ReferenceNumber'): ref.get('SourceName', '') for ref in res2.get('Record', {}).get('Reference', [])}
-        
+
+        # Die Auswahl der Referenz steht als pubchem_bevorzugte_referenz() oben
+        # bei den PubChem-Hilfen - sie wird auch fuer die P-Saetze gebraucht.
         def get_best_reference(info_list):
-            eu_refs = []
-            all_refs = []
-            for info in info_list:
-                ref_num = info.get('ReferenceNumber')
-                if not ref_num: continue
-                source_name = references.get(ref_num, "")
-                if ref_num not in all_refs:
-                    all_refs.append(ref_num)
-                if "EU" in source_name or "European" in source_name or "ECHA" in source_name or "1272/2008" in source_name:
-                    if ref_num not in eu_refs:
-                        eu_refs.append(ref_num)
-            if eu_refs:
-                return eu_refs[0]
-            if all_refs:
-                return all_refs[0]
-            return None
+            return pubchem_bevorzugte_referenz(info_list, references)
 
         sections = res2.get('Record', {}).get('Section', [])
         for sec in sections:

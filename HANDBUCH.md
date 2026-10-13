@@ -158,13 +158,23 @@ SDB-PDF hoch und klicken auf **Ausfüllen**. Die Anwendung liest CAS- und
 EG-Nummer, Signalwort, Piktogramme sowie H- und P-Sätze aus dem PDF.
 
 **CAS-Nummer nachschlagen.** Tippen Sie eine CAS-Nummer ein und klicken auf
-**Autofill** — die Daten kommen aus der PubChem-Datenbank der US-Behörde NIH.
+**Autofill**. Die Einstufung kommt dann aus **Anhang VI der CLP-Verordnung**
+(die amtliche Liste der harmonisierten Einstufungen, mitgeliefert in der
+Anwendung). Der Knopf zeigt danach **„Fertig! (amtlich)"**. Steht der Stoff
+nicht in Anhang VI — das ist bei selbsteingestuften Stoffen der Normalfall —,
+kommen die Angaben von der PubChem-Datenbank der US-Behörde NIH und der Knopf
+zeigt **„Fertig! (abgeleitet)"**.
 
-> ⚠️ **Zum Autofill:** Dabei wird die CAS-Nummer an einen Server außerhalb Ihres
-> Netzes übertragen. Die Anwendung selbst lädt sonst **keine** externen
-> Ressourcen. Wenn Ihr Betrieb keine Verbindung nach außen zulassen will, lassen
-> Sie das Feld einfach von Hand ausfüllen oder nutzen Sie das SDB-Auslesen,
-> das vollständig lokal arbeitet.
+Die **deutsche Bezeichnung** holt die Anwendung aus Wikidata. Gibt es dort
+mehrere (zu Salzsäure etwa „Chlorwasserstoff" und „Salzsäure"), erscheint eine
+Auswahl. Ist Wikidata nicht erreichbar, wird ersatzweise die amtliche — dann
+englische — Bezeichnung angeboten; die Rückfrage sagt das dazu.
+
+> ⚠️ **Zum Autofill:** Ist der Stoff nicht in Anhang VI enthalten, wird die
+> CAS-Nummer an einen Server außerhalb Ihres Netzes übertragen. Die Anwendung
+> selbst lädt sonst **keine** externen Ressourcen. Wenn Ihr Betrieb keine
+> Verbindung nach außen zulassen will, lassen Sie das Feld einfach von Hand
+> ausfüllen oder nutzen Sie das SDB-Auslesen, das vollständig lokal arbeitet.
 
 **Immer prüfen.** Beide Verfahren liefern Vorschläge, keine Gewissheit. Lesen Sie
 besonders Signalwort, H-Sätze und Piktogramme gegen das Original nach — sie
@@ -590,7 +600,8 @@ zusammen — die Datenbank verweist auf die Dateien.
 
 * **Keine externen Ressourcen.** Schriften und Symbole liegen in der Anwendung.
   Beim Aufruf einer Seite geht nichts an Dritte. Einzige Ausnahme ist das
-  **PubChem-Autofill** (Abschnitt 4.3), das Sie selbst auslösen.
+  **Autofill** (Abschnitt 4.3), das Sie selbst auslösen — und das bei Stoffen
+  aus Anhang VI der CLP-Verordnung sogar ohne Netzzugriff arbeitet.
 * **Kein Abfluss von Bestandsdaten.** Namen und Mengen bleiben im Haus.
 * **Zugriff nach Bereichen.** Wer welchen Bereich sieht, steuert die
   Bereichszuweisung.
