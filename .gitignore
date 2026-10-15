@@ -5,3 +5,5 @@ uploads/
 .env
 .agent/
 data/
+openwiki/
+.DS_Store
