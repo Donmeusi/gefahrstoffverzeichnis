@@ -3078,6 +3078,17 @@ footer i { color: var(--primary-ink); }
 .status-error { background: var(--danger-light);  color: var(--on-danger); }
 .status-info  { background: var(--primary-light); color: var(--on-primary); }
 .status-ok    { background: var(--success-light); color: var(--on-success); }
+.status-warn  { background: var(--warning-light); color: var(--on-warning); }
+
+/* Ergebnis des SDB-Imports: übernommene Werte mit Fundstelle, Konflikte und
+   Hinweise. Die Texte stammen aus der hochgeladenen Datei und werden vom
+   Skript über textContent gesetzt - hier geht es nur um die Gliederung. */
+.status-title { font-weight: 600; margin-bottom: 0.25rem; }
+.sdb-result-group { margin-top: 0.4rem; }
+.sdb-result-title { font-weight: 600; margin-bottom: 0.15rem; }
+.sdb-result-list { margin: 0; padding-left: 1.1rem; }
+.sdb-result-list li { margin: 0.1rem 0; }
+.sdb-warnung { color: var(--on-warning); }
 
 /* Datumsfeld des Sicherheitsdatenblatts: das Skript markiert es, wenn das
    Datum alt ist (#fecaca bzw. #fef08a waren auch hier Einzelwerte). */

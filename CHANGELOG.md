@@ -2,6 +2,21 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.32 – Sicherheitsdatenblätter zuverlässiger auslesen (Oktober 2026, APP_VERSION 2.6.0)
+
+* **Der SDB-Parser liest jetzt Abschnitt für Abschnitt.** Neues Modul `sdb_parser.py`: `zerlege()` schneidet die 16 Abschnitte heraus, jedes Feld wird nur an seiner Stelle gesucht. Die Route `parse_sdb` reicht nur noch Seitentexte und Tabellen durch. Anlass waren drei Fehler, die sich an echten Datenblättern nachweisen ließen.
+* **Behoben: die Index-Nummer wurde zur CAS-Nummer.** Im Roth-SDB zu Aceton stand „Index-Nr. in CLP Anhang VI 606-001-00-8" vor der eigentlichen CAS-Nummer; gelesen wurde `001-00-8`. Eine CAS-Nummer gilt jetzt nur noch, wenn sie beschriftet ist und nicht Teil einer längeren Nummer (`(?<![\d-])`).
+* **Behoben: deutsch ausgeschriebene Gefahrenklassen gingen verloren.** Datenblätter mit „Entzündbare Flüssigkeiten Kategorie 2" (D-Tack) verloren die gesamte Einstufung, weil der Parser nur CLP-Kürzel kannte. Jetzt werden deutsche Klassennamen zugeordnet **und** die Kategorien aus den H-Sätzen nach Anhang I abgeleitet.
+* **Behoben: „Überarbeitet am: 20-Mai-2025" blieb leer.** Datumsangaben mit Monatsnamen (deutsch und englisch) werden gelesen, ebenso „May 20, 2025".
+* **Behoben: das Druckdatum galt als SDB-Datum.** Ein altes Datenblatt mit frischem Druckdatum hätte seine 3-/5-Jahres-Frist verloren. Ohne Revisionsdatum bleibt das Feld jetzt leer und der Import sagt das.
+* **Gegenprobe gegen Anhang VI der CLP.** `plausibilisiere()` vergleicht CAS-Nummer, H-Sätze, Kategorien und Signalwort mit der amtlichen Einstufung. Fehlende Kategorien werden ergänzt, Widersprüche als Hinweis gemeldet – nichts wird stillschweigend überschrieben.
+* **Gemische:** Bestandteile aus Abschnitt 3 werden erkannt; die CAS-Nummer eines Bestandteils wandert nicht mehr als Stoff-CAS ins Verzeichnis.
+* **Herkunft und Warnungen im Formular.** Die Antwort enthält `quellen` (Abschnitt, Seite, Fundstelle) und `warnungen`. Der Import zeigt beides an und **überschreibt keine vorhandenen Werte** – Unterschiede erscheinen als Konflikt.
+* **Kein Text = klare Meldung.** Ein PDF ohne Textebene (Scan) ergibt 422 mit Begründung statt eines stillen Leererfolgs.
+* **SDB-Import auch beim Bearbeiten** (`edit.html`), mit demselben Kasten wie beim Anlegen.
+* Neu: `test_sdb_parser.py` (31 Tests), `werkzeuge/sdb_qualitaet.py` für echte Datenblätter. Gesamtstand 241.
+* Gemessen an zwei öffentlichen Aceton-Datenblättern (Carl Roth, D-Tack): 14 von 14 Sollwerten getroffen, vorher 10 von 14.
+
 ### v3.31 – Amtliche Einstufung aus Anhang VI der CLP (Oktober 2026, APP_VERSION 2.5.2)
 
 * **Neu `echa_anhang_vi.json` + `echa_anhang_vi.py`:** die harmonisierte Einstufung nach Anhang VI der CLP-Verordnung, 4.643 Einträge, lokal und ohne Netzzugriff. Erzeugt von `werkzeuge/echa_import.py` aus der ECHA-Tabelle.

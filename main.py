@@ -31,6 +31,7 @@ from ldap_auth import authenticate_ldap, is_ldap_enabled
 import mengenschwellen
 import wikidata
 import echa_anhang_vi
+import sdb_parser
 from piktogramme import piktogramme_fuer, signalwort_fuer, codes_aus_text, unbekannte_codes
 from types import SimpleNamespace
 
@@ -81,7 +82,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.5.2"
+APP_VERSION = "2.6.0"
 
 @app.context_processor
 def inject_globals():
@@ -2885,188 +2886,45 @@ def parse_sdb():
 
     if 'file' not in request.files:
         return {'error': 'Keine Datei hochgeladen'}, 400
-        
+
     file = request.files['file']
     if file.filename == '':
         return {'error': 'Keine Datei ausgewählt'}, 400
-        
+
     if not file.filename.lower().endswith('.pdf'):
         return {'error': 'Bitte eine PDF-Datei hochladen'}, 400
 
-    text_content = ""
-    first_page_text = ""
+    # Text seitenweise holen und Tabellen nur dort, wo sie fachlich relevant
+    # sind (Einstufung, Zusammensetzung). extract_tables() ist teuer; auf
+    # jedem Seite aufzurufen kostet mehr Zeit als der gesamte übrige Import.
+    seiten, tabellen = [], []
     try:
         with pdfplumber.open(file) as pdf:
-            if len(pdf.pages) > 0:
-                first_page_text = pdf.pages[0].extract_text() or ""
-                
-            for page in pdf.pages[:15]:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content += page_text + "\n"
-                    
-        # Extract CAS
-        cas_match = re.search(r'\b(\d{2,7}-\d{2}-\d)\b', text_content)
-        cas = cas_match.group(1) if cas_match else ""
-        
-        # Extract EG-Nummer
-        eg_explicit = re.search(r'(?:EG-Nr\.|EG-Nummer|EG Nr\.|EC-No\.|EC No\.)[\s:]*(\d{3}-\d{3}-\d)', text_content, re.IGNORECASE)
-        if not eg_explicit:
-            eg_match = re.search(r'\b([2459]\d{2}-\d{3}-\d)\b', text_content)
-            eg = eg_match.group(1) if eg_match else ""
-        else:
-            eg = eg_explicit.group(1)
-            
-        # Extract Signalwort
-        signal_match = re.search(r'\b(Gefahr|Achtung)\b', text_content, re.IGNORECASE)
-        signalwort = signal_match.group(1).capitalize() if signal_match else ""
-        
-        # Extract Gefahrenkategorien aus Abschnitt 2.1
-        gefahrenkategorien = []
-        sec21_match = re.search(r'2\.1\b.*?(?:Einstufung).*?(?=2\.2|Kennzeichnungselemente)', text_content, re.IGNORECASE | re.DOTALL)
-        if sec21_match:
-            sec21_text = sec21_match.group(0)
-            raw_cats = re.findall(r'\b(?:Met|Skin|Eye|Acute|Flam|Ox|Aquatic|Asp|STOT|Muta|Carc|Repr|Resp)[\.\s]*(?:Corr|Dam|Irrit|Tox|Liq|Sol|Gas|Sens|SE|RE|Chronic|Acute)?[\.\s]*[1-4]?[A-C]?\b', sec21_text, re.IGNORECASE)
-            seen = set()
-            for c in raw_cats:
-                c = re.sub(r'\s+', ' ', c).replace(' .', '.').replace('.', '. ').replace('  ', ' ').strip()
-                words = []
-                for w in c.split():
-                    if w.upper() in ['1A', '1B', '1C', '2A', '2B', '3', '4', 'SE', 'RE', 'STOT']:
-                        words.append(w.upper())
-                    else:
-                        words.append(w.capitalize())
-                c = " ".join(words)
-                if c and c.upper() not in [s.upper() for s in seen]:
-                    seen.add(c)
-                    gefahrenkategorien.append(c)
-
-        # Abschnitt 2.2 isolieren für präzise H- und P-Sätze (verhindert Auslesen von H-Sätzen aus Abschnitt 2.1 Einstufungstabelle)
-        sec22_match = re.search(r'(?:2\.2\s*)?Kennzeichnungselemente(.*?)(?:2\.3\s*Sonstige Gefahren|3\.\s*Zusammensetzung|ABSCHNITT\s*3)', text_content, re.IGNORECASE | re.DOTALL)
-        if sec22_match:
-            search_text = sec22_match.group(1)
-        else:
-            sec2_match = re.search(r'ABSCHNITT\s*2\b.*?(?:Mögliche\s*Gefahren)?(.*?)ABSCHNITT\s*3\b', text_content, re.IGNORECASE | re.DOTALL)
-            search_text = sec2_match.group(1) if sec2_match else text_content
-        
-        # Extract H-Sätze (jetzt auch mit mehreren Buchstaben wie H360FD und optionalen Leerzeichen)
-        h_saetze_raw = re.findall(r'\b(H\s?[234]\d{2}\s?[a-zA-Z]{0,3})\b', search_text, re.IGNORECASE)
-        euh_saetze_raw = re.findall(r'\b(EUH\s?\d{3}\s?[a-zA-Z]{0,3})\b', search_text, re.IGNORECASE)
-        h_saetze = sorted(list(set([re.sub(r'[\s\n]+', '', h).upper() for h in h_saetze_raw + euh_saetze_raw])))
-        
-        # Extract P-Sätze
-        p_saetze_raw = re.findall(r'\b(P\s?\d{3}(?:\s?\+\s?P\s?\d{3})*)\b', search_text, re.IGNORECASE)
-        p_saetze = sorted(list(set([re.sub(r'[\s\n]+', '', p).upper() for p in p_saetze_raw])))
-        
-        # Extract Datum (Priorität: "Überarbeitet am" auf der ersten Seite)
-        date_str = ""
-        date_match = re.search(r'(?:Überarbeitet am|Datum der Überarbeitung|Druckdatum)[\s:]*(\d{2}\.\d{2}\.\d{4})', first_page_text, re.IGNORECASE)
-        if date_match:
-            try:
-                d, m, y = date_match.group(1).split('.')
-                dt = datetime(int(y), int(m), int(d))
-                date_str = dt.strftime('%Y-%m-%d')
-            except Exception:
-                pass
-                
-        # Fallback für Datum, falls "Überarbeitet am" nicht gefunden
-        if not date_str:
-            date_matches = re.findall(r'\b(\d{2})\.(\d{2})\.(\d{4})\b', first_page_text)
-            if date_matches:
-                valid_dates = []
-                for d, m, y in date_matches:
+            for nummer, page in enumerate(pdf.pages[:15]):
+                text = page.extract_text() or ''
+                seiten.append(text)
+                if (nummer < 6 and len(tabellen) < 12
+                        and any(k in text.lower() for k in (
+                            'einstufung', 'zusammensetzung', 'classification',
+                            'composition'))):
                     try:
-                        dt = datetime(int(y), int(m), int(d))
-                        if dt <= datetime.now():
-                            valid_dates.append(dt)
-                    except ValueError:
+                        tabellen.extend(page.extract_tables() or [])
+                    except Exception:
                         pass
-                if valid_dates:
-                    date_str = max(valid_dates).strftime('%Y-%m-%d')
-        
-        # Extract Handelsname (stark verbessert)
-        name = ""
-        # 1. Versuche Abschnitt 1.1 "Produktidentifikator" zu isolieren
-        section_1_match = re.search(r'1\.1[^\n]*Produktidentifikator(.*?)(?:1\.2|Relevante identifizierte)', first_page_text, re.IGNORECASE | re.DOTALL)
-        if section_1_match:
-            chunk = section_1_match.group(1).strip()
-            lines = [l.strip() for l in chunk.split('\n') if l.strip()]
-            for line in lines:
-                lower_line = line.lower()
-                
-                # Exakte Label-Zeilen ignorieren (Name steht oft in der Zeile danach)
-                if lower_line in ['bezeichnung des stoffs', 'bezeichnung des stoffes', 'handelsname', 'produktname', 'stoffname', 'bezeichnung des gemischs', 'produktidentifikator']:
-                    continue
-                    
-                # Zeilen mit Doppelpunkt prüfen (z.B. "Handelsname: Aceton")
-                if ':' in line:
-                    key, val = line.split(':', 1)
-                    if any(k in key.lower() for k in ['bezeichnung', 'handelsname', 'produkt', 'stoff', 'gemisch', 'identifikator']):
-                        if val.strip():
-                            name = val.strip()
-                            break
-                        else:
-                            continue # Nach Doppelpunkt leer -> nächste Zeile nehmen
-                            
-                # Fallback: Präfixe ohne Doppelpunkt entfernen
-                cleaned_name = re.sub(r'^(?:Bezeichnung des Stoff(?:e)?s|Bezeichnung des Gemischs|Handelsname|Produktname|Stoffname|Produktidentifikator)[\s:]*', '', line, flags=re.IGNORECASE).strip()
-                if cleaned_name:
-                    name = cleaned_name
-                    break
-
-        # 2. Fallback auf altes Regex, falls 1.1 nicht eindeutig gefunden wurde
-        if not name:
-            name_match = re.search(r'(?:Handelsname|Produktname|Bezeichnung des Stoff(?:e)?s|Bezeichnung des Gemischs|Stoffname)[\s:]*([^\n]+)', first_page_text, re.IGNORECASE)
-            if name_match and len(name_match.group(1).strip()) > 2:
-                name = name_match.group(1).strip()
-                name = re.sub(r'^(?:Bezeichnung des Stoff(?:e)?s|Bezeichnung des Gemischs|Handelsname|Produktname|Stoffname)[\s:]*', '', name, flags=re.IGNORECASE).strip()
-
-        # 3. Absoluter Fallback auf erste sinnvolle Zeile
-        if not name:
-            lines = [l.strip() for l in first_page_text.split('\n') if l.strip() and len(l.strip()) > 3]
-            for line in lines:
-                if any(x in line for x in ["Sicherheitsdatenblatt", "gemäß", "Verordnung", "Abschnitt", "Version", "Gefahr", "Achtung", "Überarbeitet", "Druckdatum", "Bezeichnung des Stoff"]):
-                    continue
-                name = line[:100]
-                break
-
-        if len(name) > 100: name = name[:100]
-                
-        # Piktogramme: die im Abschnitt genannten GHS-Codes plus die aus den
-        # H-Saetzen abgeleiteten. Die Ableitung steht in piktogramme.py und
-        # stammt aus Anhang I/V der CLP-VO.
-        # ⚠️ Hier stand bis 13.10.2026 eine if/elif-Kette, die je H-Satz nur
-        # EIN Piktogramm liefern konnte - H241 traegt GHS01 und GHS02, bekam
-        # aber nur das erste. Ausserdem kannte sie 31 der 91 H-Saetze nicht.
-        piktogramme = {p.upper() for p in re.findall(r'\b(GHS0[1-9])\b', search_text, re.IGNORECASE)}
-        piktogramme.update(piktogramme_fuer(h_saetze))
-
-        # Extract Lagerklasse (robuste Suche mit Validierung)
-        valid_lgk = {'1', '2A', '2B', '3', '4.1A', '4.1B', '4.2', '4.3', '5.1A', '5.1B', '5.1C', '5.2', '6.1A', '6.1B', '6.1C', '6.1D', '6.2', '7', '8A', '8B', '10', '11', '12', '13'}
-        lagerklasse = ""
-        # Suche nach "Lagerklasse" oder "LGK", gefolgt von max 40 Zeichen (ohne Zeilenumbruch) und dann einer Nummer (mit optionalem Leerzeichen)
-        lgk_matches = re.findall(r'(?:Lagerklasse|LGK)[^\n]{0,40}?\b(\d{1,2}(?:\.\d)?\s?[A-Za-z]?)\b', text_content, re.IGNORECASE)
-        for match in lgk_matches:
-            match_upper = match.replace(' ', '').upper()
-            if match_upper in valid_lgk:
-                lagerklasse = match_upper
-                break
-                
-        return {
-            'success': True,
-            'name': name,
-            'cas': cas,
-            'eg': eg,
-            'gefahrenkategorien': gefahrenkategorien,
-            'signalwort': signalwort,
-            'h_saetze': ", ".join(h_saetze),
-            'p_saetze': ", ".join(p_saetze),
-            'piktogramme': list(piktogramme),
-            'sdb_datum': date_str,
-            'lagerklasse': lagerklasse
-        }
     except Exception as e:
-        return {'error': str(e)}, 500
+        # Die Meldung von pdfminer ("No /Root object!") ist für den Nutzer
+        # wertlos und nennt Interna. Sie geht ins Log, nicht ins Formular.
+        app.logger.warning('SDB-PDF nicht lesbar: %s', e)
+        return {
+            'error': 'Das PDF konnte nicht geöffnet werden. Ist die Datei '
+                     'beschädigt oder passwortgeschützt?'
+        }, 400
+
+    ergebnis = sdb_parser.analysiere(seiten, tabellen)
+    if not ergebnis.get('success'):
+        return ergebnis, 422
+    return ergebnis
+
 @app.route('/audit_logs')
 @login_required
 def audit_logs():

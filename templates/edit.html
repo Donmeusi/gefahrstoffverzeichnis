@@ -27,6 +27,28 @@
         <form method="POST" action="{{ url_for('edit_stoff', id=stoff.id) }}" class="form-grid" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
+            <!-- SDB Upload Option. Derselbe Kasten wie in add.html: beim
+                 Bearbeiten lässt sich ein neues Datenblatt auslesen, ohne den
+                 Stoff neu anlegen zu müssen. Gefüllt wird nur, was leer ist. -->
+            <div class="form-section import-box">
+                <div class="import-head">
+                    <div>
+                        <h3 class="import-title"><i class="fa-solid fa-magic" aria-hidden="true"></i> Daten aus neuem SDB importieren</h3>
+                        <p class="import-hint">Lädt ein PDF-Sicherheitsdatenblatt hoch und füllt leere Felder vor. Vorhandene Werte bleiben stehen.</p>
+                    </div>
+                    <div class="field-row mobile-stack">
+                        <input type="file" id="sdb_upload" accept=".pdf">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn_parse_sdb">
+                            <i class="fa-solid fa-file-import"></i> Ausfüllen
+                        </button>
+                    </div>
+                </div>
+                {# display:none bleibt inline: das Skript schaltet den Kasten ein
+                   und aus und setzt dabei auch Hintergrund und Schriftfarbe. #}
+                <div id="sdb_status" class="status-box" style="display:none;"
+                     data-url="{{ url_for('parse_sdb') }}"></div>
+            </div>
+
             <!-- Section 1 -->
             <div class="form-section">
                 <div class="form-section-title">
@@ -367,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (substSelect) toggleSubstFields(substSelect);
 });
 </script>
+<script src="{{ url_for('static', filename='sdb_import.js') }}?v={{ APP_VERSION }}"></script>
 <script src="{{ url_for('static', filename='autofill.js') }}?v={{ APP_VERSION }}"></script>
 <script src="{{ url_for('static', filename='mengenschwellen_vorschau.js') }}?v={{ APP_VERSION }}"></script>
 {% endblock %}

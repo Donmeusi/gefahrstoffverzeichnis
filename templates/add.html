@@ -41,7 +41,8 @@
                 </div>
                 {# display:none bleibt inline: das Skript schaltet den Kasten ein
                    und aus und setzt dabei auch Hintergrund und Schriftfarbe. #}
-                <div id="sdb_status" class="status-box" style="display:none;"></div>
+                <div id="sdb_status" class="status-box" style="display:none;"
+                     data-url="{{ url_for('parse_sdb') }}"></div>
             </div>
 
             <!-- Section 1 -->
@@ -335,104 +336,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const substSelect = document.getElementById('substitutionspruefung');
     if (substSelect) toggleSubstFields(substSelect);
     
-    const btnParse = document.getElementById('btn_parse_sdb');
-    const fileInput = document.getElementById('sdb_upload');
-    const statusDiv = document.getElementById('sdb_status');
-    
-    if(btnParse && fileInput) {
-        btnParse.addEventListener('click', async () => {
-            if(!fileInput.files[0]) {
-                statusDiv.className = 'status-box status-error';
-                statusDiv.style.display = 'block';
-                statusDiv.textContent = 'Bitte wähle zuerst ein PDF aus.';
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            
-            statusDiv.className = 'status-box status-info';
-            statusDiv.style.display = 'block';
-            statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dokument wird verarbeitet... Bitte warten.';
-            btnParse.disabled = true;
-            
-            try {
-                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-                const response = await fetch('{{ url_for("parse_sdb") }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if(!response.ok) {
-                    throw new Error(data.error || 'Fehler beim Verarbeiten');
-                }
-                
-                // Fill fields
-                if(data.name) document.getElementById('name').value = data.name;
-                if(data.cas) document.getElementById('cas_nummer').value = data.cas;
-                if(data.eg) document.getElementById('eg_nummer').value = data.eg;
-                if(data.signalwort) document.getElementById('signalwort').value = data.signalwort;
-                if(data.gefahrenkategorien) {
-                    let values = [];
-                    if (Array.isArray(data.gefahrenkategorien)) {
-                        values = data.gefahrenkategorien;
-                    } else {
-                        values = data.gefahrenkategorien.split(';').map(s => s.trim()).filter(s => s);
-                    }
-                    document.getElementById('gefahrenkategorien').value = values.join('; ');
-                }
-                if(data.h_saetze) document.getElementById('h_saetze').value = data.h_saetze;
-                if(data.p_saetze) document.getElementById('p_saetze').value = data.p_saetze;
-                if(data.sdb_datum) {
-                    const sdbDatumInput = document.getElementById('sdb_datum');
-                    if(sdbDatumInput) {
-                        sdbDatumInput.value = data.sdb_datum;
-                        checkSdbDate(sdbDatumInput);
-                    }
-                }
-                if(data.lagerklasse) {
-                    const lagerklasseInput = document.getElementById('lagerklasse');
-                    if(lagerklasseInput) {
-                        lagerklasseInput.value = data.lagerklasse;
-                    }
-                }
-                
-                // Set the file into the regular file upload field automatically
-                const sdbDocInput = document.getElementById('sicherheitsdatenblatt');
-                if (sdbDocInput && fileInput.files.length > 0) {
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(fileInput.files[0]);
-                    sdbDocInput.files = dataTransfer.files;
-                }
-                
-                // Check checkboxes for Piktogramme
-                if(data.piktogramme && data.piktogramme.length > 0) {
-                    const checkboxes = document.querySelectorAll('input[name="piktogramme"]');
-                    checkboxes.forEach(cb => {
-                        if(data.piktogramme.includes(cb.value)) {
-                            cb.checked = true;
-                        }
-                    });
-                }
-                
-                statusDiv.className = 'status-box status-ok';
-                statusDiv.innerHTML = '<i class="fa-solid fa-check"></i> Daten erfolgreich extrahiert. Bitte überprüfe die Werte auf Richtigkeit!';
-                
-            } catch(e) {
-                statusDiv.className = 'status-box status-error';
-                statusDiv.textContent = 'Fehler: ' + e.message;
-            } finally {
-                btnParse.disabled = false;
-            }
-        });
-    }
 });
 </script>
+<script src="{{ url_for('static', filename='sdb_import.js') }}?v={{ APP_VERSION }}"></script>
 <script src="{{ url_for('static', filename='autofill.js') }}?v={{ APP_VERSION }}"></script>
 <script src="{{ url_for('static', filename='mengenschwellen_vorschau.js') }}?v={{ APP_VERSION }}"></script>
 {% endblock %}

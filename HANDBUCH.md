@@ -155,7 +155,19 @@ Die Anwendung nimmt Ihnen die Tipparbeit ab:
 
 **Sicherheitsdatenblatt auslesen.** Laden Sie im oberen Feld ein
 SDB-PDF hoch und klicken auf **Ausfüllen**. Die Anwendung liest CAS- und
-EG-Nummer, Signalwort, Piktogramme sowie H- und P-Sätze aus dem PDF.
+EG-Nummer, Signalwort, Piktogramme sowie H- und P-Sätze aus dem PDF. Das
+funktioniert beim Anlegen und beim Bearbeiten eines Gefahrstoffs.
+
+Zu jedem übernommenen Wert zeigt die Anwendung, **wo er im Dokument steht**
+(Abschnitt und Seite). Darunter erscheinen Hinweise, wenn etwas unsicher ist –
+etwa wenn das SDB keine Gefahrenkategorien nennt und sie aus den H-Sätzen
+abgeleitet wurden, oder wenn die Einstufung von Anhang VI der CLP-Verordnung
+abweicht. Bereits ausgefüllte Felder werden **nicht überschrieben**; weicht das
+Datenblatt ab, steht der Unterschied als Konflikt im Ergebnis.
+
+Findet die Anwendung im PDF keinen Text (typisch für einen Scan ohne
+Textebene), sagt sie das und füllt nichts aus. Bitte dann das Original-PDF des
+Herstellers verwenden.
 
 **CAS-Nummer nachschlagen.** Tippen Sie eine CAS-Nummer ein und klicken auf
 **Autofill**. Die Einstufung kommt dann aus **Anhang VI der CLP-Verordnung**
