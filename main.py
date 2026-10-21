@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g
+from flask.sessions import SecureCookieSessionInterface
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -49,18 +50,28 @@ app.secret_key = os.environ["FLASK_SECRET_KEY"]
 # --- Security & Session Configuration ---
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# Secure-Cookies nur, wenn die Instanz auch ueber HTTPS erreichbar ist. In
-# Produktion ist das der Standard; fuer den Zugriff ueber die LAN-IP per HTTP
-# laesst es sich mit SESSION_COOKIE_SECURE=false abschalten. Ohne diese
-# Ausnahme verwirft der Browser das Sitzungscookie, und die Anmeldung
-# funktioniert nicht, obwohl die Zugangsdaten stimmen.
-_secure_override = os.environ.get('SESSION_COOKIE_SECURE')
-if _secure_override is not None:
-    app.config['SESSION_COOKIE_SECURE'] = _secure_override.strip().lower() not in (
-        'false', '0', 'no', 'off'
-    )
-elif os.environ.get('FLASK_ENV') == 'production':
-    app.config['SESSION_COOKIE_SECURE'] = True
+# Das Secure-Flag des Sitzungscookies haengt vom tatsaechlichen Zugriffsweg
+# ab, nicht von der Konfiguration: Die Anwendung laeuft im LAN ueber HTTP und
+# gleichzeitig hinter einem Reverse Proxy ueber HTTPS. Ein festes Flag macht
+# einen der beiden Wege kaputt — ein Secure-Cookie nimmt der Browser ueber
+# HTTP nicht an, und ohne Flagge wandert es unverschluesselt.
+#
+# ProxyFix hat den Scheme bereits aus X-Forwarded-Proto uebernommen, bevor
+# die Anwendung den Request sieht. SESSION_COOKIE_SECURE kann die Erkennung
+# bei Bedarf erzwingen (true/false), etwa hinter einem Proxy, der den Header
+# nicht setzt.
+class SchemeAwareSessionInterface(SecureCookieSessionInterface):
+    def get_cookie_secure(self, app):
+        override = os.environ.get('SESSION_COOKIE_SECURE')
+        if override is not None:
+            return override.strip().lower() not in ('false', '0', 'no', 'off')
+        try:
+            return request.is_secure
+        except RuntimeError:          # Aufruf ausserhalb eines Requests
+            return app.config.get('SESSION_COOKIE_SECURE', True)
+
+
+app.session_interface = SchemeAwareSessionInterface()
 
 app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
 os.makedirs(app_data_dir, exist_ok=True)

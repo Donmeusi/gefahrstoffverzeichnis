@@ -128,16 +128,47 @@ git clone https://github.com/Donmeusi/gefahrstoffverzeichnis.git /pfad/zu/ihrem/
 cd /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
 ```
 
-**2. Container bauen und starten:**
-Da im Repository bereits eine fertig konfigurierte `docker-compose.yml` beiliegt, müssen Sie den Container nur noch im Hintergrund starten. Der Parameter `--build` sorgt dafür, dass das Image beim ersten Start frisch erstellt wird:
+**2. Konfiguration anlegen:**
+Die Anwendung braucht einen eigenen Sitzungsschlüssel. Ohne ihn startet sie nicht — bewusst, denn ein Standardwert im Repository wäre öffentlich bekannt, und mit ihm ließen sich Anmeldungen fälschen.
 ```bash
-docker-compose up -d --build
+cp .env.example .env
+printf 'FLASK_SECRET_KEY=%s\n' "$(openssl rand -base64 32)" > .env
 ```
-Das System mountet Ihren Code-Ordner als Volume in den Container (`- ./:/app`). Dadurch bleiben alle Ihre zukünftigen Updates (via `git pull`) dauerhaft auf Ihrem Server gespeichert.
+Die `.env` ist per `.gitignore` ausgeschlossen. LDAP-Einstellungen (falls benötigt) gehören ebenfalls dorthin, siehe `.env.example`.
 
-**3. Auf die App zugreifen:**
+**3. Container bauen und starten:**
+```bash
+docker compose up -d --build
+```
+Das System mountet Ihren Code-Ordner als Volume in den Container (`- ./:/app`). Dadurch bleiben alle Ihre zukünftigen Updates (via `git pull`) dauerhaft auf Ihrem Server gespeichert. Die Python-Abhängigkeiten werden beim Bauen installiert, nicht bei jedem Start — ein Neustart dauert dadurch rund eine halbe Minute statt mehrerer Minuten.
+
+**4. Auf die App zugreifen:**
 Sobald der Container läuft, erreichen Sie das Gefahrstoffverzeichnis über den Browser unter:
 `http://<IP-Ihres-Servers>:5000`
+
+### Betrieb im LAN und im Internet
+
+Die Anwendung ist für beide Wege gleichzeitig gedacht und braucht dafür keine Konfiguration:
+
+| Zugriffsweg | Sitzungscookie |
+|---|---|
+| `http://<IP>:5000` im LAN | ohne `Secure`-Flag — der Browser nimmt es über HTTP an |
+| `https://<domain>` hinter Reverse Proxy | mit `Secure`-Flag — wird nur über HTTPS gesendet |
+
+Grundlage ist `X-Forwarded-Proto`: Senden Sie den Header im Proxy mit, erkennt die Anwendung HTTPS selbst. Nginx-Beispiel:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:5000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Reicht Ihr Proxy den Header nicht durch, setzen Sie in der `.env` `SESSION_COOKIE_SECURE=true` (erzwingt das Flag) oder `false` (schaltet es ab). Beides ist ein Notbehelf — der saubere Weg ist der Header.
+
+Die Anwendung selbst sollte **nicht** direkt aus dem Internet erreichbar sein: Port 5000 gehört hinter den Proxy, nicht in die Firewall-Freigabe.
 
 **Hinweis für Unraid-Nutzer:**
 Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach `/mnt/user/appdata/gefahrstoffverzeichnis`. Sie können die bestehende `docker-compose.yml` dann auch direkt in das "Compose Manager" Plugin von Unraid einbinden und den Stack (Container) über das Webinterface verwalten.
@@ -148,7 +179,7 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
 *   **WICHTIG - Datenbank Migration nach Updates:** Nach größeren Versionsupdates kann es vorkommen, dass neue Tabellenspalten (wie z.B. für Gefahrenkategorien) zur App hinzugefügt wurden. Um "Internal Server Errors" nach dem Aktualisieren zu vermeiden, führen Sie das Migrationsskript aus:
     *   **Standard-Installation:** Führen Sie `python migrate_gefahrenkategorien.py` in Ihrem App-Verzeichnis aus.
     *   **Docker-Installation:** Führen Sie den Befehl innerhalb des laufenden Containers aus: `docker exec -it gefahrstoffe_app python /app/migrate_gefahrenkategorien.py`
-*   **Produktivbetrieb:** Setzen Sie den `FLASK_SECRET_KEY` als Umgebungsvariable und verwenden Sie einen WSGI-Server (wie *Gunicorn* oder *Waitress*).
+*   **Produktivbetrieb:** `FLASK_SECRET_KEY` ist Pflicht — ohne ihn startet die Anwendung nicht. Die Docker-Installation startet bereits den WSGI-Server *Waitress*; bei einer Installation ohne Docker starten Sie `python run_prod.py` statt `flask run`.
 
 ## 📅 Changelog
 

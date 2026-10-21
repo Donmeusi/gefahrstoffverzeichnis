@@ -6,8 +6,22 @@ services:
     container_name: gefahrstoffe_app
     ports:
       - "5000:5000"
+    env_file:
+      # Muss vorhanden sein. Pflichtwert darin: FLASK_SECRET_KEY.
+      # Vorlage: .env.example
+      - .env
     environment:
       - APP_DATA_DIR=/app/data
+      # Pflicht. Ohne diesen Wert startet die App nicht — bewusst kein
+      # Default im Repo, sonst signiert jede Installation mit demselben,
+      # öffentlich bekannten Schluessel. Erzeugen mit:
+      #   openssl rand -base64 32
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:?FLASK_SECRET_KEY muss in .env stehen}
+      # Optional. Ohne Angabe richtet sich das Secure-Flag des
+      # Sitzungscookies nach dem Zugriffsweg: HTTPS -> Secure, HTTP im LAN
+      # -> nicht Secure. Nur setzen, wenn der Proxy X-Forwarded-Proto
+      # nicht durchreicht.
+      # - SESSION_COOKIE_SECURE=true
     volumes:
       # Mount the entire source code to persist git pull updates
       - ./:/app
