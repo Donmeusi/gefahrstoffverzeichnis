@@ -49,8 +49,17 @@ app.secret_key = os.environ["FLASK_SECRET_KEY"]
 # --- Security & Session Configuration ---
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# Falls Sie HTTPS verwenden, setzen Sie SESSION_COOKIE_SECURE = True in der Produktion
-if os.environ.get('FLASK_ENV') == 'production':
+# Secure-Cookies nur, wenn die Instanz auch ueber HTTPS erreichbar ist. In
+# Produktion ist das der Standard; fuer den Zugriff ueber die LAN-IP per HTTP
+# laesst es sich mit SESSION_COOKIE_SECURE=false abschalten. Ohne diese
+# Ausnahme verwirft der Browser das Sitzungscookie, und die Anmeldung
+# funktioniert nicht, obwohl die Zugangsdaten stimmen.
+_secure_override = os.environ.get('SESSION_COOKIE_SECURE')
+if _secure_override is not None:
+    app.config['SESSION_COOKIE_SECURE'] = _secure_override.strip().lower() not in (
+        'false', '0', 'no', 'off'
+    )
+elif os.environ.get('FLASK_ENV') == 'production':
     app.config['SESSION_COOKIE_SECURE'] = True
 
 app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
