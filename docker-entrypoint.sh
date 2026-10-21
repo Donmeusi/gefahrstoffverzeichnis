@@ -3,10 +3,22 @@ set -e
 
 echo "Starting Docker Entrypoint..."
 
-# Ensure dependencies are up to date
+# Abhaengigkeiten sind im Image installiert. Nachinstalliert wird nur, wenn
+# ein git pull die requirements.txt veraendert hat. Verglichen wird mit dem
+# Hash aus dem Image bzw. mit dem zuletzt installierten Stand in /app/data
+# (bleibt ueber Neustarts erhalten).
 if [ -f "requirements.txt" ]; then
-    echo "Installing dependencies..."
-    pip install --no-cache-dir -r requirements.txt
+    STAMP=/app/data/.requirements.sha256
+    IMAGE_HASH_FILE=/usr/local/share/requirements.sha256
+    WANT=$(sha256sum requirements.txt | cut -d' ' -f1)
+    HAVE=$(cat "$STAMP" 2>/dev/null || cat "$IMAGE_HASH_FILE" 2>/dev/null || echo "none")
+    if [ "$WANT" != "$HAVE" ]; then
+        echo "requirements.txt geaendert - installiere Abhaengigkeiten..."
+        pip install --no-cache-dir -r requirements.txt
+        echo "$WANT" > "$STAMP" 2>/dev/null || true
+    else
+        echo "Abhaengigkeiten unveraendert - ueberspringe pip install."
+    fi
 fi
 
 # Ensure database is up to date
