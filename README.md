@@ -168,6 +168,16 @@ location / {
 
 Reicht Ihr Proxy den Header nicht durch, setzen Sie in der `.env` `SESSION_COOKIE_SECURE=true` (erzwingt das Flag) oder `false` (schaltet es ab). Beides ist ein Notbehelf — der saubere Weg ist der Header.
 
+**Härtung:** Der Produktionsserver (Waitress) reicht `X-Forwarded-*` standardmäßig durch. Wenn Sie das einschränken wollen:
+
+```env
+# Nur dieser Proxy darf die Header setzen (IP oder CIDR)
+TRUSTED_PROXY=172.17.0.1
+
+# Oder: Header immer verwerfen (dann kein automatisches Secure-Flag)
+# CLEAR_UNTRUSTED_PROXY_HEADERS=true
+```
+
 Die Anwendung selbst sollte **nicht** direkt aus dem Internet erreichbar sein: Port 5000 gehört hinter den Proxy, nicht in die Firewall-Freigabe.
 
 **Hinweis für Unraid-Nutzer:**
