@@ -24,3 +24,8 @@ import tempfile
 # Bewusst kein setdefault: ein bereits gesetzter APP_DATA_DIR darf nicht dazu
 # führen, dass die Tests gegen echte Daten laufen und deren Tabellen löschen.
 os.environ['APP_DATA_DIR'] = tempfile.mkdtemp(prefix='gsv-test-')
+
+# Die Anwendung hat bewusst keinen Rückfallwert für den Sitzungsschlüssel
+# (siehe main.py). Für die Testsuite wird hier einer gesetzt, bevor 'main'
+# importiert wird — er gilt nur im Testprozess.
+os.environ.setdefault('FLASK_SECRET_KEY', 'test-suite-only-secret-key')

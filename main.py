@@ -40,7 +40,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 # Reverse Proxy Unterstützung (z.B. für Nginx/Apache Subdomains wie gefstoff.hs-anhalt.de)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "gefahrstoffe_secret_key_default_dev_2026")
+# Kein Rückfallwert: Ein Standardwert im Repo ist öffentlich bekannt, und
+# flask_login legt die Benutzer-ID in das damit signierte Cookie — wer den
+# Schlüssel kennt, kann jede beliebige Sitzung fälschen. Fehlt die Variable,
+# soll die Anwendung beim Start abbrechen statt still unsicher zu laufen.
+app.secret_key = os.environ["FLASK_SECRET_KEY"]
 
 # --- Security & Session Configuration ---
 app.config['SESSION_COOKIE_HTTPONLY'] = True
