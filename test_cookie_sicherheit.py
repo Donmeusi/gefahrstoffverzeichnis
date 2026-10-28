@@ -77,3 +77,7 @@ class TestSessionCookieSecureFlag(unittest.TestCase):
             self.assertIn('Secure', cookie)
         finally:
             os.environ.pop('SESSION_COOKIE_SECURE', None)
+
+
+if __name__ == '__main__':
+    unittest.main()

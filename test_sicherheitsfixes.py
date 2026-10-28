@@ -236,3 +236,7 @@ class TestSicherheitsfixes(unittest.TestCase):
         ziel = antwort.headers.get('Location', '')
         self.assertNotIn('evil.example', ziel,
                          'Protokollrelatives Ziel wurde übernommen')
+
+
+if __name__ == '__main__':
+    unittest.main()
