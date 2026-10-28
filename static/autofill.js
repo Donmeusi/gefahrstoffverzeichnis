@@ -35,12 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (namen.length === 1) {
                     namenSetzen(namen[0].name);
                 } else if (data.name) {
-                    // Kein Wikidata-Treffer - dann ist der PubChem-Name die
-                    // Rueckfallebene und englisch ("Isopropanol"). Das wird
-                    // gesagt, damit der Nutzer es nicht fuer die deutsche
-                    // Bezeichnung haelt.
-                    namenSetzen(data.name,
-                                data.name_quelle === 'wikidata' ? null : 'pubchem');
+                    // Kein Wikidata-Treffer. Der Name stammt dann aus der
+                    // amtlichen Tabelle (dort englisch) oder aus PubChem
+                    // (ebenfalls englisch); name_quelle sagt, woher.
+                    namenSetzen(data.name, data.name_quelle);
                 }
 
                 if (data.signalwort && document.getElementById('signalwort')) {
@@ -54,7 +52,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.p_saetze && document.getElementById('p_saetze')) {
                     document.getElementById('p_saetze').value = data.p_saetze;
                 }
-                
+
+                // Gefahrenkategorien kommen nur, wenn der Stoff in Anhang VI
+                // der CLP-Verordnung steht. Das Formular erwartet sie mit
+                // Semikolon getrennt.
+                if (data.gefahrenkategorien && document.getElementById('gefahrenkategorien')) {
+                    document.getElementById('gefahrenkategorien').value = data.gefahrenkategorien;
+                }
+
                 // Checkboxes für Piktogramme
                 if (data.piktogramme && data.piktogramme.length > 0) {
                     const checkboxes = document.querySelectorAll('input[name="piktogramme"]');
@@ -66,8 +71,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Erfolgsmeldung Button kurz grün färben (Klasse statt
-                // Inline-Farben - die hätten den Dunkelmodus übergangen)
-                btnAutofill.innerHTML = '<i class="fa-solid fa-check"></i> Fertig!';
+                // Inline-Farben - die hätten den Dunkelmodus übergangen).
+                // Die Herkunft steht mit dabei: 'amtlich' heißt, die Einstufung
+                // stammt aus Anhang VI der CLP-Verordnung; 'abgeleitet' heißt,
+                // der Stoff steht dort nicht und die Angaben sind aus den
+                // H-Sätzen hergeleitet bzw. von PubChem übernommen.
+                const amtlich = data.quelle === 'echa';
+                btnAutofill.innerHTML = '<i class="fa-solid fa-check"></i> Fertig!'
+                    + (amtlich ? ' (amtlich)' : ' (abgeleitet)');
+                btnAutofill.title = amtlich
+                    ? 'Einstufung aus Anhang VI der CLP-Verordnung'
+                    : 'Aus den H-Sätzen hergeleitet - Stoff steht nicht in Anhang VI';
                 btnAutofill.classList.remove('btn-outline');
                 btnAutofill.classList.add('btn-primary', 'is-ok');
 
@@ -98,16 +112,27 @@ function namenSchreiben(name) {
 
 // Ueberschreibt nur nach Rueckfrage - ein schon eingetragener Name kann vom
 // Nutzer stammen und soll nicht still verschwinden.
-// quelle 'pubchem' heisst: der Name ist nicht uebersetzt, das steht dabei.
+//
+// ⚠️ Und ein **nicht deutscher** Name wird auch bei leerem Feld vorgelegt.
+// Sonst landete unbemerkt "acetone; propan-2-one; propanone" im Verzeichnis,
+// wenn Wikidata gerade nichts liefert und der Rueckfall auf die englische
+// Bezeichnung aus der amtlichen Tabelle (oder aus PubChem) greift.
+// quelle: 'wikidata' = deutsch, 'echa'/'pubchem' = englisch.
 function namenSetzen(name, quelle) {
     const feld = document.getElementById('name');
     if (!feld) return;
-    const herkunft = quelle === 'pubchem'
-        ? '\n\nAchtung: aus PubChem, dort gibt es nur englische Bezeichnungen.'
+
+    const nichtDeutsch = quelle === 'echa' || quelle === 'pubchem';
+    const herkunft = nichtDeutsch
+        ? '\n\nAchtung: keine deutsche Bezeichnung. Quelle: '
+          + (quelle === 'echa' ? 'Anhang VI der CLP-Verordnung (englisch)'
+                               : 'PubChem (englisch)')
+          + '.'
         : '';
-    if (!feld.value || confirm(`Namen "${name}" übernehmen?${herkunft}`)) {
-        namenSchreiben(name);
+    if ((feld.value || nichtDeutsch) && !confirm(`Namen "${name}" übernehmen?${herkunft}`)) {
+        return;
     }
+    namenSchreiben(name);
 }
 
 function namenWaehlen(namen) {

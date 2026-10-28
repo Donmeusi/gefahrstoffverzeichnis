@@ -1,19 +1,112 @@
-version: '3.8'
-
 services:
   web:
     build: .
     container_name: gefahrstoffe_app
     ports:
-      - "5000:5000"
+      # Standard: nur Loopback. Ein vorgelagerter Reverse Proxy erreicht die
+      # Anwendung trotzdem; aus dem Netz ist sie dann nicht unverschluesselt
+      # und am Proxy vorbei erreichbar.
+      #
+      # Fuer direkten Zugriff aus dem LAN in der .env setzen:
+      #   BIND_ADDR=0.0.0.0        (oder die IP des Servers)
+      # Achtung: ueber HTTP gehen Anmeldungen im Klartext ueber die Leitung,
+      # und das Sitzungscookie traegt kein Secure-Flag. Das ist eine bewusste
+      # Entscheidung fuer ein vertrauenswuerdiges Netz, nicht fuer Gaeste-WLAN.
+      - "${BIND_ADDR:-127.0.0.1}:5000:5000"
+    env_file:
+      # Muss vorhanden sein. Pflichtwert darin: FLASK_SECRET_KEY.
+      # Vorlage: .env.example
+      - .env
     environment:
       - APP_DATA_DIR=/app/data
+      # Pflicht. Ohne diesen Wert startet die App nicht — bewusst kein
+      # Default im Repo, sonst signiert jede Installation mit demselben,
+      # öffentlich bekannten Schluessel. Erzeugen mit:
+      #   openssl rand -base64 32
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:?FLASK_SECRET_KEY muss in .env stehen}
+      # Optional. Ohne Angabe richtet sich das Secure-Flag des
+      # Sitzungscookies nach dem Zugriffsweg: HTTPS -> Secure, HTTP im LAN
+      # -> nicht Secure. Nur setzen, wenn der Proxy X-Forwarded-Proto
+      # nicht durchreicht.
+      # - SESSION_COOKIE_SECURE=true
+      # Hinter einem Reverse Proxy: IP bzw. CIDR des Proxys eintragen, damit
+      # nur dieser X-Forwarded-* setzen darf. Ohne Angabe werden die Header
+      # von jedem Client uebernommen.
+      # Standard ist der Caddy-Container aus dem Profil "tls" (feste Adresse im
+      # Netz tlsnet). Wer einen eigenen Proxy betreibt, traegt dessen Adresse
+      # hier ein; ohne passenden Wert werden die Header verworfen.
+      - TRUSTED_PROXY=${TRUSTED_PROXY:-172.28.0.2}
+      # Bei geaendertem TLS_SUBNET muss TRUSTED_PROXY auf die neue Adresse
+      # des Caddy-Containers zeigen (letztes Oktett .2).
     volumes:
       # Mount the entire source code to persist git pull updates
       - ./:/app
       # Native Docker Volume to bypass LXC SQLite locking bug
       - gefahrstoff_data:/app/data
-    restart: always
+    restart: unless-stopped
+    networks:
+      - default
+      - tlsnet
+    # Ohne Limit teilt sich ein grosser PDF- oder Excel-Upload den Speicher mit
+    # dem Host. Die Grenzen sind bewusst grosszuegig und nur eine Obergrenze.
+    mem_limit: 1g
+    cpus: 2.0
+    pids_limit: 200
+    healthcheck:
+      # Kein curl im slim-Image: die Pruefung laeuft ueber die Standardbibliothek.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/login', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # Optionaler TLS-Abschluss fuer Installationen ohne eigenen Reverse Proxy:
+  #
+  #   docker compose --profile tls up -d
+  #
+  # Dann ist die Anwendung unter https://<SITE_ADDRESS> erreichbar, Port 5000
+  # bleibt auf der Loopback-Schnittstelle. Das Zertifikat stammt standardmaessig
+  # aus Caddys lokaler CA (Browser-Warnung beim ersten Aufruf). Mit einer
+  # oeffentlichen Domain stattdessen: CADDYFILE=Caddyfile.acme setzen.
+  caddy:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    profiles: ["tls"]
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Name oder IP, unter der die Anwendung aufgerufen wird (ohne Schema).
+      - SITE_ADDRESS=${SITE_ADDRESS:-localhost}
+      # Caddyfile = lokale CA (Standard), Caddyfile.acme = Let's Encrypt.
+      - CADDYFILE=${CADDYFILE:-Caddyfile}
+    command: ["caddy", "run", "--config", "/etc/caddy/${CADDYFILE:-Caddyfile}", "--adapter", "caddyfile"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.acme:/etc/caddy/Caddyfile.acme:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      tlsnet:
+        ipv4_address: 172.28.0.2
+    restart: unless-stopped
+    mem_limit: 128m
+
+networks:
+  # Festes Netz nur fuer den TLS-Container. Die feste Adresse ist noetig,
+  # damit die Anwendung genau dieser Quelle die X-Forwarded-Header glaubt.
+  # Der dynamische Bereich beginnt bei .128, damit .2 frei bleibt - sonst
+  # vergibt Docker sie an die Anwendung, bevor Caddy startet.
+  # Kollidiert das Subnetz mit einem bestehenden Docker-Netz, laesst es sich
+  # ueber TLS_SUBNET und TLS_IP_RANGE in der .env verschieben.
+  tlsnet:
+    ipam:
+      config:
+        - subnet: ${TLS_SUBNET:-172.28.0.0/24}
+          ip_range: ${TLS_IP_RANGE:-172.28.0.128/25}
 
 volumes:
   gefahrstoff_data:
+  caddy_data:
+  caddy_config:

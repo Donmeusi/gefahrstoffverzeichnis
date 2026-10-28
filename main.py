@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g, abort, session
+from flask.sessions import SecureCookieSessionInterface
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -6,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 import os
 import json
 import subprocess
@@ -13,7 +15,8 @@ import platform
 import threading
 import time
 import calendar
-from datetime import datetime
+from datetime import datetime, timedelta
+from html import escape as html_escape
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
 from io import BytesIO
@@ -30,6 +33,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from ldap_auth import authenticate_ldap, is_ldap_enabled
 import mengenschwellen
 import wikidata
+import echa_anhang_vi
+import sdb_parser
 from piktogramme import piktogramme_fuer, signalwort_fuer, codes_aus_text, unbekannte_codes
 from types import SimpleNamespace
 
@@ -38,14 +43,42 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 # Reverse Proxy Unterstützung (z.B. für Nginx/Apache Subdomains wie gefstoff.hs-anhalt.de)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "gefahrstoffe_secret_key_default_dev_2026")
+# Kein Rückfallwert: Ein Standardwert im Repo ist öffentlich bekannt, und
+# flask_login legt die Benutzer-ID in das damit signierte Cookie — wer den
+# Schlüssel kennt, kann jede beliebige Sitzung fälschen. Fehlt die Variable,
+# soll die Anwendung beim Start abbrechen statt still unsicher zu laufen.
+app.secret_key = os.environ["FLASK_SECRET_KEY"]
 
 # --- Security & Session Configuration ---
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# Falls Sie HTTPS verwenden, setzen Sie SESSION_COOKIE_SECURE = True in der Produktion
-if os.environ.get('FLASK_ENV') == 'production':
-    app.config['SESSION_COOKIE_SECURE'] = True
+# Ohne diese Angabe gilt der Flask-Standard von 31 Tagen. Eine angemeldete
+# Sitzung auf einem gemeinsam genutzten Rechner soll nicht wochenlang gueltig
+# bleiben.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+app.config['SESSION_PERMANENT'] = True
+# Das Secure-Flag des Sitzungscookies haengt vom tatsaechlichen Zugriffsweg
+# ab, nicht von der Konfiguration: Die Anwendung laeuft im LAN ueber HTTP und
+# gleichzeitig hinter einem Reverse Proxy ueber HTTPS. Ein festes Flag macht
+# einen der beiden Wege kaputt — ein Secure-Cookie nimmt der Browser ueber
+# HTTP nicht an, und ohne Flagge wandert es unverschluesselt.
+#
+# ProxyFix hat den Scheme bereits aus X-Forwarded-Proto uebernommen, bevor
+# die Anwendung den Request sieht. SESSION_COOKIE_SECURE kann die Erkennung
+# bei Bedarf erzwingen (true/false), etwa hinter einem Proxy, der den Header
+# nicht setzt.
+class SchemeAwareSessionInterface(SecureCookieSessionInterface):
+    def get_cookie_secure(self, app):
+        override = os.environ.get('SESSION_COOKIE_SECURE')
+        if override is not None:
+            return override.strip().lower() not in ('false', '0', 'no', 'off')
+        try:
+            return request.is_secure
+        except RuntimeError:          # Aufruf ausserhalb eines Requests
+            return app.config.get('SESSION_COOKIE_SECURE', True)
+
+
+app.session_interface = SchemeAwareSessionInterface()
 
 app_data_dir = os.environ.get('APP_DATA_DIR', os.path.join(basedir, 'data'))
 os.makedirs(app_data_dir, exist_ok=True)
@@ -80,7 +113,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.6.0"
 
 @app.context_processor
 def inject_globals():
@@ -94,6 +127,37 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}
+
+# Mindestlaenge fuer lokal gesetzte Passwoerter. Gilt fuer Registrierung,
+# Benutzeranlage und Passwortwechsel im Profil. Die Grenze liegt bewusst
+# ueber vier Zeichen: kontoloesende Angriffe laufen sonst im Sekundentakt
+# durch, zumal es keinen Brute-Force-Schutz am Login gibt.
+MIN_PASSWORT_LAENGE = 12
+
+# Ziel-Repository für das In-App-Update. Das Formular im Adminbereich kann
+# diese Angabe nur bestätigen, nicht ersetzen: ein frei wählbares Remote macht
+# aus dem Admin-Konto Codeausführung (git pull + pip install im Container).
+# Abweichende Installationen setzen UPDATE_REPO_URL in der .env.
+UPDATE_REPO_URL = os.environ.get(
+    'UPDATE_REPO_URL',
+    'https://github.com/Donmeusi/gefahrstoffverzeichnis'
+).strip().rstrip('/')
+
+# Branch-Namen landen als Argument in `git checkout`. Ohne Prüfung wird ein
+# Wert wie "-f" als Option gelesen.
+BRANCH_MUSTER = re.compile(r'^(?!-)(?!/)[A-Za-z0-9._/-]{1,80}$')
+
+# `ext::` ist ein git-Transport, der ein Kommando ausführt.
+GIT_HART = ['git', '-c', 'protocol.ext.allow=never']
+
+
+def passwort_hinweis(password):
+    """Gibt eine Fehlermeldung zurueck oder None, wenn das Passwort genuegt."""
+    if not password or len(password) < MIN_PASSWORT_LAENGE:
+        return (f'Das Passwort muss mindestens {MIN_PASSWORT_LAENGE} Zeichen '
+                'lang sein.')
+    return None
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -131,8 +195,6 @@ def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
     file_obj.save(os.path.join(upload_dir, filename))
     return filename
 
-app.jinja_env.globals.update(getattr=getattr)
-
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -143,7 +205,15 @@ login_manager.login_message = "Bitte logge dich ein, um diese Seite zu sehen."
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    user = User.query.get(int(user_id))
+    if user is None:
+        return None
+    # Sitzungen aus der Zeit vor diesem Feld tragen 0 und bleiben gueltig;
+    # nach einem Passwortwechsel passt der Wert nicht mehr und die Sitzung
+    # gilt als abgemeldet.
+    if session.get('_session_version', 0) != (user.session_version or 0):
+        return None
+    return user
 
 # ─── Assoziationstabelle User <-> Bereich ────────────────────────────────────
 user_bereiche = db.Table('user_bereiche',
@@ -161,6 +231,16 @@ class User(UserMixin, db.Model):
     # Rollen: 'admin' | 'moderator' | 'benutzer' | 'lesen'
     role          = db.Column(db.String(20), default='benutzer', nullable=False)
     created_by    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    # Herkunft der Anmeldung: 'lokal' (Passwort in dieser Datenbank) oder
+    # 'ldap'. Ein Konto aus dem Verzeichnisdienst darf kein lokales Passwort
+    # setzen - sonst laeuft eine Sperre oder Loeschung im AD ins Leere.
+    auth_source   = db.Column(db.String(10), default='lokal', nullable=False,
+                              server_default='lokal')
+    # Wird bei jedem Passwortwechsel erhoeht. Die Sitzung traegt den Wert mit
+    # und wird ungueltig, sobald er abweicht; damit beendet ein
+    # Passwortwechsel auch Sitzungen auf anderen Geraeten.
+    session_version = db.Column(db.Integer, default=0, nullable=False,
+                                server_default='0')
 
     # Bereiche, die diesem Benutzer zugewiesen sind
     assigned_bereiche = db.relationship(
@@ -186,6 +266,8 @@ class User(UserMixin, db.Model):
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+        # Neue Fassung -> alle laufenden Sitzungen dieses Kontos verfallen.
+        self.session_version = (self.session_version or 0) + 1
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -1154,11 +1236,25 @@ def register():
         if not username or not password:
             flash('Bitte Benutzername und Passwort eingeben.', 'error')
             return redirect(url_for('register'))
-            
+
+        # Nicht nur hier: der erste Admin ist der einzige Weg in eine frische
+        # Installation und darf kein Ein-Zeichen-Passwort bekommen.
+        if passwort_hinweis(password):
+            flash(passwort_hinweis(password), 'error')
+            return redirect(url_for('register'))
+
         user = User(username=username, role='admin')
         user.set_password(password)
         db.session.add(user)
-        db.session.commit()
+        # Zwei gleichzeitige POSTs auf einer frischen Installation kamen
+        # beide durch die Zählprüfung oben. Der eindeutige Benutzername
+        # entscheidet jetzt, wer gewinnt.
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Der Administrator wurde bereits angelegt.', 'info')
+            return redirect(url_for('login'))
         
         # Argumente standen hier in falscher Reihenfolge und Zahl: der Aufruf
         # lautete log_audit_event(user.id, "USER_CREATE", "<Satz>") und schrieb
@@ -1174,6 +1270,53 @@ def register():
     return render_template('register.html')
 
 
+# ─── Bremse gegen Passwortraten ────────────────────────────────────────────────
+# Ohne Zaehler laesst sich ein lokales Passwort im Sekundentakt durchprobieren;
+# bei aktivem Verzeichnisdienst erzeugt das zusaetzlich Kontosperren im AD.
+# Der Zaehler liegt im Prozessspeicher und ist damit pro Instanz - das reicht
+# fuer einen einzelnen Waitress-Prozess und ist bewusst ohne neue Tabelle.
+MAX_FEHLVERSUCHE = 5
+SPERRE_SEKUNDEN = 15 * 60
+
+_fehlversuche = {}
+_fehlversuche_lock = threading.Lock()
+
+
+def _anmelde_schluessel(username):
+    return f'{(username or "").strip().lower()}|{request.remote_addr or "-"}'
+
+
+def anmelde_sperre_aktiv(username):
+    """Verbleibende Sperrzeit in Sekunden oder 0."""
+    key = _anmelde_schluessel(username)
+    with _fehlversuche_lock:
+        eintrag = _fehlversuche.get(key)
+        if not eintrag:
+            return 0
+        anzahl, seit = eintrag
+        vergangen = time.time() - seit
+        if vergangen > SPERRE_SEKUNDEN:
+            _fehlversuche.pop(key, None)
+            return 0
+        if anzahl < MAX_FEHLVERSUCHE:
+            return 0
+        return SPERRE_SEKUNDEN - int(vergangen)
+
+
+def anmelde_fehlversuch(username):
+    key = _anmelde_schluessel(username)
+    with _fehlversuche_lock:
+        anzahl, seit = _fehlversuche.get(key, (0, time.time()))
+        if time.time() - seit > SPERRE_SEKUNDEN:
+            anzahl, seit = 0, time.time()
+        _fehlversuche[key] = (anzahl + 1, seit)
+
+
+def anmelde_erfolg(username):
+    with _fehlversuche_lock:
+        _fehlversuche.pop(_anmelde_schluessel(username), None)
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -1182,29 +1325,54 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        # 1. LDAPs Authentifizierung versuchen, falls aktiviert
+        rest = anmelde_sperre_aktiv(username)
+        if rest:
+            flash('Zu viele Fehlversuche. Bitte in '
+                  f'{max(1, rest // 60)} Minuten erneut versuchen.', 'error')
+            return redirect(url_for('login'))
+
+        # 1. Verzeichnisdienst
         if is_ldap_enabled():
             success, ldap_res = authenticate_ldap(username, password)
             if success:
                 user = User.query.filter_by(username=username).first()
                 if not user:
                     default_role = ldap_res.get('default_role', 'lesen')
-                    user = User(username=username, role=default_role)
+                    user = User(username=username, role=default_role,
+                                auth_source='ldap')
                     user.set_password(os.urandom(16).hex())
                     db.session.add(user)
                     db.session.commit()
                     log_audit_event('USER_CREATE', 'User', user.id, f"Benutzer via LDAPs neu angelegt (Rolle: {default_role}).")
-                
+                elif user.auth_source != 'ldap':
+                    # Konto existierte lokal und wird jetzt vom Verzeichnis
+                    # bedient: ab hier gilt nur noch das Passwort von dort,
+                    # damit eine Sperre im AD greift.
+                    user.auth_source = 'ldap'
+                    db.session.commit()
+
+                anmelde_erfolg(username)
                 login_user(user)
+                session.permanent = True
+                session['_session_version'] = user.session_version or 0
                 log_audit_event('LOGIN', 'User', user.id, "Erfolgreicher LDAPs Login.")
                 return redirect(url_for('index'))
 
-        # 2. Lokale Datenbank-Authentifizierung (Fallback)
-        user = User.query.filter_by(username=username).first()
+        # 2. Lokale Anmeldung. Bewusst nur fuer Konten mit auth_source
+        # 'lokal': ein Verzeichniskonto darf sich nicht mit einem lokal
+        # gesetzten Passwort an einer Kontosperre vorbeimelden, auch nicht
+        # bei einem Ausfall des Verzeichnisdienstes.
+        user = User.query.filter_by(username=username,
+                                    auth_source='lokal').first()
         if user is None or not user.check_password(password):
+            anmelde_fehlversuch(username)
             flash('Ungültiger Benutzername oder Passwort', 'error')
             return redirect(url_for('login'))
+
+        anmelde_erfolg(username)
         login_user(user)
+        session.permanent = True
+        session['_session_version'] = user.session_version or 0
         # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
         log_audit_event('LOGIN', 'User', user.id,
                         'Lokaler Login (Passwort aus der Datenbank).')
@@ -1536,9 +1704,11 @@ def location_inventur(id):
         flash('Kein Zugriff auf diesen Standort.', 'error')
         return redirect(url_for('index'))
 
-    stoff_list = Gefahrstoff.query.filter_by(
-        unterbereich_id=unterbereich.id,
-        is_deleted=False
+    # Ueber get_gefahrstoff_query(), damit nicht freigegebene Stoffe (CMR)
+    # auch in der Inventur unsichtbar bleiben. Die Bereichszugehoerigkeit ist
+    # oben bereits geprueft; die Query ergaenzt den Freigabefilter.
+    stoff_list = get_gefahrstoff_query().filter(
+        Gefahrstoff.unterbereich_id == unterbereich.id
     ).order_by(Gefahrstoff.name.asc()).all()
 
     if request.method == 'POST':
@@ -1599,7 +1769,8 @@ def delete_bereich(id):
         flash(f'Bereich "{bereich_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
-        flash(f'Fehler beim Löschen: {str(e)}', 'error')
+        app.logger.exception('Fehler beim Löschen')
+        flash(f'Fehler beim Löschen. Details stehen im Server-Log.', 'error')
     return redirect(url_for('locations'))
 
 
@@ -1629,7 +1800,8 @@ def delete_unterbereich(id):
         flash(f'Unterbereich "{anzeige_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
-        flash(f'Fehler beim Löschen: {str(e)}', 'error')
+        app.logger.exception('Fehler beim Löschen')
+        flash(f'Fehler beim Löschen. Details stehen im Server-Log.', 'error')
     return redirect(url_for('locations'))
 
 # ─── Gefahrstoffe ────────────────────────────────────────────────────────────
@@ -1915,7 +2087,8 @@ def add():
             db.session.rollback()
             import traceback
             traceback.print_exc()
-            flash(f'Fehler beim Speichern des Gefahrstoffs: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Speichern des Gefahrstoffs')
+            flash(f'Fehler beim Speichern des Gefahrstoffs. Details stehen im Server-Log.', 'error')
             return redirect(url_for('add'))
 
     return render_template('add.html', bereiche=bereiche)
@@ -2048,7 +2221,8 @@ def edit_stoff(id):
             return redirect(url_for('view_stoff', id=stoff.id))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Speichern: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Speichern')
+            flash(f'Fehler beim Speichern. Details stehen im Server-Log.', 'error')
 
     return render_template('edit.html', stoff=stoff, bereiche=bereiche)
 
@@ -2071,7 +2245,8 @@ def delete_stoff(id):
         flash(f'Gefahrstoff "{stoff.name}" wurde erfolgreich gelöscht.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Fehler beim Löschen: {str(e)}', 'error')
+        app.logger.exception('Fehler beim Löschen')
+        flash(f'Fehler beim Löschen. Details stehen im Server-Log.', 'error')
     return redirect(url_for('index'))
 
 
@@ -2104,7 +2279,8 @@ def move_stoff(id):
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Verschieben: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Verschieben')
+            flash(f'Fehler beim Verschieben. Details stehen im Server-Log.', 'error')
     return render_template('move_copy.html', stoff=stoff, bereiche=bereiche, action='Verschieben')
 
 
@@ -2161,7 +2337,8 @@ def copy_stoff(id):
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Kopieren: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Kopieren')
+            flash(f'Fehler beim Kopieren. Details stehen im Server-Log.', 'error')
     return render_template('move_copy.html', stoff=stoff, bereiche=bereiche, action='Kopieren')
 
 # ─── Export ──────────────────────────────────────────────────────────────────
@@ -2281,11 +2458,14 @@ def export_pdf():
     
     for s in stoffe:
         # Col 1: Name & CAS
-        name_cas = f"<b>{s.name}</b><br/>"
+        # Paragraph() wertet Mini-HTML aus. Alle Freitextfelder werden
+        # escaped, sonst laesst sich ueber den Stoffnamen Markup in das PDF
+        # schmuggeln (Links, Bilder).
+        name_cas = f"<b>{html_escape(s.name or '')}</b><br/>"
         if s.cas_nummer:
-            name_cas += f"CAS: {s.cas_nummer}<br/>"
+            name_cas += f"CAS: {html_escape(s.cas_nummer)}<br/>"
         if s.eg_nummer:
-            name_cas += f"EG: {s.eg_nummer}"
+            name_cas += f"EG: {html_escape(s.eg_nummer)}"
         p_name_cas = Paragraph(name_cas, cell_style)
         
         # Col 2: Einstufung (Piktogramme & H-Sätze)
@@ -2318,20 +2498,25 @@ def export_pdf():
                 pass
         
         if s.gefahrenkategorien:
-            einstufung_elements.append(Paragraph(s.gefahrenkategorien, cell_style))
+            einstufung_elements.append(
+                Paragraph(html_escape(s.gefahrenkategorien), cell_style))
         if s.signalwort:
-            einstufung_elements.append(Paragraph(f"<i>{s.signalwort}</i>", cell_style))
+            einstufung_elements.append(
+                Paragraph(f"<i>{html_escape(s.signalwort)}</i>", cell_style))
         if s.h_saetze:
-            einstufung_elements.append(Paragraph(s.h_saetze, cell_style))
+            einstufung_elements.append(
+                Paragraph(html_escape(s.h_saetze), cell_style))
             
         # Col 3: Menge & LGK
-        menge_str = f"{s.menge} {s.mengeneinheit}" if s.menge else "-"
+        menge_str = f"{s.menge} {html_escape(str(s.mengeneinheit or ''))}" if s.menge else "-"
         if s.lagerklasse:
-            menge_str += f"<br/>LGK: {s.lagerklasse}"
+            menge_str += f"<br/>LGK: {html_escape(str(s.lagerklasse))}"
         p_menge = Paragraph(menge_str, cell_style)
         
         # Col 4: Arbeitsbereich
-        standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
+        standort = (f"{html_escape(s.unterbereich.bereich.name)} > "
+                    f"{html_escape(s.unterbereich.name)}"
+                    if s.unterbereich else html_escape(s.lagerort or "-"))
         p_standort = Paragraph(standort, cell_style)
         
         # Col 5: Datum SDB
@@ -2339,11 +2524,11 @@ def export_pdf():
         p_sdb = Paragraph(sdb_datum, cell_style)
         
         # Col 6: Substitution
-        subst_str = f"<b>{s.substitutionspruefung or '-'}</b>"
+        subst_str = f"<b>{html_escape(s.substitutionspruefung or '-')}</b>"
         if s.ersatzstoff:
-            subst_str += f"<br/>Ersatzstoff: {s.ersatzstoff}"
+            subst_str += f"<br/>Ersatzstoff: {html_escape(s.ersatzstoff)}"
         if s.begruendung:
-            subst_str += f"<br/>Begründung: {s.begruendung}"
+            subst_str += f"<br/>Begründung: {html_escape(s.begruendung)}"
         p_subst = Paragraph(subst_str, cell_style)
         
         data.append([p_name_cas, einstufung_elements, p_menge, p_standort, p_sdb, p_subst])
@@ -2370,6 +2555,19 @@ def uploaded_file(filename):
     if current_user.role == 'lesen':
         flash('Keine Berechtigung zum Herunterladen von Dokumenten (Leser-Rolle).', 'error')
         return redirect(url_for('index'))
+    # Die Rolle allein genuegt nicht: sonst laedt jeder Benutzer jedes Dokument
+    # herunter, auch aus Bereichen, die ihm nicht zugeordnet sind. Der
+    # Dateiname muss zu einem Stoff gehoeren, den get_gefahrstoff_query()
+    # fuer diesen Benutzer liefert.
+    erlaubt = get_gefahrstoff_query().filter(db.or_(
+        Gefahrstoff.sicherheitsdatenblatt == filename,
+        Gefahrstoff.betriebsanweisung == filename,
+        Gefahrstoff.gefaehrdungsbeurteilung == filename,
+    )).first()
+    if not erlaubt:
+        # Bewusst 404 statt 403: sonst verraet die Antwort, dass es die Datei
+        # gibt. Dateinamen sind aus dem Stoffnamen ableitbar.
+        abort(404)
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ─── Profil & Freigaben ────────────────────────────────────────────────────────
@@ -2432,6 +2630,10 @@ def inject_pending_approvals():
 @login_required
 def profile():
     if request.method == 'POST':
+        if current_user.auth_source == 'ldap':
+            flash('Dieses Konto wird über den Verzeichnisdienst verwaltet. '
+                  'Bitte ändere das Passwort dort.', 'error')
+            return redirect(url_for('profile'))
         old_password    = request.form.get('old_password')
         new_password    = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
@@ -2439,11 +2641,14 @@ def profile():
             flash('Altes Passwort ist nicht korrekt.', 'error')
         elif new_password != confirm_password:
             flash('Die neuen Passwörter stimmen nicht überein.', 'error')
-        elif len(new_password) < 4:
-            flash('Das neue Passwort muss mindestens 4 Zeichen lang sein.', 'error')
+        elif passwort_hinweis(new_password):
+            flash(passwort_hinweis(new_password), 'error')
         else:
             current_user.set_password(new_password)
             db.session.commit()
+            # Die eigene Sitzung behaelt ihre Gueltigkeit, alle anderen
+            # Geraete des Kontos werden abgemeldet.
+            session['_session_version'] = current_user.session_version or 0
             # Wie bei der Unterschrift: nur das Ereignis, nie das Passwort.
             log_audit_event('USER_PASSWORD', 'User', current_user.id,
                             'Passwort im eigenen Profil geändert.')
@@ -2492,7 +2697,9 @@ def approve_stoff(id):
     # Wurde von der Detailseite freigegeben, dort bleiben; sonst zurueck zur
     # Freigabeliste. Nur relative Pfade (kein offenes Weiterleiten).
     ziel = request.form.get('next', '')
-    if ziel.startswith('/'):
+    # Nur echte lokale Pfade: '//evil.com' ist protokollrelativ und leitet auf
+    # eine Fremddomain, Backslash wird von manchen Browsern wie '/' behandelt.
+    if ziel.startswith('/') and not ziel.startswith('//') and '\\' not in ziel:
         return redirect(ziel)
     return redirect(url_for('profile'))
 
@@ -2560,6 +2767,10 @@ def create_user():
             flash('Benutzername und Passwort sind Pflichtfelder.', 'error')
             return redirect(url_for('create_user'))
 
+        if passwort_hinweis(password):
+            flash(passwort_hinweis(password), 'error')
+            return redirect(url_for('create_user'))
+
         if role not in allowed_roles:
             flash('Ungültige Rolle.', 'error')
             return redirect(url_for('create_user'))
@@ -2594,7 +2805,8 @@ def create_user():
             return redirect(url_for('users'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler: {str(e)}', 'error')
+            app.logger.exception('Fehler')
+            flash(f'Fehler. Details stehen im Server-Log.', 'error')
 
     return render_template('create_user.html', allowed_roles=allowed_roles, bereiche=accessible)
 
@@ -2774,7 +2986,8 @@ def edit_user(id):
             return redirect(url_for('users'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler: {str(e)}', 'error')
+            app.logger.exception('Fehler')
+            flash(f'Fehler. Details stehen im Server-Log.', 'error')
 
     return render_template('edit_user.html', user=user, allowed_roles=allowed_roles, bereiche=accessible)
 
@@ -2884,188 +3097,45 @@ def parse_sdb():
 
     if 'file' not in request.files:
         return {'error': 'Keine Datei hochgeladen'}, 400
-        
+
     file = request.files['file']
     if file.filename == '':
         return {'error': 'Keine Datei ausgewählt'}, 400
-        
+
     if not file.filename.lower().endswith('.pdf'):
         return {'error': 'Bitte eine PDF-Datei hochladen'}, 400
 
-    text_content = ""
-    first_page_text = ""
+    # Text seitenweise holen und Tabellen nur dort, wo sie fachlich relevant
+    # sind (Einstufung, Zusammensetzung). extract_tables() ist teuer; auf
+    # jedem Seite aufzurufen kostet mehr Zeit als der gesamte übrige Import.
+    seiten, tabellen = [], []
     try:
         with pdfplumber.open(file) as pdf:
-            if len(pdf.pages) > 0:
-                first_page_text = pdf.pages[0].extract_text() or ""
-                
-            for page in pdf.pages[:15]:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content += page_text + "\n"
-                    
-        # Extract CAS
-        cas_match = re.search(r'\b(\d{2,7}-\d{2}-\d)\b', text_content)
-        cas = cas_match.group(1) if cas_match else ""
-        
-        # Extract EG-Nummer
-        eg_explicit = re.search(r'(?:EG-Nr\.|EG-Nummer|EG Nr\.|EC-No\.|EC No\.)[\s:]*(\d{3}-\d{3}-\d)', text_content, re.IGNORECASE)
-        if not eg_explicit:
-            eg_match = re.search(r'\b([2459]\d{2}-\d{3}-\d)\b', text_content)
-            eg = eg_match.group(1) if eg_match else ""
-        else:
-            eg = eg_explicit.group(1)
-            
-        # Extract Signalwort
-        signal_match = re.search(r'\b(Gefahr|Achtung)\b', text_content, re.IGNORECASE)
-        signalwort = signal_match.group(1).capitalize() if signal_match else ""
-        
-        # Extract Gefahrenkategorien aus Abschnitt 2.1
-        gefahrenkategorien = []
-        sec21_match = re.search(r'2\.1\b.*?(?:Einstufung).*?(?=2\.2|Kennzeichnungselemente)', text_content, re.IGNORECASE | re.DOTALL)
-        if sec21_match:
-            sec21_text = sec21_match.group(0)
-            raw_cats = re.findall(r'\b(?:Met|Skin|Eye|Acute|Flam|Ox|Aquatic|Asp|STOT|Muta|Carc|Repr|Resp)[\.\s]*(?:Corr|Dam|Irrit|Tox|Liq|Sol|Gas|Sens|SE|RE|Chronic|Acute)?[\.\s]*[1-4]?[A-C]?\b', sec21_text, re.IGNORECASE)
-            seen = set()
-            for c in raw_cats:
-                c = re.sub(r'\s+', ' ', c).replace(' .', '.').replace('.', '. ').replace('  ', ' ').strip()
-                words = []
-                for w in c.split():
-                    if w.upper() in ['1A', '1B', '1C', '2A', '2B', '3', '4', 'SE', 'RE', 'STOT']:
-                        words.append(w.upper())
-                    else:
-                        words.append(w.capitalize())
-                c = " ".join(words)
-                if c and c.upper() not in [s.upper() for s in seen]:
-                    seen.add(c)
-                    gefahrenkategorien.append(c)
-
-        # Abschnitt 2.2 isolieren für präzise H- und P-Sätze (verhindert Auslesen von H-Sätzen aus Abschnitt 2.1 Einstufungstabelle)
-        sec22_match = re.search(r'(?:2\.2\s*)?Kennzeichnungselemente(.*?)(?:2\.3\s*Sonstige Gefahren|3\.\s*Zusammensetzung|ABSCHNITT\s*3)', text_content, re.IGNORECASE | re.DOTALL)
-        if sec22_match:
-            search_text = sec22_match.group(1)
-        else:
-            sec2_match = re.search(r'ABSCHNITT\s*2\b.*?(?:Mögliche\s*Gefahren)?(.*?)ABSCHNITT\s*3\b', text_content, re.IGNORECASE | re.DOTALL)
-            search_text = sec2_match.group(1) if sec2_match else text_content
-        
-        # Extract H-Sätze (jetzt auch mit mehreren Buchstaben wie H360FD und optionalen Leerzeichen)
-        h_saetze_raw = re.findall(r'\b(H\s?[234]\d{2}\s?[a-zA-Z]{0,3})\b', search_text, re.IGNORECASE)
-        euh_saetze_raw = re.findall(r'\b(EUH\s?\d{3}\s?[a-zA-Z]{0,3})\b', search_text, re.IGNORECASE)
-        h_saetze = sorted(list(set([re.sub(r'[\s\n]+', '', h).upper() for h in h_saetze_raw + euh_saetze_raw])))
-        
-        # Extract P-Sätze
-        p_saetze_raw = re.findall(r'\b(P\s?\d{3}(?:\s?\+\s?P\s?\d{3})*)\b', search_text, re.IGNORECASE)
-        p_saetze = sorted(list(set([re.sub(r'[\s\n]+', '', p).upper() for p in p_saetze_raw])))
-        
-        # Extract Datum (Priorität: "Überarbeitet am" auf der ersten Seite)
-        date_str = ""
-        date_match = re.search(r'(?:Überarbeitet am|Datum der Überarbeitung|Druckdatum)[\s:]*(\d{2}\.\d{2}\.\d{4})', first_page_text, re.IGNORECASE)
-        if date_match:
-            try:
-                d, m, y = date_match.group(1).split('.')
-                dt = datetime(int(y), int(m), int(d))
-                date_str = dt.strftime('%Y-%m-%d')
-            except Exception:
-                pass
-                
-        # Fallback für Datum, falls "Überarbeitet am" nicht gefunden
-        if not date_str:
-            date_matches = re.findall(r'\b(\d{2})\.(\d{2})\.(\d{4})\b', first_page_text)
-            if date_matches:
-                valid_dates = []
-                for d, m, y in date_matches:
+            for nummer, page in enumerate(pdf.pages[:15]):
+                text = page.extract_text() or ''
+                seiten.append(text)
+                if (nummer < 6 and len(tabellen) < 12
+                        and any(k in text.lower() for k in (
+                            'einstufung', 'zusammensetzung', 'classification',
+                            'composition'))):
                     try:
-                        dt = datetime(int(y), int(m), int(d))
-                        if dt <= datetime.now():
-                            valid_dates.append(dt)
-                    except ValueError:
+                        tabellen.extend(page.extract_tables() or [])
+                    except Exception:
                         pass
-                if valid_dates:
-                    date_str = max(valid_dates).strftime('%Y-%m-%d')
-        
-        # Extract Handelsname (stark verbessert)
-        name = ""
-        # 1. Versuche Abschnitt 1.1 "Produktidentifikator" zu isolieren
-        section_1_match = re.search(r'1\.1[^\n]*Produktidentifikator(.*?)(?:1\.2|Relevante identifizierte)', first_page_text, re.IGNORECASE | re.DOTALL)
-        if section_1_match:
-            chunk = section_1_match.group(1).strip()
-            lines = [l.strip() for l in chunk.split('\n') if l.strip()]
-            for line in lines:
-                lower_line = line.lower()
-                
-                # Exakte Label-Zeilen ignorieren (Name steht oft in der Zeile danach)
-                if lower_line in ['bezeichnung des stoffs', 'bezeichnung des stoffes', 'handelsname', 'produktname', 'stoffname', 'bezeichnung des gemischs', 'produktidentifikator']:
-                    continue
-                    
-                # Zeilen mit Doppelpunkt prüfen (z.B. "Handelsname: Aceton")
-                if ':' in line:
-                    key, val = line.split(':', 1)
-                    if any(k in key.lower() for k in ['bezeichnung', 'handelsname', 'produkt', 'stoff', 'gemisch', 'identifikator']):
-                        if val.strip():
-                            name = val.strip()
-                            break
-                        else:
-                            continue # Nach Doppelpunkt leer -> nächste Zeile nehmen
-                            
-                # Fallback: Präfixe ohne Doppelpunkt entfernen
-                cleaned_name = re.sub(r'^(?:Bezeichnung des Stoff(?:e)?s|Bezeichnung des Gemischs|Handelsname|Produktname|Stoffname|Produktidentifikator)[\s:]*', '', line, flags=re.IGNORECASE).strip()
-                if cleaned_name:
-                    name = cleaned_name
-                    break
-
-        # 2. Fallback auf altes Regex, falls 1.1 nicht eindeutig gefunden wurde
-        if not name:
-            name_match = re.search(r'(?:Handelsname|Produktname|Bezeichnung des Stoff(?:e)?s|Bezeichnung des Gemischs|Stoffname)[\s:]*([^\n]+)', first_page_text, re.IGNORECASE)
-            if name_match and len(name_match.group(1).strip()) > 2:
-                name = name_match.group(1).strip()
-                name = re.sub(r'^(?:Bezeichnung des Stoff(?:e)?s|Bezeichnung des Gemischs|Handelsname|Produktname|Stoffname)[\s:]*', '', name, flags=re.IGNORECASE).strip()
-
-        # 3. Absoluter Fallback auf erste sinnvolle Zeile
-        if not name:
-            lines = [l.strip() for l in first_page_text.split('\n') if l.strip() and len(l.strip()) > 3]
-            for line in lines:
-                if any(x in line for x in ["Sicherheitsdatenblatt", "gemäß", "Verordnung", "Abschnitt", "Version", "Gefahr", "Achtung", "Überarbeitet", "Druckdatum", "Bezeichnung des Stoff"]):
-                    continue
-                name = line[:100]
-                break
-
-        if len(name) > 100: name = name[:100]
-                
-        # Piktogramme: die im Abschnitt genannten GHS-Codes plus die aus den
-        # H-Saetzen abgeleiteten. Die Ableitung steht in piktogramme.py und
-        # stammt aus Anhang I/V der CLP-VO.
-        # ⚠️ Hier stand bis 13.10.2026 eine if/elif-Kette, die je H-Satz nur
-        # EIN Piktogramm liefern konnte - H241 traegt GHS01 und GHS02, bekam
-        # aber nur das erste. Ausserdem kannte sie 31 der 91 H-Saetze nicht.
-        piktogramme = {p.upper() for p in re.findall(r'\b(GHS0[1-9])\b', search_text, re.IGNORECASE)}
-        piktogramme.update(piktogramme_fuer(h_saetze))
-
-        # Extract Lagerklasse (robuste Suche mit Validierung)
-        valid_lgk = {'1', '2A', '2B', '3', '4.1A', '4.1B', '4.2', '4.3', '5.1A', '5.1B', '5.1C', '5.2', '6.1A', '6.1B', '6.1C', '6.1D', '6.2', '7', '8A', '8B', '10', '11', '12', '13'}
-        lagerklasse = ""
-        # Suche nach "Lagerklasse" oder "LGK", gefolgt von max 40 Zeichen (ohne Zeilenumbruch) und dann einer Nummer (mit optionalem Leerzeichen)
-        lgk_matches = re.findall(r'(?:Lagerklasse|LGK)[^\n]{0,40}?\b(\d{1,2}(?:\.\d)?\s?[A-Za-z]?)\b', text_content, re.IGNORECASE)
-        for match in lgk_matches:
-            match_upper = match.replace(' ', '').upper()
-            if match_upper in valid_lgk:
-                lagerklasse = match_upper
-                break
-                
-        return {
-            'success': True,
-            'name': name,
-            'cas': cas,
-            'eg': eg,
-            'gefahrenkategorien': gefahrenkategorien,
-            'signalwort': signalwort,
-            'h_saetze': ", ".join(h_saetze),
-            'p_saetze': ", ".join(p_saetze),
-            'piktogramme': list(piktogramme),
-            'sdb_datum': date_str,
-            'lagerklasse': lagerklasse
-        }
     except Exception as e:
-        return {'error': str(e)}, 500
+        # Die Meldung von pdfminer ("No /Root object!") ist für den Nutzer
+        # wertlos und nennt Interna. Sie geht ins Log, nicht ins Formular.
+        app.logger.warning('SDB-PDF nicht lesbar: %s', e)
+        return {
+            'error': 'Das PDF konnte nicht geöffnet werden. Ist die Datei '
+                     'beschädigt oder passwortgeschützt?'
+        }, 400
+
+    ergebnis = sdb_parser.analysiere(seiten, tabellen)
+    if not ergebnis.get('success'):
+        return ergebnis, 422
+    return ergebnis
+
 @app.route('/audit_logs')
 @login_required
 def audit_logs():
@@ -3094,7 +3164,8 @@ def admin_system():
     current_branch = "main"
     try:
         current_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()
-        subprocess.check_call(['git', 'fetch'], stderr=subprocess.STDOUT)
+        subprocess.check_call([*GIT_HART, 'fetch'], stderr=subprocess.STDOUT,
+                              timeout=120)
         local_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
         remote_commit = subprocess.check_output(['git', 'rev-parse', f'origin/{current_branch}'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
         if local_commit != remote_commit:
@@ -3110,17 +3181,24 @@ def update_repo():
     if not current_user.is_admin:
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
-    new_url = request.form.get('repo_url', '').strip()
-    if not new_url:
-        new_url = "https://github.com/Donmeusi/gefahrstoffverzeichnis"
+    new_url = (request.form.get('repo_url', '').strip() or UPDATE_REPO_URL).rstrip('/')
+    # Nur das konfigurierte Repository. Ohne diese Prüfung konnte ein
+    # Admin-Konto über "eigenes Repo + Update" beliebigen Code ausführen.
+    if new_url != UPDATE_REPO_URL:
+        flash('Diese Repository-URL ist nicht zugelassen. Erlaubt ist nur '
+              f'{UPDATE_REPO_URL} (änderbar über UPDATE_REPO_URL in der .env).',
+              'error')
+        return redirect(url_for('admin_system'))
     erfolg = False
     try:
-        subprocess.check_call(['git', 'remote', 'set-url', 'origin', new_url], stderr=subprocess.STDOUT)
+        subprocess.check_call([*GIT_HART, 'remote', 'set-url', 'origin', '--', new_url],
+                              stderr=subprocess.STDOUT)
         flash('Repository-URL erfolgreich aktualisiert.', 'success')
         erfolg = True
     except subprocess.CalledProcessError:
         try:
-            subprocess.check_call(['git', 'remote', 'add', 'origin', new_url], stderr=subprocess.STDOUT)
+            subprocess.check_call([*GIT_HART, 'remote', 'add', 'origin', '--', new_url],
+                                  stderr=subprocess.STDOUT)
             flash('Repository-URL erfolgreich hinzugefügt.', 'success')
             erfolg = True
         except Exception as e:
@@ -3143,6 +3221,9 @@ def do_update():
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
     target_branch = request.form.get('target_branch', '').strip() or None
+    if target_branch and not BRANCH_MUSTER.fullmatch(target_branch):
+        flash('Ungültiger Branch-Name.', 'error')
+        return redirect(url_for('admin_system'))
 
     # Vor dem Start des Threads protokollieren, nicht darin: der Update-Thread
     # beendet den Prozess am Ende mit os._exit(0), ein Eintrag aus dem Thread
@@ -3171,9 +3252,9 @@ def do_update():
                 shutil.copy(db_path, os.path.join(backup_dir, f"gefahrstoffe_{timestamp}.db"))
 
             if target_branch:
-                subprocess.run(["git", "fetch"])
-                subprocess.run(["git", "checkout", target_branch])
-            subprocess.run(["git", "pull"])
+                subprocess.run([*GIT_HART, "fetch"], timeout=120)
+                subprocess.run([*GIT_HART, "checkout", target_branch], timeout=60)
+            subprocess.run([*GIT_HART, "pull"], timeout=300)
         else:
             import platform
             if platform.system() == "Windows":
@@ -3186,8 +3267,74 @@ def do_update():
     import threading
     threading.Thread(target=trigger_update_script).start()
     
-    flash('Update wird im Hintergrund ausgeführt. Der Server startet in wenigen Sekunden neu.', 'success')
+    flash('Update wird im Hintergrund ausgeführt. Der Server startet neu.', 'success')
     return redirect(url_for('index'))
+
+
+# ─── PubChem-Hilfen für den Autofill ─────────────────────────────────────────
+
+def pubchem_bevorzugte_referenz(info_liste, quellen):
+    """Waehlt unter mehreren Quellenangaben die EU-Referenz.
+
+    ⚠️ Nötig, weil PubChem zu einer CAS-Nummer Einstufungen aus verschiedenen
+    Rechtsräumen führt: zu Salzsäure steht dort neben der VO (EG) 1272/2008
+    auch japanisches Recht (NITE-CMC) mit H330, H334, H370 und H372. Ohne diese
+    Wahl landete je nach Stoff irgendeine Jurisdiktion im Verzeichnis.
+    Reihenfolge: EU-Quelle, sonst die erste genannte, sonst None.
+    """
+    eu, alle = [], []
+    for info in info_liste:
+        nummer = info.get('ReferenceNumber')
+        if not nummer:
+            continue
+        if nummer not in alle:
+            alle.append(nummer)
+        name = quellen.get(nummer, '')
+        if any(m in name for m in ('EU', 'European', 'ECHA', '1272/2008')):
+            if nummer not in eu:
+                eu.append(nummer)
+    return (eu or alle or [None])[0]
+
+
+def pubchem_p_saetze(cid):
+    """Die P-Satz-Codes eines Stoffes aus PubChem.
+
+    P-Sätze sind **nicht** harmonisiert - sie werden vom Hersteller ausgewählt,
+    dafür gibt es keine amtliche Liste. Sie kommen deshalb weiter von dort.
+    Gibt bei jedem Fehler eine leere Liste zurück: die P-Sätze sind Zugabe und
+    dürfen den Autofill nicht scheitern lassen.
+    """
+    url = (f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}'
+           '/JSON/?heading=Safety+and+Hazards')
+    try:
+        res = json.loads(urllib.request.urlopen(url, timeout=5).read())
+    except Exception:
+        return []
+
+    record = res.get('Record', {})
+    quellen = {r.get('ReferenceNumber'): r.get('SourceName', '')
+               for r in record.get('Reference', [])}
+    codes = []
+    for sec in record.get('Section', []):
+        if sec.get('TOCHeading') != 'Safety and Hazards':
+            continue
+        for s1 in sec.get('Section', []):
+            if s1.get('TOCHeading') != 'Hazards Identification':
+                continue
+            for s2 in s1.get('Section', []):
+                if s2.get('TOCHeading') != 'GHS Classification':
+                    continue
+                info_liste = s2.get('Information', [])
+                best = pubchem_bevorzugte_referenz(info_liste, quellen)
+                for info in info_liste:
+                    if info.get('Name') != 'Precautionary Statement Codes':
+                        continue
+                    if best and info.get('ReferenceNumber') != best:
+                        continue
+                    for m in info.get('Value', {}).get('StringWithMarkup', []):
+                        codes += re.findall(r'P\d{3}[a-zA-Z]*', m.get('String', ''))
+    return codes
+
 
 @app.route('/api/autofill/<cas_nummer>')
 @login_required
@@ -3203,42 +3350,87 @@ def api_autofill(cas_nummer):
     cas = cas_nummer.strip()
     if not cas:
         return jsonify({'error': 'Keine CAS-Nummer angegeben'}), 400
+    # Die Nummer landet in einer SPARQL-Abfrage. Ohne diese Pruefung laesst
+    # sich die Abfrage mit einem Anfuehrungszeichen verlassen und der Server
+    # als Sprungbrett fuer beliebige Wikidata-Abfragen benutzen.
+    if not re.fullmatch(r'\d{2,7}-\d{2}-\d', cas):
+        return jsonify({'error': 'Ungueltige CAS-Nummer'}), 400
         
     try:
+        # 1) Amtliche harmonisierte Einstufung aus Anhang VI der CLP-VO. Die
+        # Tabelle liegt lokal (echa_anhang_vi.json, erzeugt von
+        # werkzeuge/echa_import.py) und braucht kein Netz. Steht der Stoff
+        # darin, gilt sie - das Piktogramm folgt nach CLP aus der
+        # Gefahrenklasse, nicht aus dem H-Satz, und ist aus den H-Saetzen
+        # allein nicht immer herzuleiten.
+        echa = echa_anhang_vi.eintrag(cas=cas)
+
+        # 2) PubChem liefert weiter die P-Saetze. Die sind nicht harmonisiert,
+        # sondern werden vom Hersteller ausgewaehlt - dafuer gibt es keine
+        # amtliche Liste. Ausserdem dient PubChem als Rueckfall, wenn der Stoff
+        # nicht in Anhang VI steht (selbsteingestufte Stoffe).
+        cid = None
         url1 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{urllib.parse.quote(cas)}/cids/JSON'
         try:
             req1 = urllib.request.urlopen(url1, timeout=5)
             res1 = json.loads(req1.read())
             cid = res1['IdentifierList']['CID'][0]
         except Exception:
-            return jsonify({'error': 'CAS-Nummer in PubChem nicht gefunden.'}), 404
-            
-        name_url = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/Title/JSON'
-        try:
-            name_req = urllib.request.urlopen(name_url, timeout=5)
-            name_res = json.loads(name_req.read())
-            name = name_res['PropertyTable']['Properties'][0]['Title']
-        except Exception:
-            name = ""
+            cid = None
 
-        # Deutsche Bezeichnung aus Wikidata. PubChem kennt nur englische Namen
-        # ("formaldehyde"), die H-/P-Saetze sind dagegen Codes und damit
-        # sprachneutral. Die Abfrage ist Beiwerk: liefert sie nichts - kein Netz,
-        # kein Wikidata-Eintrag - bleibt es beim PubChem-Namen. Welcher der
-        # Treffer passt, entscheidet der Nutzer (mehrere gibt es z. B. bei
-        # Salzsaeure: Gas und waessrige Loesung); hier wird nur sortiert.
+        if cid is None and not echa:
+            return jsonify({'error': 'CAS-Nummer ist weder in Anhang VI der '
+                                     'CLP-Verordnung noch bei PubChem zu finden.'}), 404
+
+        name = ""
+        if cid is not None:
+            name_url = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/Title/JSON'
+            try:
+                name_req = urllib.request.urlopen(name_url, timeout=5)
+                name_res = json.loads(name_req.read())
+                name = name_res['PropertyTable']['Properties'][0]['Title']
+            except Exception:
+                name = ""
+
+        # Deutsche Bezeichnung aus Wikidata. Die Namen in der ECHA-Tabelle sind
+        # englisch ("hydrogen chloride"), PubChem kennt ebenfalls nur englische.
+        # Die Abfrage ist Beiwerk: liefert sie nichts - kein Netz, kein
+        # Wikidata-Eintrag, eine Drosselung -, bleibt es beim Namen aus der
+        # amtlichen Tabelle bzw. bei PubChem. Welcher der Treffer passt,
+        # entscheidet der Nutzer (mehrere gibt es z. B. bei Salzsaeure: Gas und
+        # waessrige Loesung); hier wird nur sortiert.
         namen = wikidata.namen_zu_cas(cas, cid)
         quelle = 'wikidata'
         if namen:
             name = namen[0]['name']
+        elif echa:
+            name = echa.get('n', '')
+            quelle = 'echa'
         else:
-            # Kein Wikidata-Treffer: kein Eintrag, kein Netz oder eine
-            # Drosselung (Wikidata begrenzt schnelle Folgen). Dann bleibt der
-            # PubChem-Name - und der ist englisch. Die Herkunft wird
-            # mitgeliefert, damit die Oberflaeche das sagen kann, statt den
-            # Nutzer raten zu lassen.
             quelle = 'pubchem'
 
+        # 3) Gefahrendaten. Steht der Stoff in Anhang VI, kommen H-Saetze,
+        # Gefahrenkategorien, Piktogramme und Signalwort von dort; die
+        # P-Saetze weiter aus PubChem.
+        if echa:
+            werte = echa_anhang_vi.formularwerte(echa)
+            p_saetze = []
+            if cid is not None:
+                p_saetze = pubchem_p_saetze(cid)
+            return jsonify({
+                'name': name,
+                'namen': namen,
+                'name_quelle': quelle,
+                'h_saetze': werte['h_saetze'],
+                'p_saetze': ', '.join(sorted(set(p_saetze))),
+                'piktogramme': werte['piktogramme'],
+                'signalwort': werte['signalwort'],
+                'gefahrenkategorien': werte['gefahrenkategorien'],
+                'unbekannte_h_saetze': [],
+                'quelle': 'echa',
+                'index_nummer': werte['index_nummer'],
+                'atp': werte['atp'],
+            })
 
         url2 = f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards'
         try:
@@ -3259,31 +3451,23 @@ def api_autofill(cas_nummer):
             'h_saetze': [],
             'p_saetze': [],
             'piktogramme': [],
-            'unbekannte_h_saetze': []
+            'unbekannte_h_saetze': [],
+            # Der Stoff steht nicht in Anhang VI: Hier ist die Ableitung aus
+            # den H-Saetzen die einzige Quelle, und Gefahrenkategorien liefert
+            # PubChem nicht in der Notation des Verzeichnisses.
+            'gefahrenkategorien': '',
+            'quelle': 'pubchem',
         }
         # PubChem-Piktogramme getrennt sammeln: sie sind nur noch Rueckfall
         # fuer Codes, die piktogramme.py nicht kennt.
         piktos_pubchem = []
 
         references = {ref.get('ReferenceNumber'): ref.get('SourceName', '') for ref in res2.get('Record', {}).get('Reference', [])}
-        
+
+        # Die Auswahl der Referenz steht als pubchem_bevorzugte_referenz() oben
+        # bei den PubChem-Hilfen - sie wird auch fuer die P-Saetze gebraucht.
         def get_best_reference(info_list):
-            eu_refs = []
-            all_refs = []
-            for info in info_list:
-                ref_num = info.get('ReferenceNumber')
-                if not ref_num: continue
-                source_name = references.get(ref_num, "")
-                if ref_num not in all_refs:
-                    all_refs.append(ref_num)
-                if "EU" in source_name or "European" in source_name or "ECHA" in source_name or "1272/2008" in source_name:
-                    if ref_num not in eu_refs:
-                        eu_refs.append(ref_num)
-            if eu_refs:
-                return eu_refs[0]
-            if all_refs:
-                return all_refs[0]
-            return None
+            return pubchem_bevorzugte_referenz(info_list, references)
 
         sections = res2.get('Record', {}).get('Section', [])
         for sec in sections:
@@ -3352,8 +3536,11 @@ def api_autofill(cas_nummer):
 
         return jsonify(ghs_data)
         
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        # Interne Meldungen (SQL, Pfade, Parser-Details) bleiben im Log und
+        # gehen nicht an den Client.
+        app.logger.exception('Autofill fehlgeschlagen')
+        return jsonify({'error': 'Interner Fehler bei der Stoffabfrage.'}), 500
 
 # ─── Security Headers & Error Handlers ─────────────────────────────────────────
 
@@ -3361,8 +3548,27 @@ def api_autofill(cas_nummer):
 def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    # Die Templates nutzen Inline-Skripte und Inline-Styles, daher bleibt
+    # 'unsafe-inline' noetig. Der Rest der Direktiven begrenzt trotzdem, was
+    # nachgeladen werden darf (kein object/embed, keine fremden Frames).
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'self'"
+    )
+    # Stoffdaten, Namen und Dokumentlisten sollen nicht im Browsercache eines
+    # gemeinsam genutzten Rechners liegen bleiben.
+    if not request.path.startswith('/static/'):
+        response.headers.setdefault('Cache-Control', 'no-store')
+    # HSTS ist nur ueber HTTPS wirksam; ueber HTTP gesetzt ist es wirkungslos
+    # und kann bei reinen LAN-Hosts Nebenwirkungen haben.
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000'
     return response
 
 @app.errorhandler(404)

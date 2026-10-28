@@ -2,6 +2,73 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.36 – Abhängigkeiten und Lieferkette (Oktober 2026, APP_VERSION 2.6.0)
+
+* `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1.
+* `playwright`, `beautifulsoup4` und `soupsieve` entfernt — im Code nicht verwendet. `requirements.txt` von UTF-16 auf UTF-8 umgestellt.
+* **Prüfsummen:** `pip install --require-hashes` in Dockerfile und Entrypoint. Ergänzt: `pyasn1`, eine fehlende Abhängigkeit von `ldap3`.
+* **Basis-Image auf Digest festgelegt** (`python:3.11-slim@sha256:…`); ein Rebuild zieht keinen anderen Stand mehr.
+* `update.sh` bricht bei Fehlern ab (`set -euo pipefail`); `update.ps1` startet `run_prod.py` statt des Entwicklungsservers.
+* `.github/dependabot.yml` für pip, Docker und GitHub Actions; Alerts und Security-Updates aktiviert, `main` und `beta` gegen Force-Push und Löschen geschützt.
+
+### v3.35 – Container und Deployment gehärtet (Oktober 2026, APP_VERSION 2.6.0)
+
+* Container läuft als Benutzer `app` (UID/GID 1000) statt als root. **Bestehende Installationen** brauchen `chown -R 1000:1000` auf die eingehängten Verzeichnisse und einmalig auf das Daten-Volume, sonst schlägt der Datenbankzugriff fehl (README).
+* Port 5000 wird nur noch auf `127.0.0.1` veröffentlicht. `BIND_ADDR=0.0.0.0` öffnet ihn fürs LAN — dann geht die Anmeldung unverschlüsselt über HTTP (Abwägung im README).
+* **Optionales TLS-Profil, gegen eine laufende Installation geprüft:** `docker compose --profile tls up -d` startet Caddy auf 80/443 mit Zertifikat aus Caddys lokaler CA; `CADDYFILE=Caddyfile.acme` und eine öffentliche `SITE_ADDRESS` ergeben Let's Encrypt. Gemessen: HTTPS 200, HTTP → 308, Secure-Cookie, Healthcheck gesund.
+* Im TLS-Profil sind Subnetz und Adressbereich über `TLS_SUBNET`/`TLS_IP_RANGE` verschiebbar; `default_sni` trägt den Aufruf über eine IP-Adresse. `TRUSTED_PROXY` zeigt auf die feste Adresse des Proxys.
+* Compose ergänzt `restart: unless-stopped`, Speicher-/CPU-/PID-Limits und einen Healthcheck; das obsolete `version`-Feld entfällt.
+* Python-Abhängigkeiten werden beim Image-Bau installiert, nicht mehr bei jedem Start — ein Neustart dauert rund eine halbe Minute statt mehrerer. Der Entrypoint installiert nur bei geänderter `requirements.txt` nach.
+* `.dockerignore` schließt `.env`, `data/`, `*.db`, `*.log` und `openwiki/` aus; `error.log` ist nicht mehr versioniert, `update.sh` schreibt sein Log nach `data/logs/`.
+
+### v3.34 – Anmeldung und Update-Weg gehärtet (Oktober 2026, APP_VERSION 2.6.0)
+
+* **`FLASK_SECRET_KEY` ist Pflicht.** Der öffentlich bekannte Rückfallwert ist entfernt; ohne die Variable bricht der Start ab. `docker-compose.yml` liest sie aus der `.env` (Erzeugen: `openssl rand -base64 32`). Wer bisher ohne eigene Variable lief, sollte den Schlüssel neu erzeugen — der alte Wert bleibt in der Git-Historie lesbar.
+* **Verzeichniskonten (`auth_source='ldap'`):** Wer sich über LDAP anmeldet, kann sich nicht mehr mit einem lokal gesetzten Passwort an einer AD-Sperre vorbeimelden. Im Profil ist die Passwortänderung für solche Konten gesperrt; bestehende Konten werden beim ersten erfolgreichen LDAP-Login umgestellt.
+* **Bremse gegen Passwortraten:** fünf Fehlversuche sperren Benutzername und Quelladresse für 15 Minuten. **Passwortwechsel** erhöht eine Sitzungsversion und meldet alle anderen Geräte des Kontos ab.
+* **In-App-Update nur noch auf `UPDATE_REPO_URL`.** Die URL im Adminformular kann die Herkunft nicht ersetzen, Branch-Namen werden geprüft, `protocol.ext.allow=never` schließt den `ext::`-Transport aus, alle git-Aufrufe haben ein Zeitlimit.
+* **Secure-Cookie richtet sich nach dem Zugriffsweg:** HTTPS hinter dem Proxy → Flag gesetzt, HTTP im LAN → nicht. Grundlage ist `X-Forwarded-Proto`, das Waitress jetzt durchreicht; `TRUSTED_PROXY` beschränkt die Header auf den Proxy. `SESSION_COOKIE_SECURE=true|false` bleibt als Notbehelf.
+* Neu: `test_cookie_sicherheit.py` (3 Tests).
+
+### v3.33 – Sicherheitsfixes aus dem Audit (Oktober 2026, APP_VERSION 2.6.0)
+
+* **Behoben (IDOR): `/uploads/<datei>` lieferte jedes Dokument an jeden angemeldeten Nicht-Leser.** Die Route prüfte nur die Rolle, nicht den Bereich des Stoffes. Jetzt muss die Datei zu einem Stoff gehören, den `get_gefahrstoff_query()` liefert — sonst 404.
+* **Behoben: die Inventurliste zeigte nicht freigegebene CMR-Stoffe** — sie lief am Freigabefilter vorbei.
+* **Behoben: offenes Weiterleiten in `approve_stoff`** (`next=//beispiel.de`).
+* **Passwort-Policy:** mindestens 12 Zeichen statt 4, erstmals auch bei Registrierung und Benutzeranlage geprüft. Bestehende Konten bleiben unverändert.
+* **Behoben: SPARQL-Injection über die CAS-Nummer** im Autofill-Pfad und **LDAP-Filter-/DN-Injection** über den Benutzernamen.
+* **LDAP-Zertifikatsprüfung standardmäßig an** (`LDAP_REQUIRE_CERT=true`); für interne PKIs gibt es `LDAP_CA_CERT_FILE` statt abschalten.
+* **Behoben: Markup-Injection im PDF-Export** (`Paragraph()` wertet Mini-HTML aus). Keine internen Fehlertexte mehr in API-Antworten.
+* **Sitzung und Header:** Ablauf nach 12 Stunden statt 31 Tagen; CSP, `Referrer-Policy`, `Cache-Control: no-store`; HSTS nur über HTTPS; `getattr` nicht mehr als Jinja-Global.
+* Neu: `test_sicherheitsfixes.py` (12 Tests). Gesamtstand 256 Tests.
+
+### v3.32 – Sicherheitsdatenblätter zuverlässiger auslesen (Oktober 2026, APP_VERSION 2.6.0)
+
+* **Der SDB-Parser liest jetzt Abschnitt für Abschnitt.** Neues Modul `sdb_parser.py`: `zerlege()` schneidet die 16 Abschnitte heraus, jedes Feld wird nur an seiner Stelle gesucht. Die Route `parse_sdb` reicht nur noch Seitentexte und Tabellen durch. Anlass waren drei Fehler, die sich an echten Datenblättern nachweisen ließen.
+* **Behoben: die Index-Nummer wurde zur CAS-Nummer.** Im Roth-SDB zu Aceton stand „Index-Nr. in CLP Anhang VI 606-001-00-8" vor der eigentlichen CAS-Nummer; gelesen wurde `001-00-8`. Eine CAS-Nummer gilt jetzt nur noch, wenn sie beschriftet ist und nicht Teil einer längeren Nummer (`(?<![\d-])`).
+* **Behoben: deutsch ausgeschriebene Gefahrenklassen gingen verloren.** Datenblätter mit „Entzündbare Flüssigkeiten Kategorie 2" (D-Tack) verloren die gesamte Einstufung, weil der Parser nur CLP-Kürzel kannte. Jetzt werden deutsche Klassennamen zugeordnet **und** die Kategorien aus den H-Sätzen nach Anhang I abgeleitet.
+* **Behoben: „Überarbeitet am: 20-Mai-2025" blieb leer.** Datumsangaben mit Monatsnamen (deutsch und englisch) werden gelesen, ebenso „May 20, 2025".
+* **Behoben: das Druckdatum galt als SDB-Datum.** Ein altes Datenblatt mit frischem Druckdatum hätte seine 3-/5-Jahres-Frist verloren. Ohne Revisionsdatum bleibt das Feld jetzt leer und der Import sagt das.
+* **Gegenprobe gegen Anhang VI der CLP.** `plausibilisiere()` vergleicht CAS-Nummer, H-Sätze, Kategorien und Signalwort mit der amtlichen Einstufung. Fehlende Kategorien werden ergänzt, Widersprüche als Hinweis gemeldet – nichts wird stillschweigend überschrieben.
+* **Gemische:** Bestandteile aus Abschnitt 3 werden erkannt; die CAS-Nummer eines Bestandteils wandert nicht mehr als Stoff-CAS ins Verzeichnis.
+* **Herkunft und Warnungen im Formular.** Die Antwort enthält `quellen` (Abschnitt, Seite, Fundstelle) und `warnungen`. Der Import zeigt beides an und **überschreibt keine vorhandenen Werte** – Unterschiede erscheinen als Konflikt.
+* **Kein Text = klare Meldung.** Ein PDF ohne Textebene (Scan) ergibt 422 mit Begründung statt eines stillen Leererfolgs.
+* **SDB-Import auch beim Bearbeiten** (`edit.html`), mit demselben Kasten wie beim Anlegen.
+* Neu: `test_sdb_parser.py` (31 Tests), `werkzeuge/sdb_qualitaet.py` für echte Datenblätter. Gesamtstand 241.
+* Gemessen an zwei öffentlichen Aceton-Datenblättern (Carl Roth, D-Tack): 14 von 14 Sollwerten getroffen, vorher 10 von 14.
+
+### v3.31 – Amtliche Einstufung aus Anhang VI der CLP (Oktober 2026, APP_VERSION 2.5.2)
+
+* **Neu `echa_anhang_vi.json` + `echa_anhang_vi.py`:** die harmonisierte Einstufung nach Anhang VI der CLP-Verordnung, 4.643 Einträge, lokal und ohne Netzzugriff. Erzeugt von `werkzeuge/echa_import.py` aus der ECHA-Tabelle.
+* Der Autofill nimmt H-Sätze, Gefahrenkategorien, Piktogramme und Signalwort jetzt von dort, wenn der Stoff harmonisiert eingestuft ist. P-Sätze weiter aus PubChem — die sind nicht harmonisiert, sondern werden vom Hersteller gewählt.
+* Das Feld **Gefahrenkategorien** wird damit erstmals automatisch gefüllt.
+* Der Knopf sagt, woher die Daten kommen: **„Fertig! (amtlich)"** aus Anhang VI, **„Fertig! (abgeleitet)"** aus den H-Sätzen, wenn der Stoff dort nicht steht.
+* **Warum die amtliche Quelle besser ist als die Ableitung:** Das Piktogramm folgt nach CLP aus der **Gefahrenklasse**, nicht aus dem Gefahrenhinweis. Chlorwasserstoff ist „Press. Gas" und trägt deshalb GHS04 — aus H331 und H314 allein lässt sich das nicht herleiten. Die Ableitung bleibt für selbsteingestufte Stoffe.
+* ⚠️ **Die ECHA-Datei führt auch noch nicht geltendes Recht** (ATP23 gilt ab 01.02.2027). Der Ausleser wählt je Index-Nummer die letzte Fassung mit Geltungsbeginn ≤ Stichtag; ein Test sichert ab, dass keine künftige Fassung in den Daten landet.
+* Mehrstoff-Einträge (166) sind unter jeder ihrer CAS-Nummern auffindbar, 475 Einträge ohne CAS über die EG-Nummer. Über die EG-Nummer erreichbar ist zum Beispiel **„Salzsäure … %" (017-002-01-X)** — die Lösung hat einen eigenen Eintrag ohne CAS, der über 7647-01-0 nicht gefunden würde.
+* Fällt Wikidata aus, wird die dann englische Bezeichnung (amtlich oder aus PubChem) nur nach Rückfrage übernommen statt still eingetragen.
+* Neu: `test_echa_anhang_vi.py` (13 Tests). Gesamtstand 210.
+
 ### v3.30 – Deutsche Bezeichnungen und Piktogramme aus der CLP (Oktober 2026, APP_VERSION 2.5.1)
 
 * Die Autovervollständigung holt den Stoffnamen jetzt deutsch aus Wikidata (CAS-Nummer → P231). PubChem kennt nur englische Namen („formaldehyde", „Isopropanol").

@@ -5,3 +5,8 @@ uploads/
 .env
 .agent/
 data/
+openwiki/
+.DS_Store
+*.log
+.env.*
+!.env.example

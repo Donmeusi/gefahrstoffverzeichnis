@@ -13,6 +13,20 @@
 
 <div class="row">
     <!-- Passwort ändern -->
+    {% if current_user.auth_source == 'ldap' %}
+    <div class="card">
+        <div class="card-body">
+            <div class="section-header">
+                <i class="fa-solid fa-lock icon-danger"></i>
+                <h3>Passwort</h3>
+            </div>
+            <p class="text-muted text-sm">
+                Das Passwort für <strong>{{ current_user.username }}</strong> wird im
+                Verzeichnisdienst verwaltet. Bitte ändere es dort.
+            </p>
+        </div>
+    </div>
+    {% else %}
     <div class="card">
         <div class="card-body">
             <div class="section-header">
@@ -39,8 +53,8 @@
                 <div class="form-group">
                     <label for="new_password">Neues Passwort</label>
                     <div class="password-field">
-                        <input type="password" id="new_password" name="new_password" required minlength="4"
-                               placeholder="Mindestens 4 Zeichen">
+                        <input type="password" id="new_password" name="new_password" required minlength="12"
+                               placeholder="Mindestens 12 Zeichen">
                         <button type="button" class="password-toggle" onclick="togglePw('new_password', this)">
                             <i class="fa-solid fa-eye"></i>
                         </button>
@@ -64,17 +78,18 @@
             </form>
         </div>
     </div>
+    {% endif %}
 
     <!-- Account Info -->
     <div class="card">
         <div class="profile-hero">
-            <div class="user-avatar-lg {% if getattr(current_user, 'is_admin', False) %}avatar-admin{% else %}avatar-user{% endif %}">
+            <div class="user-avatar-lg {% if current_user.is_admin %}avatar-admin{% else %}avatar-user{% endif %}">
                 {{ current_user.username[0]|upper }}
             </div>
             <div class="profile-hero-info">
                 <h2>{{ current_user.username }}</h2>
                 <p>
-                    {% if getattr(current_user, 'is_admin', False) %}
+                    {% if current_user.is_admin %}
                     <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
                     {% else %}
                     <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
@@ -96,7 +111,7 @@
 
                 <dt>Rolle</dt>
                 <dd>
-                    {% if getattr(current_user, 'is_admin', False) %}
+                    {% if current_user.is_admin %}
                     Vollständige Admin-Rechte
                     {% else %}
                     Standard-Benutzer
@@ -184,7 +199,7 @@
 </div>
 {% endif %}
 
-{% if getattr(current_user, 'is_admin', False) %}
+{% if current_user.is_admin %}
 <div class="card mt-4">
     <div class="card-body">
         <div class="section-header">

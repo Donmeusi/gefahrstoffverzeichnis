@@ -1,0 +1,69 @@
+# Secret-Scanning für lokale Commits.
+# Ergänzt die Standardregeln von gitleaks um Zugangsdaten, die als
+# Umgebungsvariable oder Konfigurationswert gesetzt werden — Infisical-Token,
+# n8n-Keys, Mailcow-Zugänge und eigene Skripte haben kein Anbietermuster.
+
+title = "Gefahrstoffverzeichnis"
+
+[extend]
+useDefault = true
+
+# .env-Stil: NAME=wert, unquodiert, ganze Zeile. Variablenreferenzen
+# (${...}) fallen durch, weil "$" und "{" nicht im Wertezeichenvorrat sind.
+[[rules]]
+id = "env-file-secret"
+description = "Unquodiertes Geheimnis in einer .env-Zeile"
+regex = '''(?i)^\s*[A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*[:=]\s*([A-Za-z0-9+/_\-]{24,})\s*$'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["token", "secret", "password", "passwd", "api_key", "apikey", "access_key", "private_key"]
+
+# Quotiertes Literal: NAME = "wert". Der Zeichenvorrat enthält keinen Punkt,
+# damit process.env.X und Dateipfade nicht durchrutschen.
+[[rules]]
+id = "quoted-assigned-secret"
+description = "Quotiertes Geheimnis in einer Zuweisung"
+regex = '''(?i)\b[a-z0-9_]*(?:token|secret|password|passwd|api_?key|access_key|private_key)[a-z0-9_]*\s*[:=]\s*["']([A-Za-z0-9+/_\-]{24,})["']'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["token", "secret", "password", "passwd", "api_key", "apikey", "access_key", "private_key"]
+
+[[rules]]
+id = "long-bearer-token"
+description = "Bearer-Token mit hoher Entropie"
+regex = '''(?i)\bBearer\s+([A-Za-z0-9\-_]{32,})'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["bearer"]
+
+# Feste Rückfallwerte: os.environ.get("FLASK_SECRET_KEY", "default") bzw.
+# process.env.X || "default". Solche Defaults stehen im Repo und sind damit
+# öffentlich bekannt — genau der Fall, den ein Muster-Scanner sonst übersieht,
+# weil der Wert zu wenig Entropie hat.
+[[rules]]
+id = "python-secret-fallback"
+description = "Fester Rückfallwert für ein Geheimnis (Python)"
+regex = '''(?i)environ\.get\(\s*["']([A-Z0-9_]*(?:SECRET|KEY|TOKEN|PASSWORD)[A-Z0-9_]*)["']\s*,\s*["']([^"']{8,})["']'''
+secretGroup = 2
+keywords = ["environ"]
+
+[[rules]]
+id = "node-secret-fallback"
+description = "Fester Rückfallwert für ein Geheimnis (Node)"
+regex = '''(?i)process\.env\.([A-Z0-9_]*(?:SECRET|KEY|TOKEN|PASSWORD)[A-Z0-9_]*)\s*(?:\|\||\?\?)\s*["']([^"']{8,})["']'''
+secretGroup = 2
+keywords = ["process.env"]
+
+
+[allowlist]
+description = "Platzhalter, Variablenreferenzen und Beispieldateien"
+paths = [
+  '''\.env\.example$''',
+  '''\.gitleaks\.toml$''',
+  '''package-lock\.json$''',
+]
+regexes = [
+  '''\$\{[^}]*\}''',
+  '''process\.env\.''',
+  '''(?i)(changeme|placeholder|example|dummy|sample|your[-_]?(token|key|secret)|x{8,}|<[^>]+>)''',
+]

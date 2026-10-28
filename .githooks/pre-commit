@@ -1,0 +1,12 @@
+#!/bin/sh
+# Blockiert Commits, die Geheimnisse enthalten.
+# Einmalig aktivieren (pro Klon): git config core.hooksPath .githooks
+# Umgehen (bewusst): git commit --no-verify
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks fehlt — 'brew install gitleaks'. Umgehen mit: git commit --no-verify" >&2
+  exit 1
+fi
+
+exec gitleaks git --staged --redact --no-banner \
+  --config "$(git rev-parse --show-toplevel)/.gitleaks.toml"

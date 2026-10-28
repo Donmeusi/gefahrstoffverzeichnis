@@ -24,5 +24,29 @@ if __name__ == "__main__":
     print(f"Starte Gefahrstoff-App (Production Mode) auf http://{host}:{port}")
     print(f"Waitress WSGI Server läuft...")
 
-    # Produktionsserver starten
-    serve(app, host=host, port=port, threads=4)
+    # Produktionsserver starten.
+    #
+    # Waitress 3 entfernt X-Forwarded-* standardmaessig, bevor die Anwendung
+    # sie sieht. Dann erkennt ProxyFix das HTTPS-Schema nicht, und das
+    # Sitzungscookie bekommt hinter einem Reverse Proxy kein Secure-Flag.
+    #
+    # Standard hier: Header durchreichen (wie bei `flask run`), damit LAN und
+    # Internet ohne Zusatzkonfiguration funktionieren. Wer haerten will, setzt
+    # TRUSTED_PROXY auf die IP/CIDR des Proxys (nur dieser darf die Header
+    # setzen) oder CLEAR_UNTRUSTED_PROXY_HEADERS=true (Header immer verwerfen).
+    trusted_proxy = os.environ.get('TRUSTED_PROXY')
+    clear_headers = os.environ.get('CLEAR_UNTRUSTED_PROXY_HEADERS', '').strip().lower() in (
+        'true', '1', 'yes', 'on'
+    )
+
+    options = dict(host=host, port=port, threads=4)
+    if trusted_proxy:
+        options['trusted_proxy'] = trusted_proxy
+        print(f"Vertrauter Proxy: {trusted_proxy}")
+    elif clear_headers:
+        options['clear_untrusted_proxy_headers'] = True
+        print("X-Forwarded-* wird verworfen (CLEAR_UNTRUSTED_PROXY_HEADERS)")
+    else:
+        options['clear_untrusted_proxy_headers'] = False
+
+    serve(app, **options)

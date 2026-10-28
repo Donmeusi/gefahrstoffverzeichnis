@@ -95,7 +95,11 @@ def namen_zu_cas(cas, cid=None, zeitlimit=8):
     if not cas:
         return []
 
-    ziel = ENDPUNKT + '?query=' + urllib.parse.quote(ABFRAGE.format(cas=cas))
+    # Zweite Absicherung: CAS stammt aus dem URL-Pfad. Das Escape haelt den
+    # Wert im SPARQL-Stringliteral, auch wenn ein Aufrufer die Pruefung im
+    # Routen-Handler umgeht.
+    cas_literal = cas.replace('\\', '\\\\').replace('"', '\\"')
+    ziel = ENDPUNKT + '?query=' + urllib.parse.quote(ABFRAGE.format(cas=cas_literal))
     try:
         anfrage = urllib.request.Request(ziel, headers=KOPFZEILEN)
         antwort = urllib.request.urlopen(anfrage, timeout=zeitlimit)

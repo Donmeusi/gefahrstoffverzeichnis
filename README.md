@@ -15,7 +15,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 *   **🖨️ Schrank-Aushang & Druckansicht**: Generieren Sie A4-optimierte Inhaltsverzeichnisse für Sicherheitsschränke inklusive GHS-Piktogrammen, Notfallhinweisen, Lagerklassen und QR-Code zum Aushang vor Ort.
 *   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
 *   **Mobile Ready (Responsiv)**: Die gesamte Anwendung wurde mit einem "Mobile First" Ansatz überarbeitet. Auf Smartphones und kleinen Bildschirmen blenden Tabellen unwichtige Spalten aus und Eingabefelder stapeln sich dynamisch, für ein optimales Nutzungserlebnis unterwegs.
-*   **PubChem CAS-Autofill**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze) automatisch aus der offiziellen NIH/PubChem Datenbank herunter.
+*   **CAS-Autofill mit amtlicher Einstufung**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze, Gefahrenkategorien). Die Einstufung kommt aus **Anhang VI der CLP-Verordnung** — der amtlichen Liste der harmonisierten Einstufungen, die mitgeliefert wird und ohne Netzzugriff arbeitet. Steht ein Stoff dort nicht (selbsteingestufte Stoffe), wird auf PubChem zurückgegriffen. Die deutsche Bezeichnung liefert Wikidata.
 *   **QR-Code Generator**: Erzeugen Sie mit einem Klick lokale, datenschutzkonforme QR-Codes für Ihre Lagerorte und Schränke, um per Smartphone-Scan direkt auf den gefilterten Schrank-Inhalt zuzugreifen.
 *   **Dokumenten-Zentralen**: Globale Menüpunkte listen alle hochgeladenen Betriebsanweisungen und Sicherheitsdatenblätter aus allen Bereichen alphabetisch sortiert auf. Inklusive Live-Suche – zugänglich für alle Nutzer.
 *   **Umfassende Sicherheit (CSRF & Audit)**: Die App ist systemweit gegen Cross-Site Request Forgery (CSRF) geschützt. Administratoren können zudem eine detaillierte **System-Historie (Audit Log)** einsehen, die jeden Datensatz (Erstellen, Ändern, Verschieben, Kopieren, Löschen, Freigeben) protokolliert — einschließlich der Vorgänge der Benutzerverwaltung (Anlegen, Rollenwechsel, Bearbeiten, Bereichszuweisung, Löschen) und der Standortverwaltung. Passwörter werden nur als Ereignis vermerkt, nie im Klartext.
@@ -46,7 +46,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ## 🚀 Installation & Ausführung
 
 ### Voraussetzungen
-1.  Python 3.8+ ist auf Ihrem System installiert.
+1.  Python 3.11 ist auf Ihrem System installiert.
 2.  Empfohlen: Eine virtuelle Umgebung (Virtual Environment).
 
 ### Schritte
@@ -77,11 +77,21 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     Beim ersten Start erstellt die Applikation automatisch eine leere SQLite-Datenbankdatei (`gefahrstoffe.db`) sowie den Ordner `uploads/` für Dokumente.
     *Wichtig:* Der allererste Account, der über `/register` angelegt wird, erhält **dauerhaft** Administrator-Rechte. 
 
-5.  **Anwendung starten:**
+5.  **Sitzungsschlüssel setzen:**
+    Die Anwendung startet nur mit einem eigenen `FLASK_SECRET_KEY` — ein Standardwert im Quelltext wäre öffentlich bekannt, und mit ihm ließen sich Anmeldungen fälschen.
+    ```bash
+    # macOS/Linux
+    export FLASK_SECRET_KEY="$(openssl rand -base64 32)"
+
+    # Windows (PowerShell)
+    $env:FLASK_SECRET_KEY = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | % {[char]$_})
+    ```
+
+6.  **Anwendung starten:**
     ```bash
     python main.py
     ```
-    Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
+    Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000). Für den Dauerbetrieb `python run_prod.py` (Waitress) verwenden und den Schlüssel aus einer `.env` bzw. dem Dienstmanager beziehen.
 
 ### 🔐 LDAPs-Authentifizierung & .env Konfiguration
 
@@ -110,8 +120,12 @@ LDAP_USER_SEARCH_FILTER=(sAMAccountName={username})
 # Standardrolle für neue LDAP-Benutzer beim ersten Login (lesen | benutzer | moderator | admin)
 LDAP_DEFAULT_ROLE=lesen
 
-# SSL-Zertifikat erzwingen (false für selbstsignierte Zertifikate)
-LDAP_REQUIRE_CERT=false
+# Server-Zertifikat prüfen (Standard: true)
+LDAP_REQUIRE_CERT=true
+
+# Für eine eigene/interne PKI das CA-Bundle hinterlegen, statt die Prüfung
+# abzuschalten. Sonst gehen die Anmeldedaten ungeprüft an den Verzeichnisdienst.
+# LDAP_CA_CERT_FILE=/certs/unternehmens-ca.pem
 ```
 
 ### 🐳 Vollständige Docker-Installation (Empfohlen für Server & Unraid)
@@ -128,16 +142,103 @@ git clone https://github.com/Donmeusi/gefahrstoffverzeichnis.git /pfad/zu/ihrem/
 cd /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
 ```
 
-**2. Container bauen und starten:**
-Da im Repository bereits eine fertig konfigurierte `docker-compose.yml` beiliegt, müssen Sie den Container nur noch im Hintergrund starten. Der Parameter `--build` sorgt dafür, dass das Image beim ersten Start frisch erstellt wird:
+**2. Konfiguration anlegen:**
+Die Anwendung braucht einen eigenen Sitzungsschlüssel. Ohne ihn startet sie nicht — bewusst, denn ein Standardwert im Repository wäre öffentlich bekannt, und mit ihm ließen sich Anmeldungen fälschen.
 ```bash
-docker-compose up -d --build
+cp .env.example .env
+printf 'FLASK_SECRET_KEY=%s\n' "$(openssl rand -base64 32)" > .env
 ```
-Das System mountet Ihren Code-Ordner als Volume in den Container (`- ./:/app`). Dadurch bleiben alle Ihre zukünftigen Updates (via `git pull`) dauerhaft auf Ihrem Server gespeichert.
+Die `.env` ist per `.gitignore` ausgeschlossen. LDAP-Einstellungen (falls benötigt) gehören ebenfalls dorthin, siehe `.env.example`.
 
-**3. Auf die App zugreifen:**
-Sobald der Container läuft, erreichen Sie das Gefahrstoffverzeichnis über den Browser unter:
-`http://<IP-Ihres-Servers>:5000`
+**3. Container bauen und starten:**
+```bash
+docker compose up -d --build
+```
+Das System mountet Ihren Code-Ordner als Volume in den Container (`- ./:/app`). Dadurch bleiben alle Ihre zukünftigen Updates (via `git pull`) dauerhaft auf Ihrem Server gespeichert. Die Python-Abhängigkeiten werden beim Bauen installiert, nicht bei jedem Start — ein Neustart dauert dadurch rund eine halbe Minute statt mehrerer Minuten.
+
+Der Container läuft **nicht als root**, sondern als Benutzer `app` mit UID/GID 1000. Die eingehängten Verzeichnisse müssen diesem Benutzer gehören, sonst kann die Anwendung die Datenbank nicht schreiben:
+
+```bash
+sudo chown -R 1000:1000 /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
+```
+
+Bei einer **bestehenden** Installation, die noch als root lief, gehört zusätzlich das Daten-Volume noch `root`. Ein frisches Volume erbt den Besitzer aus dem Image, ein vorhandenes nicht — einmalig nachziehen:
+
+```bash
+docker compose down
+docker run --rm -v gefahrstoff_data:/d alpine chown -R 1000:1000 /d
+docker compose up -d
+```
+
+**4. Auf die App zugreifen:**
+Die mitgelieferte `docker-compose.yml` veröffentlicht Port 5000 nur auf der Loopback-Schnittstelle — gedacht für einen vorgelagerten Reverse Proxy. Direkt aus dem Netz erreichbar ist die App damit nicht, und das ist Absicht: sonst gehen Anmeldungen unverschlüsselt über die Leitung.
+
+### 🔐 HTTPS ohne eigenen Reverse Proxy
+
+Wer keinen eigenen Proxy betreiben will, kann einen mitliefern lassen:
+
+```env
+# .env — Name oder IP, unter der die Anwendung aufgerufen wird
+SITE_ADDRESS=192.168.1.10
+```
+
+```bash
+docker compose --profile tls up -d
+```
+
+Damit läuft ein Caddy-Container, der TLS terminiert und auf 80/443 lauscht. Port 5000 bleibt auf der Loopback-Schnittstelle, nach außen ist nur der Proxy erreichbar. Das Sitzungscookie bekommt automatisch das `Secure`-Flag, weil Caddy `X-Forwarded-Proto: https` setzt und die Anwendung nur diesem Container glaubt (`TRUSTED_PROXY` ist auf dessen feste Adresse gesetzt).
+
+**Zum Zertifikat:** Standardmäßig kommt es aus Caddys lokaler CA. Der Browser zeigt beim ersten Aufruf eine Warnung, bis die CA unter `/data/caddy/pki/authorities/local/root.crt` auf den Geräten als vertrauenswürdig eingetragen ist. Wer eine öffentliche Domain besitzt, die auf den Server zeigt und Port 80/443 aus dem Internet erreichen kann, bekommt mit
+
+```env
+SITE_ADDRESS=gefahrstoffe.example.de
+CADDYFILE=Caddyfile.acme
+```
+
+ein Let's-Encrypt-Zertifikat, das Caddy selbst holt und erneuert.
+
+Betreiben Sie die App ohne Proxy in einem vertrauenswürdigen LAN, setzen Sie in der `.env`:
+
+```env
+BIND_ADDR=0.0.0.0
+```
+
+Danach ist sie unter `http://<IP-Ihres-Servers>:5000` erreichbar. Der Zugriff läuft dann unverschlüsselt: Anmeldedaten gehen im Klartext über die Leitung, und das Sitzungscookie trägt kein `Secure`-Flag. In einem vertrauenswürdigen Netz ist das eine bewusste Abwägung; in einem Netz mit fremden Geräten (Gäste-WLAN, gemeinsam genutzte Etage) liest jedes davon mit.
+
+### Betrieb im LAN und im Internet
+
+Die Anwendung ist für beide Wege gleichzeitig gedacht und braucht dafür keine Konfiguration:
+
+| Zugriffsweg | Sitzungscookie |
+|---|---|
+| `http://<IP>:5000` im LAN | ohne `Secure`-Flag — der Browser nimmt es über HTTP an |
+| `https://<domain>` hinter Reverse Proxy | mit `Secure`-Flag — wird nur über HTTPS gesendet |
+
+Grundlage ist `X-Forwarded-Proto`: Senden Sie den Header im Proxy mit, erkennt die Anwendung HTTPS selbst. Nginx-Beispiel:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:5000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Reicht Ihr Proxy den Header nicht durch, setzen Sie in der `.env` `SESSION_COOKIE_SECURE=true` (erzwingt das Flag) oder `false` (schaltet es ab). Beides ist ein Notbehelf — der saubere Weg ist der Header.
+
+**Wichtig beim Betrieb hinter einem Proxy:** Der Produktionsserver (Waitress) reicht `X-Forwarded-*` durch, damit die Anwendung HTTPS erkennt. Ohne weitere Konfiguration darf **jeder** Client diese Header setzen — auch einer, der den Proxy umgeht. Tragen Sie deshalb die Adresse Ihres Proxys ein:
+
+```env
+# Nur dieser Proxy darf die Header setzen (IP oder CIDR)
+TRUSTED_PROXY=172.17.0.1
+
+# Oder: Header immer verwerfen (dann kein automatisches Secure-Flag,
+# SESSION_COOKIE_SECURE=true setzen)
+# CLEAR_UNTRUSTED_PROXY_HEADERS=true
+```
+
+Die Anwendung selbst sollte **nicht** direkt aus dem Internet erreichbar sein: Port 5000 gehört hinter den Proxy, nicht in die Firewall-Freigabe. Deshalb veröffentlicht die mitgelieferte Compose-Datei den Port nur auf `127.0.0.1`.
 
 **Hinweis für Unraid-Nutzer:**
 Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach `/mnt/user/appdata/gefahrstoffverzeichnis`. Sie können die bestehende `docker-compose.yml` dann auch direkt in das "Compose Manager" Plugin von Unraid einbinden und den Stack (Container) über das Webinterface verwalten.
@@ -148,7 +249,23 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
 *   **WICHTIG - Datenbank Migration nach Updates:** Nach größeren Versionsupdates kann es vorkommen, dass neue Tabellenspalten (wie z.B. für Gefahrenkategorien) zur App hinzugefügt wurden. Um "Internal Server Errors" nach dem Aktualisieren zu vermeiden, führen Sie das Migrationsskript aus:
     *   **Standard-Installation:** Führen Sie `python migrate_gefahrenkategorien.py` in Ihrem App-Verzeichnis aus.
     *   **Docker-Installation:** Führen Sie den Befehl innerhalb des laufenden Containers aus: `docker exec -it gefahrstoffe_app python /app/migrate_gefahrenkategorien.py`
-*   **Produktivbetrieb:** Setzen Sie den `FLASK_SECRET_KEY` als Umgebungsvariable und verwenden Sie einen WSGI-Server (wie *Gunicorn* oder *Waitress*).
+*   **Produktivbetrieb:** `FLASK_SECRET_KEY` ist Pflicht — ohne ihn startet die Anwendung nicht. Die Docker-Installation startet bereits den WSGI-Server *Waitress*; bei einer Installation ohne Docker starten Sie `python run_prod.py` statt `flask run`.
+*   **Sitzungsschlüssel rotieren, wenn er bekannt geworden ist.** Bis Oktober 2026 gab es im Quelltext einen Rückfallwert für `FLASK_SECRET_KEY`. Wer eine Installation aus dieser Zeit ohne eigene Variable betrieben hat, sollte den Schlüssel neu erzeugen (`openssl rand -base64 32`) und den Container neu starten — das beendet alle bestehenden Sitzungen. Das Löschen aus dem Code genügt nicht, weil der alte Wert in der Git-Historie öffentlich bleibt.
+*   **Passwörter:** lokal gesetzte Passwörter brauchen mindestens 12 Zeichen (Registrierung, Benutzeranlage, Profil). Bestehende Konten sind davon nicht betroffen. Nach fünf Fehlversuchen ist die Anmeldung für 15 Minuten gesperrt.
+*   **Verzeichnisdienst-Konten:** Wer sich über LDAP anmeldet, kann in der Anwendung kein lokales Passwort setzen — sonst liefe eine Sperre im AD ins Leere. Das Passwort wird ausschließlich dort geändert.
+*   **Abhängigkeiten:** `requirements.txt` enthält Prüfsummen und wird mit `--require-hashes` installiert. Nach einer Änderung neu erzeugen:
+    ```bash
+    pip-compile --generate-hashes --no-annotate --output-file requirements.txt requirements.txt
+    ```
+*   **Basis-Image:** Das `Dockerfile` pinnt `python:3.11-slim` auf einen Digest. Sicherheitsupdates des Basis-Images kommen nur über einen neuen Digest herein — deshalb regelmäßig aktualisieren (Dependabot schlägt es vor).
+
+## 🧪 Tests
+
+```bash
+python -m unittest discover -p 'test_*.py'
+```
+
+256 Tests (Stand Oktober 2026). `testkonfiguration.py` legt ein Wegwerf-Datenverzeichnis an, damit die Tests nicht gegen die eigene `data/gefahrstoffe.db` laufen — deren Prüfsumme bleibt nach dem Lauf unverändert.
 
 ## 📅 Changelog
 
