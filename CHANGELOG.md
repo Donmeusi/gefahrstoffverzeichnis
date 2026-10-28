@@ -2,6 +2,15 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.37 – Standort-Menü: lange Namen brechen um statt abgeschnitten (Oktober 2026, APP_VERSION 2.6.1)
+
+* Lange und tief verschachtelte Standortnamen liefen aus der 220 px breiten Seitenleiste heraus und wurden vom `overflow: hidden` der Karte abgeschnitten — gemessen bis 120 px Überlauf bei Ebene 5. Grund: der Name war ein nackter Textknoten und damit ein anonymer Flex-Eintrag, der nicht mitschrumpft; das `overflow-wrap` am Link griff dort nicht.
+* Der Name steht jetzt in `<span class="location-name">` und bricht mit `overflow-wrap: break-word` und `hyphens: auto` um. Silbentrennung, weil „Lösungsmittel-schrank" sonst ohne Trennstrich mitten im Wort bricht.
+* Einrückung 1 rem → 0,6 rem je Ebene, ab Ebene 2 gedeckelt; tiefere Ebenen bekommen statt des Symbols eine 2-px-Schiene am Rand. Textbreite auf Ebene 5: 39 px → 124 px.
+* Symbole oben ausgerichtet (`align-items: flex-start`), damit ein zweizeiliger Name das Symbol nicht in die Mitte zieht.
+* Der Standortname steht zusätzlich als `title` am Link (Tooltip), ebenso beim Bereich.
+* Seitenleiste bleibt 220 px. Gemessen an der laufenden App bei 1280 und 1400 px, hell und dunkel: kein Eintrag läuft über, längste Namen zwei Zeilen.
+
 ### v3.36 – Abhängigkeiten und Lieferkette (Oktober 2026, APP_VERSION 2.6.0)
 
 * `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1.

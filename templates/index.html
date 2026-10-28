@@ -4,10 +4,20 @@
 
 {% block content %}
 {% macro render_sidebar_unterbereiche(unterbereich, aktiver_unterbereich, level) %}
+{# Einrueckung nur bis Ebene 2: die Spalte ist 220 px breit, jede weitere
+   Ebene nimmt dem Text 16 px weg (gemessen: bei Ebene 5 blieben 39 px, der
+   Name lief aus der Karte und wurde abgeschnitten). Ab Ebene 2 bleibt die
+   Einrueckung stehen, eine Schiene am linken Rand zeigt die tiefere Lage.
+   Der Name steht in einem eigenen span: ein nackter Textknoten im
+   Flex-Container ist ein anonymer Eintrag, schrumpft nicht auf die
+   Spaltenbreite und laeuft bei langen Woertern heraus. #}
+{% set tiefe = [level, 2] | min %}
 <a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
-   class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
-   style="padding-left: {{ 1.5 + level * 1 }}rem;">
-    <i class="fa-solid fa-level-up-alt fa-rotate-90 text-light"></i> {{ unterbereich.name }}
+   class="location-link{% if level >= 2 %} location-link--tief{% endif %} {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
+   style="padding-left: {{ (1.5 + tiefe * 0.6) | round(2) }}rem;"
+   title="{{ unterbereich.name }}">
+    {% if level < 2 %}<i class="fa-solid fa-level-up-alt fa-rotate-90 text-light"></i>{% endif %}
+    <span class="location-name">{{ unterbereich.name }}</span>
 </a>
 {% for child in unterbereich.children %}
     {{ render_sidebar_unterbereiche(child, aktiver_unterbereich, level + 1) }}
@@ -65,13 +75,14 @@
         <h3><i class="fa-solid fa-building"></i> Standorte</h3>
         <nav class="location-nav">
             <a href="{{ url_for('index') }}" class="location-link {% if not aktiver_bereich %}active{% endif %}">
-                <i class="fa-solid fa-globe"></i> Alle Standorte
+                <i class="fa-solid fa-globe"></i> <span class="location-name">Alle Standorte</span>
             </a>
             <hr class="nav-divider">
             {% for bereich in bereiche %}
             <a href="{{ url_for('index', bereich_id=bereich.id) }}"
+               title="{{ bereich.name }}"
                class="location-link {% if aktiver_bereich and aktiver_bereich.id == bereich.id and not aktiver_unterbereich %}active{% endif %}">
-                <i class="fa-solid fa-map-marker-alt"></i> {{ bereich.name }}
+                <i class="fa-solid fa-map-marker-alt"></i> <span class="location-name">{{ bereich.name }}</span>
             </a>
             {% for unter in bereich.unterbereiche %}
                 {% if not unter.parent_id %}
