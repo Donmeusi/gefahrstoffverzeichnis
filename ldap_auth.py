@@ -5,6 +5,7 @@ import logging
 try:
     import ldap3
     from ldap3 import Server, Connection, ALL, Tls
+    from ldap3.utils.conv import escape_filter_chars, escape_rdn
     LDAP3_AVAILABLE = True
 except ImportError:
     LDAP3_AVAILABLE = False
@@ -30,7 +31,11 @@ def get_ldap_config():
     user_search_filter = os.environ.get('LDAP_USER_SEARCH_FILTER', '(sAMAccountName={username})')
     user_dn_template = os.environ.get('LDAP_USER_DN_TEMPLATE', '').strip()
     default_role = os.environ.get('LDAP_DEFAULT_ROLE', 'lesen').strip().lower()
-    require_cert = os.environ.get('LDAP_REQUIRE_CERT', 'false').lower() in ('true', '1', 'yes')
+    # Default an: ohne Pruefung akzeptiert der Client jedes Zertifikat, und die
+    # Anwendung schickt Klartext-Anmeldedaten an den Verzeichnisdienst. Wer
+    # selbstsignierte Zertifikate nutzt, hinterlegt sie ueber
+    # LDAP_CA_CERT_FILE, statt die Pruefung abzuschalten.
+    require_cert = os.environ.get('LDAP_REQUIRE_CERT', 'true').lower() in ('true', '1', 'yes')
 
     if default_role not in ('admin', 'moderator', 'benutzer', 'lesen'):
         default_role = 'lesen'
@@ -45,7 +50,8 @@ def get_ldap_config():
         'user_search_filter': user_search_filter,
         'user_dn_template': user_dn_template,
         'default_role': default_role,
-        'require_cert': require_cert
+        'require_cert': require_cert,
+        'ca_cert_file': os.environ.get('LDAP_CA_CERT_FILE', '').strip()
     }
 
 def authenticate_ldap(username, password):
@@ -69,7 +75,18 @@ def authenticate_ldap(username, password):
         tls_ctx = None
         if cfg['use_ssl'] or cfg['port'] == 636:
             validate = ssl.CERT_REQUIRED if cfg['require_cert'] else ssl.CERT_NONE
-            tls_ctx = Tls(validate=validate)
+            # Eigenes CA-Bundle (z.B. Unternehmens-PKI) statt abgeschalteter
+            # Pruefung. Ohne die Datei greift der System-Speicher.
+            if cfg['ca_cert_file']:
+                tls_ctx = Tls(validate=validate, ca_certs_file=cfg['ca_cert_file'])
+            else:
+                tls_ctx = Tls(validate=validate)
+            if not cfg['require_cert']:
+                logger.warning(
+                    'LDAP_REQUIRE_CERT ist deaktiviert: das Server-Zertifikat '
+                    'wird nicht geprueft. LDAP_CA_CERT_FILE hinterlegen statt '
+                    'die Pruefung abzuschalten.'
+                )
 
         # Server-Objekt erstellen
         host_str = cfg['host']
@@ -90,7 +107,9 @@ def authenticate_ldap(username, password):
 
         # Methode A: Direct DN Template (z.B. uid={username},ou=users,dc=example,dc=com)
         if cfg['user_dn_template']:
-            user_dn = cfg['user_dn_template'].format(username=username)
+            # escape_rdn maskiert ',', '=', '+' usw., mit denen sich sonst ein
+            # anderer DN zusammenbauen liesse.
+            user_dn = cfg['user_dn_template'].format(username=escape_rdn(username))
             conn = Connection(server, user=user_dn, password=password, auto_bind=True)
             conn.unbind()
             return True, {'username': username, 'default_role': cfg['default_role']}
@@ -101,7 +120,9 @@ def authenticate_ldap(username, password):
             admin_conn = Connection(server, user=cfg['bind_dn'], password=cfg['bind_password'], auto_bind=True)
             
             # 2. Nach dem User DN suchen
-            search_filter = cfg['user_search_filter'].format(username=username)
+            # Ohne Maskierung hebt ein '*)(|(objectClass=*)' den Filter aus.
+            search_filter = cfg['user_search_filter'].format(
+                username=escape_filter_chars(username))
             admin_conn.search(
                 search_base=cfg['base_dn'],
                 search_filter=search_filter,
@@ -122,7 +143,7 @@ def authenticate_ldap(username, password):
 
         # Methode C: Direkte Authentifizierung mit Base DN
         elif cfg['base_dn']:
-            user_dn = f"cn={username},{cfg['base_dn']}"
+            user_dn = f"cn={escape_rdn(username)},{cfg['base_dn']}"
             conn = Connection(server, user=user_dn, password=password, auto_bind=True)
             conn.unbind()
             return True, {'username': username, 'default_role': cfg['default_role']}

@@ -68,13 +68,13 @@
     <!-- Account Info -->
     <div class="card">
         <div class="profile-hero">
-            <div class="user-avatar-lg {% if getattr(current_user, 'is_admin', False) %}avatar-admin{% else %}avatar-user{% endif %}">
+            <div class="user-avatar-lg {% if current_user.is_admin %}avatar-admin{% else %}avatar-user{% endif %}">
                 {{ current_user.username[0]|upper }}
             </div>
             <div class="profile-hero-info">
                 <h2>{{ current_user.username }}</h2>
                 <p>
-                    {% if getattr(current_user, 'is_admin', False) %}
+                    {% if current_user.is_admin %}
                     <span class="badge badge-admin"><i class="fa-solid fa-crown"></i> Administrator</span>
                     {% else %}
                     <span class="badge badge-info"><i class="fa-solid fa-user"></i> Benutzer</span>
@@ -96,7 +96,7 @@
 
                 <dt>Rolle</dt>
                 <dd>
-                    {% if getattr(current_user, 'is_admin', False) %}
+                    {% if current_user.is_admin %}
                     Vollständige Admin-Rechte
                     {% else %}
                     Standard-Benutzer
@@ -184,7 +184,7 @@
 </div>
 {% endif %}
 
-{% if getattr(current_user, 'is_admin', False) %}
+{% if current_user.is_admin %}
 <div class="card mt-4">
     <div class="card-body">
         <div class="section-header">

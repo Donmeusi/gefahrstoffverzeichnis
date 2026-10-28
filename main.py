@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, g, abort, session
 from flask.sessions import SecureCookieSessionInterface
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -14,7 +14,8 @@ import platform
 import threading
 import time
 import calendar
-from datetime import datetime
+from datetime import datetime, timedelta
+from html import escape as html_escape
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
 from io import BytesIO
@@ -50,6 +51,11 @@ app.secret_key = os.environ["FLASK_SECRET_KEY"]
 # --- Security & Session Configuration ---
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Ohne diese Angabe gilt der Flask-Standard von 31 Tagen. Eine angemeldete
+# Sitzung auf einem gemeinsam genutzten Rechner soll nicht wochenlang gueltig
+# bleiben.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+app.config['SESSION_PERMANENT'] = True
 # Das Secure-Flag des Sitzungscookies haengt vom tatsaechlichen Zugriffsweg
 # ab, nicht von der Konfiguration: Die Anwendung laeuft im LAN ueber HTTP und
 # gleichzeitig hinter einem Reverse Proxy ueber HTTPS. Ein festes Flag macht
@@ -121,6 +127,21 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}
 
+# Mindestlaenge fuer lokal gesetzte Passwoerter. Gilt fuer Registrierung,
+# Benutzeranlage und Passwortwechsel im Profil. Die Grenze liegt bewusst
+# ueber vier Zeichen: kontoloesende Angriffe laufen sonst im Sekundentakt
+# durch, zumal es keinen Brute-Force-Schutz am Login gibt.
+MIN_PASSWORT_LAENGE = 12
+
+
+def passwort_hinweis(password):
+    """Gibt eine Fehlermeldung zurueck oder None, wenn das Passwort genuegt."""
+    if not password or len(password) < MIN_PASSWORT_LAENGE:
+        return (f'Das Passwort muss mindestens {MIN_PASSWORT_LAENGE} Zeichen '
+                'lang sein.')
+    return None
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -156,8 +177,6 @@ def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
         
     file_obj.save(os.path.join(upload_dir, filename))
     return filename
-
-app.jinja_env.globals.update(getattr=getattr)
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -1180,7 +1199,13 @@ def register():
         if not username or not password:
             flash('Bitte Benutzername und Passwort eingeben.', 'error')
             return redirect(url_for('register'))
-            
+
+        # Nicht nur hier: der erste Admin ist der einzige Weg in eine frische
+        # Installation und darf kein Ein-Zeichen-Passwort bekommen.
+        if passwort_hinweis(password):
+            flash(passwort_hinweis(password), 'error')
+            return redirect(url_for('register'))
+
         user = User(username=username, role='admin')
         user.set_password(password)
         db.session.add(user)
@@ -1222,6 +1247,7 @@ def login():
                     log_audit_event('USER_CREATE', 'User', user.id, f"Benutzer via LDAPs neu angelegt (Rolle: {default_role}).")
                 
                 login_user(user)
+                session.permanent = True
                 log_audit_event('LOGIN', 'User', user.id, "Erfolgreicher LDAPs Login.")
                 return redirect(url_for('index'))
 
@@ -1231,6 +1257,7 @@ def login():
             flash('Ungültiger Benutzername oder Passwort', 'error')
             return redirect(url_for('login'))
         login_user(user)
+        session.permanent = True
         # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
         log_audit_event('LOGIN', 'User', user.id,
                         'Lokaler Login (Passwort aus der Datenbank).')
@@ -1562,9 +1589,11 @@ def location_inventur(id):
         flash('Kein Zugriff auf diesen Standort.', 'error')
         return redirect(url_for('index'))
 
-    stoff_list = Gefahrstoff.query.filter_by(
-        unterbereich_id=unterbereich.id,
-        is_deleted=False
+    # Ueber get_gefahrstoff_query(), damit nicht freigegebene Stoffe (CMR)
+    # auch in der Inventur unsichtbar bleiben. Die Bereichszugehoerigkeit ist
+    # oben bereits geprueft; die Query ergaenzt den Freigabefilter.
+    stoff_list = get_gefahrstoff_query().filter(
+        Gefahrstoff.unterbereich_id == unterbereich.id
     ).order_by(Gefahrstoff.name.asc()).all()
 
     if request.method == 'POST':
@@ -2307,11 +2336,14 @@ def export_pdf():
     
     for s in stoffe:
         # Col 1: Name & CAS
-        name_cas = f"<b>{s.name}</b><br/>"
+        # Paragraph() wertet Mini-HTML aus. Alle Freitextfelder werden
+        # escaped, sonst laesst sich ueber den Stoffnamen Markup in das PDF
+        # schmuggeln (Links, Bilder).
+        name_cas = f"<b>{html_escape(s.name or '')}</b><br/>"
         if s.cas_nummer:
-            name_cas += f"CAS: {s.cas_nummer}<br/>"
+            name_cas += f"CAS: {html_escape(s.cas_nummer)}<br/>"
         if s.eg_nummer:
-            name_cas += f"EG: {s.eg_nummer}"
+            name_cas += f"EG: {html_escape(s.eg_nummer)}"
         p_name_cas = Paragraph(name_cas, cell_style)
         
         # Col 2: Einstufung (Piktogramme & H-Sätze)
@@ -2344,20 +2376,25 @@ def export_pdf():
                 pass
         
         if s.gefahrenkategorien:
-            einstufung_elements.append(Paragraph(s.gefahrenkategorien, cell_style))
+            einstufung_elements.append(
+                Paragraph(html_escape(s.gefahrenkategorien), cell_style))
         if s.signalwort:
-            einstufung_elements.append(Paragraph(f"<i>{s.signalwort}</i>", cell_style))
+            einstufung_elements.append(
+                Paragraph(f"<i>{html_escape(s.signalwort)}</i>", cell_style))
         if s.h_saetze:
-            einstufung_elements.append(Paragraph(s.h_saetze, cell_style))
+            einstufung_elements.append(
+                Paragraph(html_escape(s.h_saetze), cell_style))
             
         # Col 3: Menge & LGK
-        menge_str = f"{s.menge} {s.mengeneinheit}" if s.menge else "-"
+        menge_str = f"{s.menge} {html_escape(str(s.mengeneinheit or ''))}" if s.menge else "-"
         if s.lagerklasse:
-            menge_str += f"<br/>LGK: {s.lagerklasse}"
+            menge_str += f"<br/>LGK: {html_escape(str(s.lagerklasse))}"
         p_menge = Paragraph(menge_str, cell_style)
         
         # Col 4: Arbeitsbereich
-        standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
+        standort = (f"{html_escape(s.unterbereich.bereich.name)} > "
+                    f"{html_escape(s.unterbereich.name)}"
+                    if s.unterbereich else html_escape(s.lagerort or "-"))
         p_standort = Paragraph(standort, cell_style)
         
         # Col 5: Datum SDB
@@ -2365,11 +2402,11 @@ def export_pdf():
         p_sdb = Paragraph(sdb_datum, cell_style)
         
         # Col 6: Substitution
-        subst_str = f"<b>{s.substitutionspruefung or '-'}</b>"
+        subst_str = f"<b>{html_escape(s.substitutionspruefung or '-')}</b>"
         if s.ersatzstoff:
-            subst_str += f"<br/>Ersatzstoff: {s.ersatzstoff}"
+            subst_str += f"<br/>Ersatzstoff: {html_escape(s.ersatzstoff)}"
         if s.begruendung:
-            subst_str += f"<br/>Begründung: {s.begruendung}"
+            subst_str += f"<br/>Begründung: {html_escape(s.begruendung)}"
         p_subst = Paragraph(subst_str, cell_style)
         
         data.append([p_name_cas, einstufung_elements, p_menge, p_standort, p_sdb, p_subst])
@@ -2396,6 +2433,19 @@ def uploaded_file(filename):
     if current_user.role == 'lesen':
         flash('Keine Berechtigung zum Herunterladen von Dokumenten (Leser-Rolle).', 'error')
         return redirect(url_for('index'))
+    # Die Rolle allein genuegt nicht: sonst laedt jeder Benutzer jedes Dokument
+    # herunter, auch aus Bereichen, die ihm nicht zugeordnet sind. Der
+    # Dateiname muss zu einem Stoff gehoeren, den get_gefahrstoff_query()
+    # fuer diesen Benutzer liefert.
+    erlaubt = get_gefahrstoff_query().filter(db.or_(
+        Gefahrstoff.sicherheitsdatenblatt == filename,
+        Gefahrstoff.betriebsanweisung == filename,
+        Gefahrstoff.gefaehrdungsbeurteilung == filename,
+    )).first()
+    if not erlaubt:
+        # Bewusst 404 statt 403: sonst verraet die Antwort, dass es die Datei
+        # gibt. Dateinamen sind aus dem Stoffnamen ableitbar.
+        abort(404)
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ─── Profil & Freigaben ────────────────────────────────────────────────────────
@@ -2465,8 +2515,8 @@ def profile():
             flash('Altes Passwort ist nicht korrekt.', 'error')
         elif new_password != confirm_password:
             flash('Die neuen Passwörter stimmen nicht überein.', 'error')
-        elif len(new_password) < 4:
-            flash('Das neue Passwort muss mindestens 4 Zeichen lang sein.', 'error')
+        elif passwort_hinweis(new_password):
+            flash(passwort_hinweis(new_password), 'error')
         else:
             current_user.set_password(new_password)
             db.session.commit()
@@ -2518,7 +2568,9 @@ def approve_stoff(id):
     # Wurde von der Detailseite freigegeben, dort bleiben; sonst zurueck zur
     # Freigabeliste. Nur relative Pfade (kein offenes Weiterleiten).
     ziel = request.form.get('next', '')
-    if ziel.startswith('/'):
+    # Nur echte lokale Pfade: '//evil.com' ist protokollrelativ und leitet auf
+    # eine Fremddomain, Backslash wird von manchen Browsern wie '/' behandelt.
+    if ziel.startswith('/') and not ziel.startswith('//') and '\\' not in ziel:
         return redirect(ziel)
     return redirect(url_for('profile'))
 
@@ -2584,6 +2636,10 @@ def create_user():
 
         if not username or not password:
             flash('Benutzername und Passwort sind Pflichtfelder.', 'error')
+            return redirect(url_for('create_user'))
+
+        if passwort_hinweis(password):
+            flash(passwort_hinweis(password), 'error')
             return redirect(url_for('create_user'))
 
         if role not in allowed_roles:
@@ -3152,6 +3208,11 @@ def api_autofill(cas_nummer):
     cas = cas_nummer.strip()
     if not cas:
         return jsonify({'error': 'Keine CAS-Nummer angegeben'}), 400
+    # Die Nummer landet in einer SPARQL-Abfrage. Ohne diese Pruefung laesst
+    # sich die Abfrage mit einem Anfuehrungszeichen verlassen und der Server
+    # als Sprungbrett fuer beliebige Wikidata-Abfragen benutzen.
+    if not re.fullmatch(r'\d{2,7}-\d{2}-\d', cas):
+        return jsonify({'error': 'Ungueltige CAS-Nummer'}), 400
         
     try:
         # 1) Amtliche harmonisierte Einstufung aus Anhang VI der CLP-VO. Die
@@ -3333,8 +3394,11 @@ def api_autofill(cas_nummer):
 
         return jsonify(ghs_data)
         
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        # Interne Meldungen (SQL, Pfade, Parser-Details) bleiben im Log und
+        # gehen nicht an den Client.
+        app.logger.exception('Autofill fehlgeschlagen')
+        return jsonify({'error': 'Interner Fehler bei der Stoffabfrage.'}), 500
 
 # ─── Security Headers & Error Handlers ─────────────────────────────────────────
 
@@ -3342,8 +3406,27 @@ def api_autofill(cas_nummer):
 def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    # Die Templates nutzen Inline-Skripte und Inline-Styles, daher bleibt
+    # 'unsafe-inline' noetig. Der Rest der Direktiven begrenzt trotzdem, was
+    # nachgeladen werden darf (kein object/embed, keine fremden Frames).
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'self'"
+    )
+    # Stoffdaten, Namen und Dokumentlisten sollen nicht im Browsercache eines
+    # gemeinsam genutzten Rechners liegen bleiben.
+    if not request.path.startswith('/static/'):
+        response.headers.setdefault('Cache-Control', 'no-store')
+    # HSTS ist nur ueber HTTPS wirksam; ueber HTTP gesetzt ist es wirkungslos
+    # und kann bei reinen LAN-Hosts Nebenwirkungen haben.
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000'
     return response
 
 @app.errorhandler(404)

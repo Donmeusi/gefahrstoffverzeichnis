@@ -81,7 +81,7 @@ class TestAuditLog(unittest.TestCase):
     def test_create_user_schreibt_audit_eintrag(self):
         self._login_admin()
         self.client.post('/users/create',
-                         data={'username': 'neu_audit', 'password': 'geheim123',
+                         data={'username': 'neu_audit', 'password': 'dummy-geheim-123',
                                'role': 'benutzer'},
                          follow_redirects=True)
 
@@ -102,7 +102,7 @@ class TestAuditLog(unittest.TestCase):
         # "<Satz>") - eine Zahl stand als Aktion, der Satz in der Integer-Spalte
         # entity_id. Der Eintrag war damit unbrauchbar.
         self.client.post('/register',
-                         data={'username': 'erster_admin', 'password': 'geheim123'},
+                         data={'username': 'erster_admin', 'password': 'dummy-geheim-123'},
                          follow_redirects=True)
 
         with app.app_context():
