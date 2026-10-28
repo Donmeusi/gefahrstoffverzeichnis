@@ -33,6 +33,23 @@ ENV FLASK_APP=main.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 ENV RUNNING_IN_DOCKER=true
+# Keine .pyc im (schreibgeschuetzt einghaengten) Quellverzeichnis ablegen.
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Nicht als root laufen. Ohne USER-Anweisung hat der Prozess UID 0 und alle
+# Default-Capabilities; in Verbindung mit dem schreibbaren Quellcode-Mount
+# heisst das: jeder Weg zu Codeausfuehrung trifft den Host mit.
+#
+# HOME zeigt auf /app, damit `pip install --user` im Entrypoint in das
+# einghaengte Verzeichnis schreibt und nicht nach /root.
+#
+# Bei bestehenden Installationen muessen die einghaengten Verzeichnisse dem
+# Benutzer gehoeren (chown -R 1000:1000 <verzeichnis>), sonst kann die
+# Anwendung die Datenbank nicht schreiben.
+RUN useradd --uid 1000 --shell /usr/sbin/nologin --no-create-home app \
+    && chown -R app:app /app /usr/local/share
+ENV HOME=/app
+USER app
 
 # Port freigeben
 EXPOSE 5000

@@ -110,8 +110,12 @@ LDAP_USER_SEARCH_FILTER=(sAMAccountName={username})
 # Standardrolle für neue LDAP-Benutzer beim ersten Login (lesen | benutzer | moderator | admin)
 LDAP_DEFAULT_ROLE=lesen
 
-# SSL-Zertifikat erzwingen (false für selbstsignierte Zertifikate)
-LDAP_REQUIRE_CERT=false
+# Server-Zertifikat prüfen (Standard: true)
+LDAP_REQUIRE_CERT=true
+
+# Für eine eigene/interne PKI das CA-Bundle hinterlegen, statt die Prüfung
+# abzuschalten. Sonst gehen die Anmeldedaten ungeprüft an den Verzeichnisdienst.
+# LDAP_CA_CERT_FILE=/certs/unternehmens-ca.pem
 ```
 
 ### 🐳 Vollständige Docker-Installation (Empfohlen für Server & Unraid)
@@ -142,9 +146,16 @@ docker compose up -d --build
 ```
 Das System mountet Ihren Code-Ordner als Volume in den Container (`- ./:/app`). Dadurch bleiben alle Ihre zukünftigen Updates (via `git pull`) dauerhaft auf Ihrem Server gespeichert. Die Python-Abhängigkeiten werden beim Bauen installiert, nicht bei jedem Start — ein Neustart dauert dadurch rund eine halbe Minute statt mehrerer Minuten.
 
+Der Container läuft **nicht als root**, sondern als Benutzer `app` mit UID/GID 1000. Die eingehängten Verzeichnisse müssen diesem Benutzer gehören, sonst kann die Anwendung die Datenbank nicht schreiben:
+
+```bash
+sudo chown -R 1000:1000 /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
+```
+
 **4. Auf die App zugreifen:**
-Sobald der Container läuft, erreichen Sie das Gefahrstoffverzeichnis über den Browser unter:
-`http://<IP-Ihres-Servers>:5000`
+Die mitgelieferte `docker-compose.yml` veröffentlicht Port 5000 nur auf der Loopback-Schnittstelle — gedacht für einen vorgelagerten Reverse Proxy. Direkt aus dem Netz erreichbar ist die App damit nicht, und das ist Absicht: sonst gehen Anmeldungen unverschlüsselt über die Leitung.
+
+Betreiben Sie die App ohne Proxy in einem vertrauenswürdigen LAN, ändern Sie in der `docker-compose.yml` die Portzeile bewusst auf `- "5000:5000"` und rufen Sie sie unter `http://<IP-Ihres-Servers>:5000` auf.
 
 ### Betrieb im LAN und im Internet
 
@@ -168,17 +179,18 @@ location / {
 
 Reicht Ihr Proxy den Header nicht durch, setzen Sie in der `.env` `SESSION_COOKIE_SECURE=true` (erzwingt das Flag) oder `false` (schaltet es ab). Beides ist ein Notbehelf — der saubere Weg ist der Header.
 
-**Härtung:** Der Produktionsserver (Waitress) reicht `X-Forwarded-*` standardmäßig durch. Wenn Sie das einschränken wollen:
+**Wichtig beim Betrieb hinter einem Proxy:** Der Produktionsserver (Waitress) reicht `X-Forwarded-*` durch, damit die Anwendung HTTPS erkennt. Ohne weitere Konfiguration darf **jeder** Client diese Header setzen — auch einer, der den Proxy umgeht. Tragen Sie deshalb die Adresse Ihres Proxys ein:
 
 ```env
 # Nur dieser Proxy darf die Header setzen (IP oder CIDR)
 TRUSTED_PROXY=172.17.0.1
 
-# Oder: Header immer verwerfen (dann kein automatisches Secure-Flag)
+# Oder: Header immer verwerfen (dann kein automatisches Secure-Flag,
+# SESSION_COOKIE_SECURE=true setzen)
 # CLEAR_UNTRUSTED_PROXY_HEADERS=true
 ```
 
-Die Anwendung selbst sollte **nicht** direkt aus dem Internet erreichbar sein: Port 5000 gehört hinter den Proxy, nicht in die Firewall-Freigabe.
+Die Anwendung selbst sollte **nicht** direkt aus dem Internet erreichbar sein: Port 5000 gehört hinter den Proxy, nicht in die Firewall-Freigabe. Deshalb veröffentlicht die mitgelieferte Compose-Datei den Port nur auf `127.0.0.1`.
 
 **Hinweis für Unraid-Nutzer:**
 Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach `/mnt/user/appdata/gefahrstoffverzeichnis`. Sie können die bestehende `docker-compose.yml` dann auch direkt in das "Compose Manager" Plugin von Unraid einbinden und den Stack (Container) über das Webinterface verwalten.
@@ -190,6 +202,8 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
     *   **Standard-Installation:** Führen Sie `python migrate_gefahrenkategorien.py` in Ihrem App-Verzeichnis aus.
     *   **Docker-Installation:** Führen Sie den Befehl innerhalb des laufenden Containers aus: `docker exec -it gefahrstoffe_app python /app/migrate_gefahrenkategorien.py`
 *   **Produktivbetrieb:** `FLASK_SECRET_KEY` ist Pflicht — ohne ihn startet die Anwendung nicht. Die Docker-Installation startet bereits den WSGI-Server *Waitress*; bei einer Installation ohne Docker starten Sie `python run_prod.py` statt `flask run`.
+*   **Sitzungsschlüssel rotieren, wenn er bekannt geworden ist.** Bis Oktober 2026 gab es im Quelltext einen Rückfallwert für `FLASK_SECRET_KEY`. Wer eine Installation aus dieser Zeit ohne eigene Variable betrieben hat, sollte den Schlüssel neu erzeugen (`openssl rand -base64 32`) und den Container neu starten — das beendet alle bestehenden Sitzungen. Das Löschen aus dem Code genügt nicht, weil der alte Wert in der Git-Historie öffentlich bleibt.
+*   **Passwörter:** lokal gesetzte Passwörter brauchen mindestens 12 Zeichen (Registrierung, Benutzeranlage, Profil). Bestehende Konten sind davon nicht betroffen.
 
 ## 📅 Changelog
 

@@ -1,11 +1,15 @@
-version: '3.8'
-
 services:
   web:
     build: .
     container_name: gefahrstoffe_app
     ports:
-      - "5000:5000"
+      # Nur auf der Loopback-Schnittstelle veroeffentlichen. Ein vorgelagerter
+      # Reverse Proxy (oder ein anderer Container im selben Docker-Netz)
+      # erreicht die Anwendung trotzdem; aus dem LAN ist sie dann nicht mehr
+      # unverschluesselt und am Proxy vorbei erreichbar.
+      # Wer ohne Proxy direkt zugreifen will, aendert das bewusst auf
+      # "5000:5000" und sollte dann TLS selbst terminieren.
+      - "127.0.0.1:5000:5000"
     env_file:
       # Muss vorhanden sein. Pflichtwert darin: FLASK_SECRET_KEY.
       # Vorlage: .env.example
@@ -22,12 +26,28 @@ services:
       # -> nicht Secure. Nur setzen, wenn der Proxy X-Forwarded-Proto
       # nicht durchreicht.
       # - SESSION_COOKIE_SECURE=true
+      # Hinter einem Reverse Proxy: IP bzw. CIDR des Proxys eintragen, damit
+      # nur dieser X-Forwarded-* setzen darf. Ohne Angabe werden die Header
+      # von jedem Client uebernommen.
+      - TRUSTED_PROXY=${TRUSTED_PROXY:-}
     volumes:
       # Mount the entire source code to persist git pull updates
       - ./:/app
       # Native Docker Volume to bypass LXC SQLite locking bug
       - gefahrstoff_data:/app/data
-    restart: always
+    restart: unless-stopped
+    # Ohne Limit teilt sich ein grosser PDF- oder Excel-Upload den Speicher mit
+    # dem Host. Die Grenzen sind bewusst grosszuegig und nur eine Obergrenze.
+    mem_limit: 1g
+    cpus: 2.0
+    pids_limit: 200
+    healthcheck:
+      # Kein curl im slim-Image: die Pruefung laeuft ueber die Standardbibliothek.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/login', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
 volumes:
   gefahrstoff_data:

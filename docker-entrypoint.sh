@@ -14,7 +14,9 @@ if [ -f "requirements.txt" ]; then
     HAVE=$(cat "$STAMP" 2>/dev/null || cat "$IMAGE_HASH_FILE" 2>/dev/null || echo "none")
     if [ "$WANT" != "$HAVE" ]; then
         echo "requirements.txt geaendert - installiere Abhaengigkeiten..."
-        pip install --no-cache-dir -r requirements.txt
+        # --user, weil der Container als nicht-root laeuft. Die Pakete landen
+        # unter $HOME/.local (= /app/.local) und stehen trotzdem auf sys.path.
+        pip install --no-cache-dir --user -r requirements.txt
         echo "$WANT" > "$STAMP" 2>/dev/null || true
     else
         echo "Abhaengigkeiten unveraendert - ueberspringe pip install."
