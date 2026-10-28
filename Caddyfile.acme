@@ -1,0 +1,19 @@
+# Variante fuer eine oeffentliche Domain mit Let's-Encrypt-Zertifikat.
+#
+# Aktivieren:
+#   SITE_ADDRESS=gefahrstoffe.example.de
+#   CADDYFILE=Caddyfile.acme
+#
+# Voraussetzungen, ohne die kein Zertifikat ausgestellt wird:
+#   - Die Domain zeigt auf den Server (A/AAAA-Record).
+#   - Port 80 und 443 sind aus dem Internet erreichbar.
+#   - Es laeuft kein anderer Dienst auf 80/443.
+#
+# Caddy holt und erneuert das Zertifikat selbst; es liegt im Volume caddy_data
+# und ueberlebt Neustarts.
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	reverse_proxy web:5000
+}

@@ -155,6 +155,30 @@ sudo chown -R 1000:1000 /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
 **4. Auf die App zugreifen:**
 Die mitgelieferte `docker-compose.yml` veröffentlicht Port 5000 nur auf der Loopback-Schnittstelle — gedacht für einen vorgelagerten Reverse Proxy. Direkt aus dem Netz erreichbar ist die App damit nicht, und das ist Absicht: sonst gehen Anmeldungen unverschlüsselt über die Leitung.
 
+### 🔐 HTTPS ohne eigenen Reverse Proxy
+
+Wer keinen eigenen Proxy betreiben will, kann einen mitliefern lassen:
+
+```env
+# .env — Name oder IP, unter der die Anwendung aufgerufen wird
+SITE_ADDRESS=https://192.168.1.10
+```
+
+```bash
+docker compose --profile tls up -d
+```
+
+Damit läuft ein Caddy-Container, der TLS terminiert und auf 80/443 lauscht. Port 5000 bleibt auf der Loopback-Schnittstelle, nach außen ist nur der Proxy erreichbar. Das Sitzungscookie bekommt automatisch das `Secure`-Flag, weil Caddy `X-Forwarded-Proto: https` setzt und die Anwendung nur diesem Container glaubt (`TRUSTED_PROXY` ist auf dessen feste Adresse gesetzt).
+
+**Zum Zertifikat:** Standardmäßig kommt es aus Caddys lokaler CA. Der Browser zeigt beim ersten Aufruf eine Warnung, bis die CA unter `/data/caddy/pki/authorities/local/root.crt` auf den Geräten als vertrauenswürdig eingetragen ist. Wer eine öffentliche Domain besitzt, die auf den Server zeigt und Port 80/443 aus dem Internet erreichen kann, bekommt mit
+
+```env
+SITE_ADDRESS=gefahrstoffe.example.de
+CADDYFILE=Caddyfile.acme
+```
+
+ein Let's-Encrypt-Zertifikat, das Caddy selbst holt und erneuert.
+
 Betreiben Sie die App ohne Proxy in einem vertrauenswürdigen LAN, setzen Sie in der `.env`:
 
 ```env

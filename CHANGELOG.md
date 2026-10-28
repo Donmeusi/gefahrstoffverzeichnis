@@ -29,6 +29,7 @@ Gesamtstand 251 Tests (neu: `test_sicherheitsfixes.py`).
 * **Bremse gegen Passwortraten.** Ab fünf Fehlversuchen ist die Kombination aus Benutzername und Quelladresse 15 Minuten gesperrt.
 * **Passwortwechsel beendet fremde Sitzungen.** Jedes Konto führt eine Sitzungsversion; ein Wechsel meldet alle anderen Geräte ab.
 * **In-App-Update nur noch auf das konfigurierte Repository.** Die URL im Adminformular kann die Herkunft nicht mehr ersetzen (`UPDATE_REPO_URL` in der `.env`), Branch-Namen werden geprüft, `protocol.ext.allow=never` schließt den `ext::`-Transport aus, und alle git-Aufrufe haben ein Zeitlimit.
+* **Optionales TLS-Profil.** `docker compose --profile tls up -d` startet einen Caddy-Container, der TLS terminiert (Port 80/443) und die Anwendung intern weiterleitet. Zertifikat standardmäßig aus Caddys lokaler CA; mit `CADDYFILE=Caddyfile.acme` und einer öffentlichen Domain über Let's Encrypt. Die Anwendung glaubt `X-Forwarded-*` nur noch dieser festen Proxy-Adresse (`TRUSTED_PROXY`).
 * **Automatische Schwachstellenmeldungen:** `.github/dependabot.yml` für pip, Docker und GitHub Actions. Dependabot-Alerts und Security-Updates sind aktiviert, `main` und `beta` sind gegen Force-Push und Löschen geschützt.
 
 ### v3.32 – Sicherheitsdatenblätter zuverlässiger auslesen (Oktober 2026, APP_VERSION 2.6.0)

@@ -32,13 +32,19 @@ services:
       # Hinter einem Reverse Proxy: IP bzw. CIDR des Proxys eintragen, damit
       # nur dieser X-Forwarded-* setzen darf. Ohne Angabe werden die Header
       # von jedem Client uebernommen.
-      - TRUSTED_PROXY=${TRUSTED_PROXY:-}
+      # Standard ist der Caddy-Container aus dem Profil "tls" (feste Adresse im
+      # Netz tlsnet). Wer einen eigenen Proxy betreibt, traegt dessen Adresse
+      # hier ein; ohne passenden Wert werden die Header verworfen.
+      - TRUSTED_PROXY=${TRUSTED_PROXY:-172.28.0.2}
     volumes:
       # Mount the entire source code to persist git pull updates
       - ./:/app
       # Native Docker Volume to bypass LXC SQLite locking bug
       - gefahrstoff_data:/app/data
     restart: unless-stopped
+    networks:
+      - default
+      - tlsnet
     # Ohne Limit teilt sich ein grosser PDF- oder Excel-Upload den Speicher mit
     # dem Host. Die Grenzen sind bewusst grosszuegig und nur eine Obergrenze.
     mem_limit: 1g
@@ -52,5 +58,48 @@ services:
       retries: 3
       start_period: 60s
 
+  # Optionaler TLS-Abschluss fuer Installationen ohne eigenen Reverse Proxy:
+  #
+  #   docker compose --profile tls up -d
+  #
+  # Dann ist die Anwendung unter https://<SITE_ADDRESS> erreichbar, Port 5000
+  # bleibt auf der Loopback-Schnittstelle. Das Zertifikat stammt standardmaessig
+  # aus Caddys lokaler CA (Browser-Warnung beim ersten Aufruf). Mit einer
+  # oeffentlichen Domain stattdessen: CADDYFILE=Caddyfile.acme setzen.
+  caddy:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    profiles: ["tls"]
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Name oder IP, unter der die Anwendung aufgerufen wird.
+      - SITE_ADDRESS=${SITE_ADDRESS:-https://localhost}
+      # Caddyfile = lokale CA (Standard), Caddyfile.acme = Let's Encrypt.
+      - CADDYFILE=${CADDYFILE:-Caddyfile}
+    command: ["caddy", "run", "--config", "/etc/caddy/${CADDYFILE:-Caddyfile}", "--adapter", "caddyfile"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.acme:/etc/caddy/Caddyfile.acme:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      tlsnet:
+        ipv4_address: 172.28.0.2
+    restart: unless-stopped
+    mem_limit: 128m
+
+networks:
+  # Festes Netz nur fuer den TLS-Container. Die feste Adresse ist noetig,
+  # damit die Anwendung genau dieser Quelle die X-Forwarded-Header glaubt.
+  tlsnet:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
 volumes:
   gefahrstoff_data:
+  caddy_data:
+  caddy_config:
