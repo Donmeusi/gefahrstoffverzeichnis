@@ -29,4 +29,6 @@ $env:FLASK_APP="main.py"
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*main.py*" -or $_.CommandLine -like "*run_prod.py*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 1
 
-Start-Process -FilePath ".\venv\Scripts\python.exe" -ArgumentList "main.py"
+# run_prod.py statt main.py: main.py startet den Werkzeug-Entwicklungsserver,
+# der nicht fuer den Dauerbetrieb gedacht ist.
+Start-Process -FilePath ".\venv\Scripts\python.exe" -ArgumentList "run_prod.py"

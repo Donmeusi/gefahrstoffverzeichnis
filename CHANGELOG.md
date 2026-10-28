@@ -2,6 +2,28 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.33 – Sicherheitsfixes aus dem Audit (Oktober 2026, APP_VERSION 2.6.0)
+
+Gesamtstand 251 Tests (neu: `test_sicherheitsfixes.py`).
+
+* **Behoben (IDOR): `/uploads/<datei>` lieferte jedes Dokument an jeden angemeldeten Nicht-Leser.** Die Route prüfte nur die Rolle, nicht den Bereich des Stoffes. Wer Zugriff auf Bereich B hatte, konnte Sicherheitsdatenblätter, Betriebsanweisungen und Gefährdungsbeurteilungen aus Bereich A herunterladen; die Dateinamen sind aus dem Stoffnamen ableitbar. Jetzt muss die Datei zu einem Stoff gehören, den `get_gefahrstoff_query()` für den Benutzer liefert — sonst 404.
+* **Behoben: die Inventurliste zeigte nicht freigegebene CMR-Stoffe.** Sie lief an `get_gefahrstoff_query()` vorbei; jetzt gilt dort derselbe Freigabefilter wie im Verzeichnis.
+* **Behoben: offenes Weiterleiten in `approve_stoff`.** `next=//beispiel.de` ist protokollrelativ und leitete auf eine Fremddomain.
+* **Passwort-Policy verschärft.** Mindestens 12 Zeichen statt 4, und erstmals auch bei der Registrierung und beim Anlegen von Benutzern geprüft — das erste Admin-Konto ließ sich zuvor mit einem einzelnen Buchstaben anlegen. Bestehende Konten bleiben unverändert.
+* **Behoben: SPARQL-Injection über die CAS-Nummer.** `/api/autofill/<cas>` setzte den Pfadwert ungeprüft in die Wikidata-Abfrage. Jetzt nur noch das CAS-Muster `\d{2,7}-\d{2}-\d`, zusätzlich escaped in `wikidata.py`.
+* **Behoben: LDAP-Filter- und DN-Injection.** Benutzername wird jetzt mit `escape_filter_chars` bzw. `escape_rdn` eingesetzt.
+* **LDAP-Zertifikatsprüfung ist jetzt standardmäßig an** (`LDAP_REQUIRE_CERT=true`). Für interne PKIs gibt es `LDAP_CA_CERT_FILE`, statt die Prüfung abzuschalten; bei abgeschalteter Prüfung schreibt die Anwendung eine Warnung ins Log.
+* **Behoben: Markup-Injection im PDF-Export.** `Paragraph()` wertet Mini-HTML aus; Stoffname, Gefahrenkategorien, Ersatzstoff und Begründung werden jetzt escaped.
+* **Keine internen Fehlertexte mehr in API-Antworten** — Details gehen ins Log.
+* **Sitzung:** Ablauf nach 12 Stunden statt Flask-Standard 31 Tage.
+* **Sicherheitsheader:** CSP, `Referrer-Policy`, `Cache-Control: no-store` für angemeldete Seiten; `X-XSS-Protection` entfernt; HSTS nur noch über HTTPS. `getattr` ist nicht mehr als Jinja-Global exportiert.
+* **Container läuft nicht mehr als root** (`USER app`, UID 1000). **Achtung bei bestehenden Installationen:** die gemounteten Verzeichnisse müssen `chown -R 1000:1000` bekommen, sonst schlägt der Datenbankzugriff fehl. Siehe README.
+* **Port 5000 wird nur noch auf `127.0.0.1` veröffentlicht.** Wer ohne Reverse Proxy direkt zugreifen will, ändert das in der `docker-compose.yml` bewusst.
+* **Compose:** `TRUSTED_PROXY` wird durchgereicht, `restart: unless-stopped`, Speicher-/CPU-/PID-Limits und ein Healthcheck ergänzt.
+* **`error.log` ist nicht mehr versioniert**, `*.log` steht in `.gitignore` und `.dockerignore`; `.dockerignore` schließt jetzt auch `.env`, `data/`, `*.db` und `openwiki/` aus. `update.sh` schreibt sein Log nach `data/logs/`.
+* **`update.sh` bricht bei Fehlern ab** (`set -euo pipefail`) statt die Anwendung in einem halb installierten Abhängigkeitsstand zu starten. `update.ps1` startet jetzt `run_prod.py` statt des Entwicklungsservers.
+* **Abhängigkeiten:** `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1. `playwright`, `beautifulsoup4` und `soupsieve` entfernt — im Code nicht verwendet. `requirements.txt` ist jetzt UTF-8 statt UTF-16 (Dependabot und andere Werkzeuge konnten sie nicht lesen).
+
 ### v3.32 – Sicherheitsdatenblätter zuverlässiger auslesen (Oktober 2026, APP_VERSION 2.6.0)
 
 * **Der SDB-Parser liest jetzt Abschnitt für Abschnitt.** Neues Modul `sdb_parser.py`: `zerlege()` schneidet die 16 Abschnitte heraus, jedes Feld wird nur an seiner Stelle gesucht. Die Route `parse_sdb` reicht nur noch Seitentexte und Tabellen durch. Anlass waren drei Fehler, die sich an echten Datenblättern nachweisen ließen.
