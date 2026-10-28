@@ -4,24 +4,28 @@
 
 {% block content %}
 {% macro render_sidebar_unterbereiche(unterbereich, aktiver_unterbereich, level) %}
-{# Einrueckung nur bis Ebene 2: die Spalte ist 220 px breit, jede weitere
-   Ebene nimmt dem Text 16 px weg (gemessen: bei Ebene 5 blieben 39 px, der
-   Name lief aus der Karte und wurde abgeschnitten). Ab Ebene 2 bleibt die
-   Einrueckung stehen, eine Schiene am linken Rand zeigt die tiefere Lage.
+{# Baum mit Schienen statt gestaffelter Einrueckung. Jede Ebene ist eine
+   eigene Box mit 1-px-Linie links; damit bleibt die Zuordnung auch dann
+   ablesbar, wenn die Spalte nur 220 px hat. Vorher kostete jede Ebene
+   16 px, und die Einrueckung musste ab Ebene 2 gedeckelt werden - tiefere
+   Ebenen waren dann nicht mehr zu unterscheiden.
    Der Name steht in einem eigenen span: ein nackter Textknoten im
    Flex-Container ist ein anonymer Eintrag, schrumpft nicht auf die
-   Spaltenbreite und laeuft bei langen Woertern heraus. #}
-{% set tiefe = [level, 2] | min %}
+   Spaltenbreite und laeuft bei langen Woertern heraus.
+   Ab Ebene 6 waechst die Einrueckung nicht weiter (Schutz vor Zyklen und
+   absurden Tiefen), der Rest erscheint auf gleicher Hoehe. #}
 <a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
-   class="location-link{% if level >= 2 %} location-link--tief{% endif %} {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
-   style="padding-left: {{ (1.5 + tiefe * 0.6) | round(2) }}rem;"
+   class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
    title="{{ unterbereich.name }}">
-    {% if level < 2 %}<i class="fa-solid fa-level-up-alt fa-rotate-90 text-light"></i>{% endif %}
     <span class="location-name">{{ unterbereich.name }}</span>
 </a>
+{% if unterbereich.children %}
+{% if level < 6 %}<div class="location-kinder">{% endif %}
 {% for child in unterbereich.children %}
     {{ render_sidebar_unterbereiche(child, aktiver_unterbereich, level + 1) }}
 {% endfor %}
+{% if level < 6 %}</div>{% endif %}
+{% endif %}
 {% endmacro %}
 
 <div class="page-header">
@@ -81,14 +85,20 @@
             {% for bereich in bereiche %}
             <a href="{{ url_for('index', bereich_id=bereich.id) }}"
                title="{{ bereich.name }}"
-               class="location-link {% if aktiver_bereich and aktiver_bereich.id == bereich.id and not aktiver_unterbereich %}active{% endif %}">
+               class="location-link location-link--gruppe {% if aktiver_bereich and aktiver_bereich.id == bereich.id and not aktiver_unterbereich %}active{% endif %}">
                 <i class="fa-solid fa-map-marker-alt"></i> <span class="location-name">{{ bereich.name }}</span>
             </a>
-            {% for unter in bereich.unterbereiche %}
-                {% if not unter.parent_id %}
-                    {{ render_sidebar_unterbereiche(unter, aktiver_unterbereich, 0) }}
-                {% endif %}
-            {% endfor %}
+            {% if bereich.unterbereiche %}
+            {# Auch die erste Ebene bekommt eine Schiene, sonst haengen die
+               Unterbereiche unter dem getoenten Bereichskopf ohne Linie. #}
+            <div class="location-kinder">
+                {% for unter in bereich.unterbereiche %}
+                    {% if not unter.parent_id %}
+                        {{ render_sidebar_unterbereiche(unter, aktiver_unterbereich, 0) }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
             {% endfor %}
         </nav>
     </aside>

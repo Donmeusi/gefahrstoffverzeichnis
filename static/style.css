@@ -1292,9 +1292,26 @@ h4 { font-size: var(--fs-h4); }
     overflow-wrap: break-word;
     hyphens: auto;
 }
-/* Ab Ebene 2 waechst die Einrueckung nicht mehr (siehe index.html). Die
-   Schiene sagt, dass der Eintrag tiefer liegt als die sichtbare Einrueckung. */
-.location-link--tief { border-left: 2px solid var(--border); }
+/* Baum der Unterbereiche. Jede Ebene ist eine eigene Box mit einer 1-px-Linie
+   links; so bleibt die Zuordnung bei 220 px Spaltenbreite sichtbar, und eine
+   Ebene kostet nur die Linie plus 0,45rem statt 1rem. Die Linie laeuft durch,
+   weil die Boxen selbst gestapelt sind - anders als die frueheren kurzen
+   Randstuecke je Link, zwischen denen Luecken standen. */
+.location-kinder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: 0.15rem;
+    padding-left: 0.45rem;
+    border-left: 1px solid var(--border-strong);
+}
+/* Bereichskopf: getoente Flaeche als Gruppenzeichen, damit erkennbar ist,
+   wo ein neuer Bereich beginnt und was zu ihm gehoert. Neutrale Toenung,
+   nicht --primary-light - das bleibt dem aktiven Eintrag vorbehalten. */
+.location-link--gruppe {
+    font-weight: 600;
+    background: var(--bg-subtle);
+}
 /* Zwei getrennte Regeln fuer dasselbe Element, hier zusammengefuehrt.
    Die Schriftgroesse stand zuletzt als Inline-Wert (0,8em) im Template und
    gewann damit gegen die 0,9em hier - der Wert ist jetzt hier festgehalten,
