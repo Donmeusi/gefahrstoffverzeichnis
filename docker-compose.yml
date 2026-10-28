@@ -3,13 +3,16 @@ services:
     build: .
     container_name: gefahrstoffe_app
     ports:
-      # Nur auf der Loopback-Schnittstelle veroeffentlichen. Ein vorgelagerter
-      # Reverse Proxy (oder ein anderer Container im selben Docker-Netz)
-      # erreicht die Anwendung trotzdem; aus dem LAN ist sie dann nicht mehr
-      # unverschluesselt und am Proxy vorbei erreichbar.
-      # Wer ohne Proxy direkt zugreifen will, aendert das bewusst auf
-      # "5000:5000" und sollte dann TLS selbst terminieren.
-      - "127.0.0.1:5000:5000"
+      # Standard: nur Loopback. Ein vorgelagerter Reverse Proxy erreicht die
+      # Anwendung trotzdem; aus dem Netz ist sie dann nicht unverschluesselt
+      # und am Proxy vorbei erreichbar.
+      #
+      # Fuer direkten Zugriff aus dem LAN in der .env setzen:
+      #   BIND_ADDR=0.0.0.0        (oder die IP des Servers)
+      # Achtung: ueber HTTP gehen Anmeldungen im Klartext ueber die Leitung,
+      # und das Sitzungscookie traegt kein Secure-Flag. Das ist eine bewusste
+      # Entscheidung fuer ein vertrauenswuerdiges Netz, nicht fuer Gaeste-WLAN.
+      - "${BIND_ADDR:-127.0.0.1}:5000:5000"
     env_file:
       # Muss vorhanden sein. Pflichtwert darin: FLASK_SECRET_KEY.
       # Vorlage: .env.example

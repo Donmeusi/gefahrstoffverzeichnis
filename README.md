@@ -155,7 +155,13 @@ sudo chown -R 1000:1000 /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
 **4. Auf die App zugreifen:**
 Die mitgelieferte `docker-compose.yml` veröffentlicht Port 5000 nur auf der Loopback-Schnittstelle — gedacht für einen vorgelagerten Reverse Proxy. Direkt aus dem Netz erreichbar ist die App damit nicht, und das ist Absicht: sonst gehen Anmeldungen unverschlüsselt über die Leitung.
 
-Betreiben Sie die App ohne Proxy in einem vertrauenswürdigen LAN, ändern Sie in der `docker-compose.yml` die Portzeile bewusst auf `- "5000:5000"` und rufen Sie sie unter `http://<IP-Ihres-Servers>:5000` auf.
+Betreiben Sie die App ohne Proxy in einem vertrauenswürdigen LAN, setzen Sie in der `.env`:
+
+```env
+BIND_ADDR=0.0.0.0
+```
+
+Danach ist sie unter `http://<IP-Ihres-Servers>:5000` erreichbar. Der Zugriff läuft dann unverschlüsselt: Anmeldedaten gehen im Klartext über die Leitung, und das Sitzungscookie trägt kein `Secure`-Flag. In einem vertrauenswürdigen Netz ist das eine bewusste Abwägung; in einem Netz mit fremden Geräten (Gäste-WLAN, gemeinsam genutzte Etage) liest jedes davon mit.
 
 ### Betrieb im LAN und im Internet
 

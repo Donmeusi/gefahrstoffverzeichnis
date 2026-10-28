@@ -18,7 +18,7 @@ Gesamtstand 251 Tests (neu: `test_sicherheitsfixes.py`).
 * **Sitzung:** Ablauf nach 12 Stunden statt Flask-Standard 31 Tage.
 * **Sicherheitsheader:** CSP, `Referrer-Policy`, `Cache-Control: no-store` für angemeldete Seiten; `X-XSS-Protection` entfernt; HSTS nur noch über HTTPS. `getattr` ist nicht mehr als Jinja-Global exportiert.
 * **Container läuft nicht mehr als root** (`USER app`, UID 1000). **Achtung bei bestehenden Installationen:** die gemounteten Verzeichnisse müssen `chown -R 1000:1000` bekommen, sonst schlägt der Datenbankzugriff fehl. Siehe README.
-* **Port 5000 wird nur noch auf `127.0.0.1` veröffentlicht.** Wer ohne Reverse Proxy direkt zugreifen will, ändert das in der `docker-compose.yml` bewusst.
+* **Port 5000 wird standardmäßig nur auf `127.0.0.1` veröffentlicht.** Für direkten Zugriff aus dem LAN genügt `BIND_ADDR=0.0.0.0` in der `.env`; die Anmeldung läuft dann unverschlüsselt über HTTP (bewusste Abwägung, siehe README).
 * **Compose:** `TRUSTED_PROXY` wird durchgereicht, `restart: unless-stopped`, Speicher-/CPU-/PID-Limits und ein Healthcheck ergänzt.
 * **`error.log` ist nicht mehr versioniert**, `*.log` steht in `.gitignore` und `.dockerignore`; `.dockerignore` schließt jetzt auch `.env`, `data/`, `*.db` und `openwiki/` aus. `update.sh` schreibt sein Log nach `data/logs/`.
 * **`update.sh` bricht bei Fehlern ab** (`set -euo pipefail`) statt die Anwendung in einem halb installierten Abhängigkeitsstand zu starten. `update.ps1` startet jetzt `run_prod.py` statt des Entwicklungsservers.
