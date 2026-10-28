@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.37 – Standort-Menü: Baum mit Schienen, lange Namen brechen um (Oktober 2026, APP_VERSION 2.6.2)
+
+* Lange und tief verschachtelte Standortnamen liefen aus der 220 px breiten Seitenleiste heraus und wurden vom `overflow: hidden` der Karte abgeschnitten — gemessen bis 120 px Überlauf bei Ebene 5. Grund: der Name war ein nackter Textknoten und damit ein anonymer Flex-Eintrag, der nicht mitschrumpft; das `overflow-wrap` am Link griff dort nicht.
+* Der Name steht jetzt in `<span class="location-name">` und bricht mit `overflow-wrap: break-word` und `hyphens: auto` um. Silbentrennung, weil „Lösungsmittel-schrank" sonst ohne Trennstrich mitten im Wort bricht.
+* **Unterbereiche als Baum:** jede Ebene ist eine eigene `.location-kinder`-Box mit durchgehender 1-px-Schiene links (`--border-strong`). Eine Ebene kostet 8 px statt 16 px, und die Tiefe bleibt ablesbar — vorher musste die Einrückung ab Ebene 2 gedeckelt werden, tiefere Ebenen waren nicht mehr zu unterscheiden.
+* **Bereichskopf** bekommt eine neutrale Tönung (`--bg-subtle`) und 600er-Schrift, damit sichtbar ist, wo ein Bereich beginnt und was zu ihm gehört; der aktive Eintrag bleibt blau.
+* Die Pfeilsymbole im Baum entfallen (sie wiederholten nur die Schiene und kosteten 26 px); „Alle Standorte" und der Bereichskopf behalten ihr Symbol. Einrückung ab Ebene 6 gedeckelt.
+* Symbole oben ausgerichtet, damit ein zweizeiliger Name sie nicht in die Mitte zieht; Standortname zusätzlich als `title`.
+* Seitenleiste bleibt 220 px. Gemessen an der laufenden App bei 1280 und 1400 px, hell und dunkel: `scrollWidth` 218, kein Überlauf, längste Namen zwei Zeilen.
+
 ### v3.36 – Abhängigkeiten und Lieferkette (Oktober 2026, APP_VERSION 2.6.0)
 
 * `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1.

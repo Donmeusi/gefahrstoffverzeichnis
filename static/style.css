@@ -1266,7 +1266,9 @@ h4 { font-size: var(--fs-h4); }
 
 .location-link {
     display: flex;
-    align-items: center;
+    /* Oben ausrichten, nicht mittig: ein zweizeiliger Name wuerde das Symbol
+       sonst in die Mitte der beiden Zeilen ziehen. */
+    align-items: flex-start;
     gap: 0.5rem;
     padding: 0.45rem 0.7rem;
     border-radius: var(--radius-sm);
@@ -1274,19 +1276,47 @@ h4 { font-size: var(--fs-h4); }
     font-weight: 500;
     font-size: var(--fs-sm);
     transition: all var(--transition);
-    /* Lange Standortnamen umbrechen, statt die Sidebar zu verbreitern.
-       break-word, NICHT anywhere: anywhere verändert zusätzlich die
-       Mindestbreite und brach "Chemikalienschrank" mitten im Wort, obwohl es
-       an der Leerstelle sauber gepasst hätte. Das Schrumpfen erledigt
-       min-width: 0; hier geht es nur um Wörter, die wirklich zu lang sind. */
-    overflow-wrap: break-word;
     min-width: 0;
+}
+/* Der Name hat eine eigene Box, und das ist der eigentliche Fix.
+   Vorher stand er als nackter Textknoten im Flex-Container; daraus wird ein
+   anonymer Eintrag, der nicht mitschrumpft. overflow-wrap am Container half
+   deshalb nicht: in der Messung liefen lange Woerter bis 120 px aus der
+   220-px-Spalte heraus, und das overflow: hidden der Karte schnitt sie ab.
+   break-word, NICHT anywhere: anywhere verandert zusaetzlich die
+   Mindestbreite und bricht Woerter auch dort, wo eine Leerstelle gepasst
+   haette. Trennstriche (hyphens) machen die Brueche in zusammengesetzten
+   deutschen Woertern lesbar; ohne sie bleibt "Lösungsmittel-schrank". */
+.location-name {
+    min-width: 0;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+/* Baum der Unterbereiche. Jede Ebene ist eine eigene Box mit einer 1-px-Linie
+   links; so bleibt die Zuordnung bei 220 px Spaltenbreite sichtbar, und eine
+   Ebene kostet nur die Linie plus 0,45rem statt 1rem. Die Linie laeuft durch,
+   weil die Boxen selbst gestapelt sind - anders als die frueheren kurzen
+   Randstuecke je Link, zwischen denen Luecken standen. */
+.location-kinder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: 0.15rem;
+    padding-left: 0.45rem;
+    border-left: 1px solid var(--border-strong);
+}
+/* Bereichskopf: getoente Flaeche als Gruppenzeichen, damit erkennbar ist,
+   wo ein neuer Bereich beginnt und was zu ihm gehoert. Neutrale Toenung,
+   nicht --primary-light - das bleibt dem aktiven Eintrag vorbehalten. */
+.location-link--gruppe {
+    font-weight: 600;
+    background: var(--bg-subtle);
 }
 /* Zwei getrennte Regeln fuer dasselbe Element, hier zusammengefuehrt.
    Die Schriftgroesse stand zuletzt als Inline-Wert (0,8em) im Template und
    gewann damit gegen die 0,9em hier - der Wert ist jetzt hier festgehalten,
    damit die Angleichung an .icon-sm (0,75em) ihn nicht still veraendert. */
-.location-link i { flex: 0 0 auto; width: 18px; text-align: center; font-size: 0.8em; }
+.location-link i { flex: 0 0 auto; width: 18px; text-align: center; font-size: 0.8em; margin-top: 0.18em; }
 .location-link:hover { background: var(--primary-light); color: var(--primary-ink); }
 .location-link.active {
     background: var(--primary-light);
