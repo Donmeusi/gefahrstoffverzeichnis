@@ -70,12 +70,23 @@ def run_migrations():
 
     if 'user' in tables:
         existing = get_columns('user')
-        if 'created_by' not in existing:
-            try:
-                print("  + Füge Spalte 'user.created_by' (INTEGER) hinzu...")
-                cursor.execute("ALTER TABLE user ADD COLUMN created_by INTEGER;")
-            except Exception as e:
-                print(f"  Warning bei Spalte 'user.created_by': {e}")
+        user_columns = {
+            'created_by': 'INTEGER',
+            # Herkunft der Anmeldung. Bestehende Konten gelten als lokal;
+            # wer sich künftig über den Verzeichnisdienst anmeldet, wird beim
+            # ersten erfolgreichen Login auf 'ldap' umgestellt.
+            'auth_source': "VARCHAR(10) NOT NULL DEFAULT 'lokal'",
+            # Wird bei jedem Passwortwechsel erhöht und beendet damit ältere
+            # Sitzungen desselben Kontos.
+            'session_version': 'INTEGER NOT NULL DEFAULT 0',
+        }
+        for col, col_type in user_columns.items():
+            if col not in existing:
+                try:
+                    print(f"  + Füge Spalte 'user.{col}' ({col_type}) hinzu...")
+                    cursor.execute(f"ALTER TABLE user ADD COLUMN {col} {col_type};")
+                except Exception as e:
+                    print(f"  Warning bei Spalte 'user.{col}': {e}")
 
     if 'bereich' in tables:
         existing = get_columns('bereich')

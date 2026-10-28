@@ -13,6 +13,7 @@ Mit ausführen:
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
@@ -149,6 +150,79 @@ class TestSicherheitsfixes(unittest.TestCase):
                          follow_redirects=True)
         with app.app_context():
             self.assertIsNone(User.query.filter_by(username='neu').first())
+
+    # ── Open Redirect ───────────────────────────────────────────────────────
+
+    # ── Anmeldung ────────────────────────────────────────────────────────────
+
+    def test_verzeichniskonto_meldet_sich_nicht_lokal_an(self):
+        """Ein AD-Konto darf eine Sperre im Verzeichnisdienst nicht umgehen."""
+        with app.app_context():
+            konto = User(username='ad_konto', role='lesen', auth_source='ldap')
+            konto.set_password('dummy-ad-passwort')
+            db.session.add(konto)
+            db.session.commit()
+
+        antwort = self.client.post(
+            '/login',
+            data={'username': 'ad_konto', 'password': 'dummy-ad-passwort'},
+            follow_redirects=True,
+        )
+        self.assertIn('Ungültiger Benutzername oder Passwort',
+                      antwort.get_data(as_text=True))
+        self.assertEqual(self.client.get('/profile').status_code, 302)
+
+    def test_fuenf_fehlversuche_sperren_den_benutzer_fuer_diese_adresse(self):
+        with app.app_context():
+            konto = User(username='rate_opfer', role='lesen')
+            konto.set_password('dummy-opfer-passwort')
+            db.session.add(konto)
+            db.session.commit()
+
+        for _ in range(5):
+            self.client.post('/login',
+                             data={'username': 'rate_opfer',
+                                   'password': 'falsch'})
+
+        antwort = self.client.post(
+            '/login',
+            data={'username': 'rate_opfer', 'password': 'dummy-opfer-passwort'},
+            follow_redirects=True,
+        )
+        self.assertIn('Zu viele Fehlversuche', antwort.get_data(as_text=True))
+
+    def test_passwortwechsel_beendet_fremde_sitzungen(self):
+        self._admin()
+        with app.app_context():
+            konto = User.query.filter_by(username='admin_s').first()
+            alt = konto.session_version
+            konto.set_password('dummy-neues-passwort')
+            db.session.commit()
+            self.assertNotEqual(alt, konto.session_version)
+
+        # Die laufende Sitzung kennt nur die alte Fassung und ist damit weg.
+        self.assertEqual(self.client.get('/profile').status_code, 302)
+
+    # ── In-App-Update ───────────────────────────────────────────────────────
+
+    def test_fremde_repository_url_wird_abgelehnt(self):
+        self._admin()
+        with mock.patch('subprocess.check_call') as aufruf:
+            self.client.post('/admin/system/update_repo',
+                             data={'repo_url': 'https://evil.example/repo.git'},
+                             follow_redirects=True)
+        # Die Weiterleitung ruft die Admin-Seite auf, die selbst `git fetch`
+        # ausführt - entscheidend ist, dass die fremde URL nirgends ankommt.
+        for karre in aufruf.call_args_list:
+            self.assertNotIn('evil.example', str(karre))
+
+    def test_ungueltiger_branch_wird_abgelehnt(self):
+        self._admin()
+        with mock.patch('threading.Thread') as thread:
+            self.client.post('/admin/system/do_update',
+                             data={'target_branch': '-f'},
+                             follow_redirects=True)
+        thread.assert_not_called()
 
     # ── Open Redirect ───────────────────────────────────────────────────────
 

@@ -20,7 +20,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # erzeugt. Siehe testkonfiguration.py.
 import testkonfiguration  # noqa: F401,E402
 
-from main import app, db, User, Bereich, Unterbereich, Gefahrstoff, AuditLog
+from main import (app, db, User, Bereich, Unterbereich, Gefahrstoff, AuditLog,
+                  UPDATE_REPO_URL)
 
 
 class TestAuditLog(unittest.TestCase):
@@ -391,16 +392,18 @@ class TestAuditLog(unittest.TestCase):
         # Arbeitsverzeichnis ausführen, das würde die Herkunft des Repos ändern.
         self._login_admin()
 
+        # Nur das konfigurierte Repository ist zugelassen (UPDATE_REPO_URL),
+        # seit das In-App-Update nicht mehr auf beliebige Remotes zeigt.
         with mock.patch('subprocess.check_call'):
             self.client.post('/admin/system/update_repo',
-                             data={'repo_url': 'https://example.invalid/repo.git'},
+                             data={'repo_url': UPDATE_REPO_URL},
                              follow_redirects=True)
 
         with app.app_context():
             eintrag = AuditLog.query.filter_by(action='SYSTEM_UPDATE').first()
             self.assertIsNotNone(eintrag,
                                  'Die Änderung der Repository-URL muss protokolliert werden')
-            self.assertIn('example.invalid', eintrag.details)
+            self.assertIn('github.com', eintrag.details)
 
     def test_update_ausloesen_wird_protokolliert(self):
         # Der Update-Thread würde update.sh starten - das macht git pull und
@@ -459,7 +462,7 @@ class TestAuditLog(unittest.TestCase):
                          follow_redirects=True)
         with mock.patch('subprocess.check_call'):
             self.client.post('/admin/system/update_repo',
-                             data={'repo_url': 'https://example.invalid/repo.git'},
+                             data={'repo_url': UPDATE_REPO_URL},
                              follow_redirects=True)
 
         res = self.client.get('/audit_logs')

@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 import os
 import json
 import subprocess
@@ -133,6 +134,22 @@ ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}
 # durch, zumal es keinen Brute-Force-Schutz am Login gibt.
 MIN_PASSWORT_LAENGE = 12
 
+# Ziel-Repository für das In-App-Update. Das Formular im Adminbereich kann
+# diese Angabe nur bestätigen, nicht ersetzen: ein frei wählbares Remote macht
+# aus dem Admin-Konto Codeausführung (git pull + pip install im Container).
+# Abweichende Installationen setzen UPDATE_REPO_URL in der .env.
+UPDATE_REPO_URL = os.environ.get(
+    'UPDATE_REPO_URL',
+    'https://github.com/Donmeusi/gefahrstoffverzeichnis'
+).strip().rstrip('/')
+
+# Branch-Namen landen als Argument in `git checkout`. Ohne Prüfung wird ein
+# Wert wie "-f" als Option gelesen.
+BRANCH_MUSTER = re.compile(r'^(?!-)(?!/)[A-Za-z0-9._/-]{1,80}$')
+
+# `ext::` ist ein git-Transport, der ein Kommando ausführt.
+GIT_HART = ['git', '-c', 'protocol.ext.allow=never']
+
 
 def passwort_hinweis(password):
     """Gibt eine Fehlermeldung zurueck oder None, wenn das Passwort genuegt."""
@@ -188,7 +205,15 @@ login_manager.login_message = "Bitte logge dich ein, um diese Seite zu sehen."
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    user = User.query.get(int(user_id))
+    if user is None:
+        return None
+    # Sitzungen aus der Zeit vor diesem Feld tragen 0 und bleiben gueltig;
+    # nach einem Passwortwechsel passt der Wert nicht mehr und die Sitzung
+    # gilt als abgemeldet.
+    if session.get('_session_version', 0) != (user.session_version or 0):
+        return None
+    return user
 
 # ─── Assoziationstabelle User <-> Bereich ────────────────────────────────────
 user_bereiche = db.Table('user_bereiche',
@@ -206,6 +231,16 @@ class User(UserMixin, db.Model):
     # Rollen: 'admin' | 'moderator' | 'benutzer' | 'lesen'
     role          = db.Column(db.String(20), default='benutzer', nullable=False)
     created_by    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    # Herkunft der Anmeldung: 'lokal' (Passwort in dieser Datenbank) oder
+    # 'ldap'. Ein Konto aus dem Verzeichnisdienst darf kein lokales Passwort
+    # setzen - sonst laeuft eine Sperre oder Loeschung im AD ins Leere.
+    auth_source   = db.Column(db.String(10), default='lokal', nullable=False,
+                              server_default='lokal')
+    # Wird bei jedem Passwortwechsel erhoeht. Die Sitzung traegt den Wert mit
+    # und wird ungueltig, sobald er abweicht; damit beendet ein
+    # Passwortwechsel auch Sitzungen auf anderen Geraeten.
+    session_version = db.Column(db.Integer, default=0, nullable=False,
+                                server_default='0')
 
     # Bereiche, die diesem Benutzer zugewiesen sind
     assigned_bereiche = db.relationship(
@@ -231,6 +266,8 @@ class User(UserMixin, db.Model):
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+        # Neue Fassung -> alle laufenden Sitzungen dieses Kontos verfallen.
+        self.session_version = (self.session_version or 0) + 1
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -1209,7 +1246,15 @@ def register():
         user = User(username=username, role='admin')
         user.set_password(password)
         db.session.add(user)
-        db.session.commit()
+        # Zwei gleichzeitige POSTs auf einer frischen Installation kamen
+        # beide durch die Zählprüfung oben. Der eindeutige Benutzername
+        # entscheidet jetzt, wer gewinnt.
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Der Administrator wurde bereits angelegt.', 'info')
+            return redirect(url_for('login'))
         
         # Argumente standen hier in falscher Reihenfolge und Zahl: der Aufruf
         # lautete log_audit_event(user.id, "USER_CREATE", "<Satz>") und schrieb
@@ -1225,6 +1270,53 @@ def register():
     return render_template('register.html')
 
 
+# ─── Bremse gegen Passwortraten ────────────────────────────────────────────────
+# Ohne Zaehler laesst sich ein lokales Passwort im Sekundentakt durchprobieren;
+# bei aktivem Verzeichnisdienst erzeugt das zusaetzlich Kontosperren im AD.
+# Der Zaehler liegt im Prozessspeicher und ist damit pro Instanz - das reicht
+# fuer einen einzelnen Waitress-Prozess und ist bewusst ohne neue Tabelle.
+MAX_FEHLVERSUCHE = 5
+SPERRE_SEKUNDEN = 15 * 60
+
+_fehlversuche = {}
+_fehlversuche_lock = threading.Lock()
+
+
+def _anmelde_schluessel(username):
+    return f'{(username or "").strip().lower()}|{request.remote_addr or "-"}'
+
+
+def anmelde_sperre_aktiv(username):
+    """Verbleibende Sperrzeit in Sekunden oder 0."""
+    key = _anmelde_schluessel(username)
+    with _fehlversuche_lock:
+        eintrag = _fehlversuche.get(key)
+        if not eintrag:
+            return 0
+        anzahl, seit = eintrag
+        vergangen = time.time() - seit
+        if vergangen > SPERRE_SEKUNDEN:
+            _fehlversuche.pop(key, None)
+            return 0
+        if anzahl < MAX_FEHLVERSUCHE:
+            return 0
+        return SPERRE_SEKUNDEN - int(vergangen)
+
+
+def anmelde_fehlversuch(username):
+    key = _anmelde_schluessel(username)
+    with _fehlversuche_lock:
+        anzahl, seit = _fehlversuche.get(key, (0, time.time()))
+        if time.time() - seit > SPERRE_SEKUNDEN:
+            anzahl, seit = 0, time.time()
+        _fehlversuche[key] = (anzahl + 1, seit)
+
+
+def anmelde_erfolg(username):
+    with _fehlversuche_lock:
+        _fehlversuche.pop(_anmelde_schluessel(username), None)
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -1233,31 +1325,54 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        # 1. LDAPs Authentifizierung versuchen, falls aktiviert
+        rest = anmelde_sperre_aktiv(username)
+        if rest:
+            flash('Zu viele Fehlversuche. Bitte in '
+                  f'{max(1, rest // 60)} Minuten erneut versuchen.', 'error')
+            return redirect(url_for('login'))
+
+        # 1. Verzeichnisdienst
         if is_ldap_enabled():
             success, ldap_res = authenticate_ldap(username, password)
             if success:
                 user = User.query.filter_by(username=username).first()
                 if not user:
                     default_role = ldap_res.get('default_role', 'lesen')
-                    user = User(username=username, role=default_role)
+                    user = User(username=username, role=default_role,
+                                auth_source='ldap')
                     user.set_password(os.urandom(16).hex())
                     db.session.add(user)
                     db.session.commit()
                     log_audit_event('USER_CREATE', 'User', user.id, f"Benutzer via LDAPs neu angelegt (Rolle: {default_role}).")
-                
+                elif user.auth_source != 'ldap':
+                    # Konto existierte lokal und wird jetzt vom Verzeichnis
+                    # bedient: ab hier gilt nur noch das Passwort von dort,
+                    # damit eine Sperre im AD greift.
+                    user.auth_source = 'ldap'
+                    db.session.commit()
+
+                anmelde_erfolg(username)
                 login_user(user)
                 session.permanent = True
+                session['_session_version'] = user.session_version or 0
                 log_audit_event('LOGIN', 'User', user.id, "Erfolgreicher LDAPs Login.")
                 return redirect(url_for('index'))
 
-        # 2. Lokale Datenbank-Authentifizierung (Fallback)
-        user = User.query.filter_by(username=username).first()
+        # 2. Lokale Anmeldung. Bewusst nur fuer Konten mit auth_source
+        # 'lokal': ein Verzeichniskonto darf sich nicht mit einem lokal
+        # gesetzten Passwort an einer Kontosperre vorbeimelden, auch nicht
+        # bei einem Ausfall des Verzeichnisdienstes.
+        user = User.query.filter_by(username=username,
+                                    auth_source='lokal').first()
         if user is None or not user.check_password(password):
+            anmelde_fehlversuch(username)
             flash('Ungültiger Benutzername oder Passwort', 'error')
             return redirect(url_for('login'))
+
+        anmelde_erfolg(username)
         login_user(user)
         session.permanent = True
+        session['_session_version'] = user.session_version or 0
         # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
         log_audit_event('LOGIN', 'User', user.id,
                         'Lokaler Login (Passwort aus der Datenbank).')
@@ -1654,7 +1769,8 @@ def delete_bereich(id):
         flash(f'Bereich "{bereich_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
-        flash(f'Fehler beim Löschen: {str(e)}', 'error')
+        app.logger.exception('Fehler beim Löschen')
+        flash(f'Fehler beim Löschen. Details stehen im Server-Log.', 'error')
     return redirect(url_for('locations'))
 
 
@@ -1684,7 +1800,8 @@ def delete_unterbereich(id):
         flash(f'Unterbereich "{anzeige_name}" gelöscht.', 'info')
     except Exception as e:
         db.session.rollback()
-        flash(f'Fehler beim Löschen: {str(e)}', 'error')
+        app.logger.exception('Fehler beim Löschen')
+        flash(f'Fehler beim Löschen. Details stehen im Server-Log.', 'error')
     return redirect(url_for('locations'))
 
 # ─── Gefahrstoffe ────────────────────────────────────────────────────────────
@@ -1970,7 +2087,8 @@ def add():
             db.session.rollback()
             import traceback
             traceback.print_exc()
-            flash(f'Fehler beim Speichern des Gefahrstoffs: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Speichern des Gefahrstoffs')
+            flash(f'Fehler beim Speichern des Gefahrstoffs. Details stehen im Server-Log.', 'error')
             return redirect(url_for('add'))
 
     return render_template('add.html', bereiche=bereiche)
@@ -2103,7 +2221,8 @@ def edit_stoff(id):
             return redirect(url_for('view_stoff', id=stoff.id))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Speichern: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Speichern')
+            flash(f'Fehler beim Speichern. Details stehen im Server-Log.', 'error')
 
     return render_template('edit.html', stoff=stoff, bereiche=bereiche)
 
@@ -2126,7 +2245,8 @@ def delete_stoff(id):
         flash(f'Gefahrstoff "{stoff.name}" wurde erfolgreich gelöscht.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Fehler beim Löschen: {str(e)}', 'error')
+        app.logger.exception('Fehler beim Löschen')
+        flash(f'Fehler beim Löschen. Details stehen im Server-Log.', 'error')
     return redirect(url_for('index'))
 
 
@@ -2159,7 +2279,8 @@ def move_stoff(id):
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Verschieben: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Verschieben')
+            flash(f'Fehler beim Verschieben. Details stehen im Server-Log.', 'error')
     return render_template('move_copy.html', stoff=stoff, bereiche=bereiche, action='Verschieben')
 
 
@@ -2216,7 +2337,8 @@ def copy_stoff(id):
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler beim Kopieren: {str(e)}', 'error')
+            app.logger.exception('Fehler beim Kopieren')
+            flash(f'Fehler beim Kopieren. Details stehen im Server-Log.', 'error')
     return render_template('move_copy.html', stoff=stoff, bereiche=bereiche, action='Kopieren')
 
 # ─── Export ──────────────────────────────────────────────────────────────────
@@ -2508,6 +2630,10 @@ def inject_pending_approvals():
 @login_required
 def profile():
     if request.method == 'POST':
+        if current_user.auth_source == 'ldap':
+            flash('Dieses Konto wird über den Verzeichnisdienst verwaltet. '
+                  'Bitte ändere das Passwort dort.', 'error')
+            return redirect(url_for('profile'))
         old_password    = request.form.get('old_password')
         new_password    = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
@@ -2520,6 +2646,9 @@ def profile():
         else:
             current_user.set_password(new_password)
             db.session.commit()
+            # Die eigene Sitzung behaelt ihre Gueltigkeit, alle anderen
+            # Geraete des Kontos werden abgemeldet.
+            session['_session_version'] = current_user.session_version or 0
             # Wie bei der Unterschrift: nur das Ereignis, nie das Passwort.
             log_audit_event('USER_PASSWORD', 'User', current_user.id,
                             'Passwort im eigenen Profil geändert.')
@@ -2676,7 +2805,8 @@ def create_user():
             return redirect(url_for('users'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler: {str(e)}', 'error')
+            app.logger.exception('Fehler')
+            flash(f'Fehler. Details stehen im Server-Log.', 'error')
 
     return render_template('create_user.html', allowed_roles=allowed_roles, bereiche=accessible)
 
@@ -2856,7 +2986,8 @@ def edit_user(id):
             return redirect(url_for('users'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Fehler: {str(e)}', 'error')
+            app.logger.exception('Fehler')
+            flash(f'Fehler. Details stehen im Server-Log.', 'error')
 
     return render_template('edit_user.html', user=user, allowed_roles=allowed_roles, bereiche=accessible)
 
@@ -3033,7 +3164,8 @@ def admin_system():
     current_branch = "main"
     try:
         current_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()
-        subprocess.check_call(['git', 'fetch'], stderr=subprocess.STDOUT)
+        subprocess.check_call([*GIT_HART, 'fetch'], stderr=subprocess.STDOUT,
+                              timeout=120)
         local_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
         remote_commit = subprocess.check_output(['git', 'rev-parse', f'origin/{current_branch}'], stderr=subprocess.STDOUT).decode('utf-8').strip()[:7]
         if local_commit != remote_commit:
@@ -3049,17 +3181,24 @@ def update_repo():
     if not current_user.is_admin:
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
-    new_url = request.form.get('repo_url', '').strip()
-    if not new_url:
-        new_url = "https://github.com/Donmeusi/gefahrstoffverzeichnis"
+    new_url = (request.form.get('repo_url', '').strip() or UPDATE_REPO_URL).rstrip('/')
+    # Nur das konfigurierte Repository. Ohne diese Prüfung konnte ein
+    # Admin-Konto über "eigenes Repo + Update" beliebigen Code ausführen.
+    if new_url != UPDATE_REPO_URL:
+        flash('Diese Repository-URL ist nicht zugelassen. Erlaubt ist nur '
+              f'{UPDATE_REPO_URL} (änderbar über UPDATE_REPO_URL in der .env).',
+              'error')
+        return redirect(url_for('admin_system'))
     erfolg = False
     try:
-        subprocess.check_call(['git', 'remote', 'set-url', 'origin', new_url], stderr=subprocess.STDOUT)
+        subprocess.check_call([*GIT_HART, 'remote', 'set-url', 'origin', '--', new_url],
+                              stderr=subprocess.STDOUT)
         flash('Repository-URL erfolgreich aktualisiert.', 'success')
         erfolg = True
     except subprocess.CalledProcessError:
         try:
-            subprocess.check_call(['git', 'remote', 'add', 'origin', new_url], stderr=subprocess.STDOUT)
+            subprocess.check_call([*GIT_HART, 'remote', 'add', 'origin', '--', new_url],
+                                  stderr=subprocess.STDOUT)
             flash('Repository-URL erfolgreich hinzugefügt.', 'success')
             erfolg = True
         except Exception as e:
@@ -3082,6 +3221,9 @@ def do_update():
         flash('Keine Berechtigung.', 'error')
         return redirect(url_for('index'))
     target_branch = request.form.get('target_branch', '').strip() or None
+    if target_branch and not BRANCH_MUSTER.fullmatch(target_branch):
+        flash('Ungültiger Branch-Name.', 'error')
+        return redirect(url_for('admin_system'))
 
     # Vor dem Start des Threads protokollieren, nicht darin: der Update-Thread
     # beendet den Prozess am Ende mit os._exit(0), ein Eintrag aus dem Thread
@@ -3110,9 +3252,9 @@ def do_update():
                 shutil.copy(db_path, os.path.join(backup_dir, f"gefahrstoffe_{timestamp}.db"))
 
             if target_branch:
-                subprocess.run(["git", "fetch"])
-                subprocess.run(["git", "checkout", target_branch])
-            subprocess.run(["git", "pull"])
+                subprocess.run([*GIT_HART, "fetch"], timeout=120)
+                subprocess.run([*GIT_HART, "checkout", target_branch], timeout=60)
+            subprocess.run([*GIT_HART, "pull"], timeout=300)
         else:
             import platform
             if platform.system() == "Windows":
