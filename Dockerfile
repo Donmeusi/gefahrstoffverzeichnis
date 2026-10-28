@@ -1,5 +1,9 @@
-# Verwende ein offizielles Python-Image als Basis
-FROM python:3.11-slim
+# Offizielles Python-Image, auf einen Digest festgelegt. Der Tag "3.11-slim"
+# ist veraenderlich — ein Rebuild zoege dann einen anderen Stand. Der Digest
+# gehoert deshalb regelmaessig aktualisiert (siehe README, Abschnitt
+# Sicherheit): Basis-Images bekommen Sicherheitsupdates nur ueber einen neuen
+# Digest, ein Pin allein haelt sie nicht frisch.
+FROM python:3.11-slim@sha256:673719e071ecf27434fd2635bbd8d00f49f4fdd81f243143438a42ced8bedf60
 
 # Arbeitsverzeichnis im Container festlegen
 WORKDIR /app
@@ -21,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 # requirements.txt wird mitgespeichert, damit der Entrypoint erkennt, ob ein
 # git pull die Datei veraendert hat und nachinstalliert werden muss.
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt \
+RUN pip install --no-cache-dir --require-hashes -r /app/requirements.txt \
     && sha256sum /app/requirements.txt | cut -d' ' -f1 > /usr/local/share/requirements.sha256
 
 # Entrypoint-Skript kopieren

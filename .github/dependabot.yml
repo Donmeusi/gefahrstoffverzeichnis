@@ -1,0 +1,30 @@
+# Automatische Aktualisierungshinweise. Ohne diese Datei erfuhr das Projekt von
+# keiner bekannten Schwachstelle in den 46 gepinnten Paketen und im Basis-Image.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:
+      # Kleine Sprünge gebündelt, damit nicht 20 einzelne PRs auflaufen.
+      python-patch:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"

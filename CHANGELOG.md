@@ -23,6 +23,13 @@ Gesamtstand 251 Tests (neu: `test_sicherheitsfixes.py`).
 * **`error.log` ist nicht mehr versioniert**, `*.log` steht in `.gitignore` und `.dockerignore`; `.dockerignore` schließt jetzt auch `.env`, `data/`, `*.db` und `openwiki/` aus. `update.sh` schreibt sein Log nach `data/logs/`.
 * **`update.sh` bricht bei Fehlern ab** (`set -euo pipefail`) statt die Anwendung in einem halb installierten Abhängigkeitsstand zu starten. `update.ps1` startet jetzt `run_prod.py` statt des Entwicklungsservers.
 * **Abhängigkeiten:** `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1. `playwright`, `beautifulsoup4` und `soupsieve` entfernt — im Code nicht verwendet. `requirements.txt` ist jetzt UTF-8 statt UTF-16 (Dependabot und andere Werkzeuge konnten sie nicht lesen).
+* **`requirements.txt` mit Prüfsummen.** `pip install --require-hashes` in Dockerfile und Entrypoint. Eine untergeschobene Version fällt damit auf, auch wenn die Versionsnummer stimmt. Nebenbei ergänzt: `pyasn1`, eine echte Abhängigkeit von `ldap3`, fehlte in der Liste.
+* **Basis-Image auf Digest festgelegt.** `python:3.11-slim@sha256:…` statt des veränderlichen Tags; ein Rebuild zieht keinen anderen Stand mehr.
+* **Verzeichniskonten (`auth_source`).** Ein Benutzer, der sich über LDAP anmeldet, wird als `auth_source='ldap'` geführt. Die lokale Passwortprüfung greift für ihn nicht mehr — damit wirkt eine Sperre oder Löschung im AD auch in dieser Anwendung. Im Profil ist die Passwortänderung für solche Konten gesperrt. Bestehende Konten gelten als lokal und werden beim ersten erfolgreichen LDAP-Login umgestellt.
+* **Bremse gegen Passwortraten.** Ab fünf Fehlversuchen ist die Kombination aus Benutzername und Quelladresse 15 Minuten gesperrt.
+* **Passwortwechsel beendet fremde Sitzungen.** Jedes Konto führt eine Sitzungsversion; ein Wechsel meldet alle anderen Geräte ab.
+* **In-App-Update nur noch auf das konfigurierte Repository.** Die URL im Adminformular kann die Herkunft nicht mehr ersetzen (`UPDATE_REPO_URL` in der `.env`), Branch-Namen werden geprüft, `protocol.ext.allow=never` schließt den `ext::`-Transport aus, und alle git-Aufrufe haben ein Zeitlimit.
+* **Automatische Schwachstellenmeldungen:** `.github/dependabot.yml` für pip, Docker und GitHub Actions. Dependabot-Alerts und Security-Updates sind aktiviert, `main` und `beta` sind gegen Force-Push und Löschen geschützt.
 
 ### v3.32 – Sicherheitsdatenblätter zuverlässiger auslesen (Oktober 2026, APP_VERSION 2.6.0)
 

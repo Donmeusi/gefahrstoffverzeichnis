@@ -15,18 +15,29 @@ if (Test-Path -Path "data\gefahrstoffe.db") {
 # Branch wechseln falls angegeben (via Umgebungsvariable TARGET_BRANCH)
 $targetBranch = $env:TARGET_BRANCH
 if ($targetBranch) {
-    git fetch
-    git checkout $targetBranch
+    # Nur Zeichen, die in einem Branch-Namen vorkommen koennen; sonst wird ein
+    # Wert wie "-f" von git als Option gelesen.
+    if ($targetBranch -notmatch '^[A-Za-z0-9._/-]+$' -or $targetBranch.StartsWith('-')) {
+        Write-Error "Ungueltiger Branch-Name: $targetBranch"
+        exit 1
+    }
+    git -c protocol.ext.allow=never fetch
+    git -c protocol.ext.allow=never checkout $targetBranch
 }
 
-git pull
+git -c protocol.ext.allow=never pull
 
-& .\venv\Scripts\python.exe -m pip install -r requirements.txt
+& .\venv\Scripts\python.exe -m pip install --require-hashes -r requirements.txt
 $env:FLASK_APP="main.py"
 & .\venv\Scripts\flask.exe db upgrade
 
-# Beende alte Python-Prozesse, die main.py oder run_prod.py ausführen
-Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*main.py*" -or $_.CommandLine -like "*run_prod.py*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+# Nur Prozesse beenden, die aus genau diesem venv gestartet wurden. Vorher
+# genuegte "main.py" in der Kommandozeile, um einen fremden Python-Dienst
+# auf demselben Rechner abzuschiessen.
+$venvPython = (Resolve-Path ".\venv\Scripts\python.exe").Path
+Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -and $_.ExecutablePath -ieq $venvPython } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 1
 
 # run_prod.py statt main.py: main.py startet den Werkzeug-Entwicklungsserver,

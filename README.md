@@ -203,7 +203,13 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
     *   **Docker-Installation:** Führen Sie den Befehl innerhalb des laufenden Containers aus: `docker exec -it gefahrstoffe_app python /app/migrate_gefahrenkategorien.py`
 *   **Produktivbetrieb:** `FLASK_SECRET_KEY` ist Pflicht — ohne ihn startet die Anwendung nicht. Die Docker-Installation startet bereits den WSGI-Server *Waitress*; bei einer Installation ohne Docker starten Sie `python run_prod.py` statt `flask run`.
 *   **Sitzungsschlüssel rotieren, wenn er bekannt geworden ist.** Bis Oktober 2026 gab es im Quelltext einen Rückfallwert für `FLASK_SECRET_KEY`. Wer eine Installation aus dieser Zeit ohne eigene Variable betrieben hat, sollte den Schlüssel neu erzeugen (`openssl rand -base64 32`) und den Container neu starten — das beendet alle bestehenden Sitzungen. Das Löschen aus dem Code genügt nicht, weil der alte Wert in der Git-Historie öffentlich bleibt.
-*   **Passwörter:** lokal gesetzte Passwörter brauchen mindestens 12 Zeichen (Registrierung, Benutzeranlage, Profil). Bestehende Konten sind davon nicht betroffen.
+*   **Passwörter:** lokal gesetzte Passwörter brauchen mindestens 12 Zeichen (Registrierung, Benutzeranlage, Profil). Bestehende Konten sind davon nicht betroffen. Nach fünf Fehlversuchen ist die Anmeldung für 15 Minuten gesperrt.
+*   **Verzeichnisdienst-Konten:** Wer sich über LDAP anmeldet, kann in der Anwendung kein lokales Passwort setzen — sonst liefe eine Sperre im AD ins Leere. Das Passwort wird ausschließlich dort geändert.
+*   **Abhängigkeiten:** `requirements.txt` enthält Prüfsummen und wird mit `--require-hashes` installiert. Nach einer Änderung neu erzeugen:
+    ```bash
+    pip-compile --generate-hashes --no-annotate --output-file requirements.txt requirements.txt
+    ```
+*   **Basis-Image:** Das `Dockerfile` pinnt `python:3.11-slim` auf einen Digest. Sicherheitsupdates des Basis-Images kommen nur über einen neuen Digest herein — deshalb regelmäßig aktualisieren (Dependabot schlägt es vor).
 
 ## 📅 Changelog
 

@@ -18,11 +18,17 @@ fi
 
 # Branch wechseln falls angegeben (via Umgebungsvariable TARGET_BRANCH)
 if [ -n "${TARGET_BRANCH:-}" ]; then
-    git fetch
-    git checkout "$TARGET_BRANCH"
+    # Nur Zeichen, die in einem Branch-Namen vorkommen koennen. Ohne diese
+    # Pruefung wuerde ein Wert wie "-f" von git als Option gelesen.
+    case "$TARGET_BRANCH" in
+        -*) echo "Ungueltiger Branch-Name: $TARGET_BRANCH" >&2; exit 1 ;;
+        *[!A-Za-z0-9._/-]*|"") echo "Ungueltiger Branch-Name: $TARGET_BRANCH" >&2; exit 1 ;;
+    esac
+    git -c protocol.ext.allow=never fetch
+    git -c protocol.ext.allow=never checkout "$TARGET_BRANCH"
 fi
 
-git pull
+git -c protocol.ext.allow=never pull
 
 source venv/bin/activate
 pip install -r requirements.txt
