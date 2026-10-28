@@ -152,6 +152,14 @@ Der Container läuft **nicht als root**, sondern als Benutzer `app` mit UID/GID 
 sudo chown -R 1000:1000 /pfad/zu/ihrem/appdata/gefahrstoffverzeichnis
 ```
 
+Bei einer **bestehenden** Installation, die noch als root lief, gehört zusätzlich das Daten-Volume noch `root`. Ein frisches Volume erbt den Besitzer aus dem Image, ein vorhandenes nicht — einmalig nachziehen:
+
+```bash
+docker compose down
+docker run --rm -v gefahrstoff_data:/d alpine chown -R 1000:1000 /d
+docker compose up -d
+```
+
 **4. Auf die App zugreifen:**
 Die mitgelieferte `docker-compose.yml` veröffentlicht Port 5000 nur auf der Loopback-Schnittstelle — gedacht für einen vorgelagerten Reverse Proxy. Direkt aus dem Netz erreichbar ist die App damit nicht, und das ist Absicht: sonst gehen Anmeldungen unverschlüsselt über die Leitung.
 
