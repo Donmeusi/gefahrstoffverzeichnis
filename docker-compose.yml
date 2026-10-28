@@ -36,6 +36,8 @@ services:
       # Netz tlsnet). Wer einen eigenen Proxy betreibt, traegt dessen Adresse
       # hier ein; ohne passenden Wert werden die Header verworfen.
       - TRUSTED_PROXY=${TRUSTED_PROXY:-172.28.0.2}
+      # Bei geaendertem TLS_SUBNET muss TRUSTED_PROXY auf die neue Adresse
+      # des Caddy-Containers zeigen (letztes Oktett .2).
     volumes:
       # Mount the entire source code to persist git pull updates
       - ./:/app
@@ -75,8 +77,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      # Name oder IP, unter der die Anwendung aufgerufen wird.
-      - SITE_ADDRESS=${SITE_ADDRESS:-https://localhost}
+      # Name oder IP, unter der die Anwendung aufgerufen wird (ohne Schema).
+      - SITE_ADDRESS=${SITE_ADDRESS:-localhost}
       # Caddyfile = lokale CA (Standard), Caddyfile.acme = Let's Encrypt.
       - CADDYFILE=${CADDYFILE:-Caddyfile}
     command: ["caddy", "run", "--config", "/etc/caddy/${CADDYFILE:-Caddyfile}", "--adapter", "caddyfile"]
@@ -94,10 +96,15 @@ services:
 networks:
   # Festes Netz nur fuer den TLS-Container. Die feste Adresse ist noetig,
   # damit die Anwendung genau dieser Quelle die X-Forwarded-Header glaubt.
+  # Der dynamische Bereich beginnt bei .128, damit .2 frei bleibt - sonst
+  # vergibt Docker sie an die Anwendung, bevor Caddy startet.
+  # Kollidiert das Subnetz mit einem bestehenden Docker-Netz, laesst es sich
+  # ueber TLS_SUBNET und TLS_IP_RANGE in der .env verschieben.
   tlsnet:
     ipam:
       config:
-        - subnet: 172.28.0.0/24
+        - subnet: ${TLS_SUBNET:-172.28.0.0/24}
+          ip_range: ${TLS_IP_RANGE:-172.28.0.128/25}
 
 volumes:
   gefahrstoff_data:

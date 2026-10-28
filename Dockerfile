@@ -50,7 +50,12 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Bei bestehenden Installationen muessen die einghaengten Verzeichnisse dem
 # Benutzer gehoeren (chown -R 1000:1000 <verzeichnis>), sonst kann die
 # Anwendung die Datenbank nicht schreiben.
+# /app/data wird bewusst angelegt und uebergeben: Ein frisches Named Volume
+# erbt Inhalt und Besitzer des Verzeichnisses im Image. Ohne diesen Schritt
+# legt Docker das Volume als root an, und der nicht-root-Container kann die
+# Datenbank nicht schreiben.
 RUN useradd --uid 1000 --shell /usr/sbin/nologin --no-create-home app \
+    && mkdir -p /app/data \
     && chown -R app:app /app /usr/local/share
 ENV HOME=/app
 USER app

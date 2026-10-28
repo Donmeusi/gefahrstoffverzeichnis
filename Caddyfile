@@ -3,26 +3,34 @@
 # Start:  docker compose --profile tls up -d
 # Aufruf: https://<SITE_ADDRESS>
 #
-# SITE_ADDRESS steht in der .env und ist der Name oder die IP, unter der die
-# Anwendung aufgerufen wird, z. B.
+# SITE_ADDRESS steht in der .env und ist Name oder IP, unter der die
+# Anwendung aufgerufen wird - ohne Schema, z. B.
 #
-#   SITE_ADDRESS=https://192.168.1.10
-#   SITE_ADDRESS=https://gefahrstoffe.firma.intern
+#   SITE_ADDRESS=192.168.1.10
+#   SITE_ADDRESS=gefahrstoffe.firma.intern
 #
-# Ohne Angabe laeuft es auf https://localhost.
+# Ohne Angabe laeuft es auf localhost.
+#
+# default_sni ist fuer den Zugriff ueber eine IP noetig: Browser und curl
+# senden bei IP-Adressen kein SNI, Caddy findet das Zertifikat dann ohne
+# diesen Rueckfallwert nicht und bricht den Handshake mit "internal error" ab.
 #
 # Der Browser zeigt beim ersten Aufruf eine Warnung, weil die CA unbekannt
-# ist. Dauerhaft warnungsfrei wird es, wenn die CA aus /data/caddy/pki/authorities/local/root.crt
-# auf den Geraeten als vertrauenswuerdig eingetragen wird - oder man nimmt
-# mit einer oeffentlichen Domain Caddyfile.acme.
+# ist. Dauerhaft warnungsfrei wird es, wenn die CA aus
+# /data/caddy/pki/authorities/local/root.crt auf den Geraeten als
+# vertrauenswuerdig eingetragen wird - oder man nimmt mit einer
+# oeffentlichen Domain Caddyfile.acme.
 
-{$SITE_ADDRESS:https://localhost} {
+{
+	default_sni {$SITE_ADDRESS:localhost}
+}
+
+https://{$SITE_ADDRESS:localhost} {
 	tls internal
 
 	encode zstd gzip
 
-	# Die Anwendung selbst prueft keine Client-Zertifikate; der Proxy reicht
-	# nur weiter. Host-Header bleibt erhalten, damit url_for(_external=True)
-	# die richtige Adresse in QR-Codes schreibt.
+	# Host-Header bleibt erhalten, damit url_for(_external=True) die richtige
+	# Adresse in QR-Codes schreibt.
 	reverse_proxy web:5000
 }

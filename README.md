@@ -161,7 +161,7 @@ Wer keinen eigenen Proxy betreiben will, kann einen mitliefern lassen:
 
 ```env
 # .env — Name oder IP, unter der die Anwendung aufgerufen wird
-SITE_ADDRESS=https://192.168.1.10
+SITE_ADDRESS=192.168.1.10
 ```
 
 ```bash
