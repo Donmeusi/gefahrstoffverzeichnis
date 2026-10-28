@@ -46,7 +46,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ## 🚀 Installation & Ausführung
 
 ### Voraussetzungen
-1.  Python 3.8+ ist auf Ihrem System installiert.
+1.  Python 3.11 ist auf Ihrem System installiert.
 2.  Empfohlen: Eine virtuelle Umgebung (Virtual Environment).
 
 ### Schritte
@@ -77,11 +77,21 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
     Beim ersten Start erstellt die Applikation automatisch eine leere SQLite-Datenbankdatei (`gefahrstoffe.db`) sowie den Ordner `uploads/` für Dokumente.
     *Wichtig:* Der allererste Account, der über `/register` angelegt wird, erhält **dauerhaft** Administrator-Rechte. 
 
-5.  **Anwendung starten:**
+5.  **Sitzungsschlüssel setzen:**
+    Die Anwendung startet nur mit einem eigenen `FLASK_SECRET_KEY` — ein Standardwert im Quelltext wäre öffentlich bekannt, und mit ihm ließen sich Anmeldungen fälschen.
+    ```bash
+    # macOS/Linux
+    export FLASK_SECRET_KEY="$(openssl rand -base64 32)"
+
+    # Windows (PowerShell)
+    $env:FLASK_SECRET_KEY = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | % {[char]$_})
+    ```
+
+6.  **Anwendung starten:**
     ```bash
     python main.py
     ```
-    Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000).
+    Die Anwendung läuft standardmäßig unter [http://127.0.0.1:5000](http://127.0.0.1:5000). Für den Dauerbetrieb `python run_prod.py` (Waitress) verwenden und den Schlüssel aus einer `.env` bzw. dem Dienstmanager beziehen.
 
 ### 🔐 LDAPs-Authentifizierung & .env Konfiguration
 
@@ -248,6 +258,14 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
     pip-compile --generate-hashes --no-annotate --output-file requirements.txt requirements.txt
     ```
 *   **Basis-Image:** Das `Dockerfile` pinnt `python:3.11-slim` auf einen Digest. Sicherheitsupdates des Basis-Images kommen nur über einen neuen Digest herein — deshalb regelmäßig aktualisieren (Dependabot schlägt es vor).
+
+## 🧪 Tests
+
+```bash
+python -m unittest discover -p 'test_*.py'
+```
+
+256 Tests (Stand Oktober 2026). `testkonfiguration.py` legt ein Wegwerf-Datenverzeichnis an, damit die Tests nicht gegen die eigene `data/gefahrstoffe.db` laufen — deren Prüfsumme bleibt nach dem Lauf unverändert.
 
 ## 📅 Changelog
 

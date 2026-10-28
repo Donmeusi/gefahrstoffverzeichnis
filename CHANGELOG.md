@@ -2,35 +2,45 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.36 – Abhängigkeiten und Lieferkette (Oktober 2026, APP_VERSION 2.6.0)
+
+* `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1.
+* `playwright`, `beautifulsoup4` und `soupsieve` entfernt — im Code nicht verwendet. `requirements.txt` von UTF-16 auf UTF-8 umgestellt.
+* **Prüfsummen:** `pip install --require-hashes` in Dockerfile und Entrypoint. Ergänzt: `pyasn1`, eine fehlende Abhängigkeit von `ldap3`.
+* **Basis-Image auf Digest festgelegt** (`python:3.11-slim@sha256:…`); ein Rebuild zieht keinen anderen Stand mehr.
+* `update.sh` bricht bei Fehlern ab (`set -euo pipefail`); `update.ps1` startet `run_prod.py` statt des Entwicklungsservers.
+* `.github/dependabot.yml` für pip, Docker und GitHub Actions; Alerts und Security-Updates aktiviert, `main` und `beta` gegen Force-Push und Löschen geschützt.
+
+### v3.35 – Container und Deployment gehärtet (Oktober 2026, APP_VERSION 2.6.0)
+
+* Container läuft als Benutzer `app` (UID/GID 1000) statt als root. **Bestehende Installationen** brauchen `chown -R 1000:1000` auf die eingehängten Verzeichnisse und einmalig auf das Daten-Volume, sonst schlägt der Datenbankzugriff fehl (README).
+* Port 5000 wird nur noch auf `127.0.0.1` veröffentlicht. `BIND_ADDR=0.0.0.0` öffnet ihn fürs LAN — dann geht die Anmeldung unverschlüsselt über HTTP (Abwägung im README).
+* **Optionales TLS-Profil, gegen eine laufende Installation geprüft:** `docker compose --profile tls up -d` startet Caddy auf 80/443 mit Zertifikat aus Caddys lokaler CA; `CADDYFILE=Caddyfile.acme` und eine öffentliche `SITE_ADDRESS` ergeben Let's Encrypt. Gemessen: HTTPS 200, HTTP → 308, Secure-Cookie, Healthcheck gesund.
+* Im TLS-Profil sind Subnetz und Adressbereich über `TLS_SUBNET`/`TLS_IP_RANGE` verschiebbar; `default_sni` trägt den Aufruf über eine IP-Adresse. `TRUSTED_PROXY` zeigt auf die feste Adresse des Proxys.
+* Compose ergänzt `restart: unless-stopped`, Speicher-/CPU-/PID-Limits und einen Healthcheck; das obsolete `version`-Feld entfällt.
+* Python-Abhängigkeiten werden beim Image-Bau installiert, nicht mehr bei jedem Start — ein Neustart dauert rund eine halbe Minute statt mehrerer. Der Entrypoint installiert nur bei geänderter `requirements.txt` nach.
+* `.dockerignore` schließt `.env`, `data/`, `*.db`, `*.log` und `openwiki/` aus; `error.log` ist nicht mehr versioniert, `update.sh` schreibt sein Log nach `data/logs/`.
+
+### v3.34 – Anmeldung und Update-Weg gehärtet (Oktober 2026, APP_VERSION 2.6.0)
+
+* **`FLASK_SECRET_KEY` ist Pflicht.** Der öffentlich bekannte Rückfallwert ist entfernt; ohne die Variable bricht der Start ab. `docker-compose.yml` liest sie aus der `.env` (Erzeugen: `openssl rand -base64 32`). Wer bisher ohne eigene Variable lief, sollte den Schlüssel neu erzeugen — der alte Wert bleibt in der Git-Historie lesbar.
+* **Verzeichniskonten (`auth_source='ldap'`):** Wer sich über LDAP anmeldet, kann sich nicht mehr mit einem lokal gesetzten Passwort an einer AD-Sperre vorbeimelden. Im Profil ist die Passwortänderung für solche Konten gesperrt; bestehende Konten werden beim ersten erfolgreichen LDAP-Login umgestellt.
+* **Bremse gegen Passwortraten:** fünf Fehlversuche sperren Benutzername und Quelladresse für 15 Minuten. **Passwortwechsel** erhöht eine Sitzungsversion und meldet alle anderen Geräte des Kontos ab.
+* **In-App-Update nur noch auf `UPDATE_REPO_URL`.** Die URL im Adminformular kann die Herkunft nicht ersetzen, Branch-Namen werden geprüft, `protocol.ext.allow=never` schließt den `ext::`-Transport aus, alle git-Aufrufe haben ein Zeitlimit.
+* **Secure-Cookie richtet sich nach dem Zugriffsweg:** HTTPS hinter dem Proxy → Flag gesetzt, HTTP im LAN → nicht. Grundlage ist `X-Forwarded-Proto`, das Waitress jetzt durchreicht; `TRUSTED_PROXY` beschränkt die Header auf den Proxy. `SESSION_COOKIE_SECURE=true|false` bleibt als Notbehelf.
+* Neu: `test_cookie_sicherheit.py` (3 Tests).
+
 ### v3.33 – Sicherheitsfixes aus dem Audit (Oktober 2026, APP_VERSION 2.6.0)
 
-Gesamtstand 251 Tests (neu: `test_sicherheitsfixes.py`).
-
-* **Behoben (IDOR): `/uploads/<datei>` lieferte jedes Dokument an jeden angemeldeten Nicht-Leser.** Die Route prüfte nur die Rolle, nicht den Bereich des Stoffes. Wer Zugriff auf Bereich B hatte, konnte Sicherheitsdatenblätter, Betriebsanweisungen und Gefährdungsbeurteilungen aus Bereich A herunterladen; die Dateinamen sind aus dem Stoffnamen ableitbar. Jetzt muss die Datei zu einem Stoff gehören, den `get_gefahrstoff_query()` für den Benutzer liefert — sonst 404.
-* **Behoben: die Inventurliste zeigte nicht freigegebene CMR-Stoffe.** Sie lief an `get_gefahrstoff_query()` vorbei; jetzt gilt dort derselbe Freigabefilter wie im Verzeichnis.
-* **Behoben: offenes Weiterleiten in `approve_stoff`.** `next=//beispiel.de` ist protokollrelativ und leitete auf eine Fremddomain.
-* **Passwort-Policy verschärft.** Mindestens 12 Zeichen statt 4, und erstmals auch bei der Registrierung und beim Anlegen von Benutzern geprüft — das erste Admin-Konto ließ sich zuvor mit einem einzelnen Buchstaben anlegen. Bestehende Konten bleiben unverändert.
-* **Behoben: SPARQL-Injection über die CAS-Nummer.** `/api/autofill/<cas>` setzte den Pfadwert ungeprüft in die Wikidata-Abfrage. Jetzt nur noch das CAS-Muster `\d{2,7}-\d{2}-\d`, zusätzlich escaped in `wikidata.py`.
-* **Behoben: LDAP-Filter- und DN-Injection.** Benutzername wird jetzt mit `escape_filter_chars` bzw. `escape_rdn` eingesetzt.
-* **LDAP-Zertifikatsprüfung ist jetzt standardmäßig an** (`LDAP_REQUIRE_CERT=true`). Für interne PKIs gibt es `LDAP_CA_CERT_FILE`, statt die Prüfung abzuschalten; bei abgeschalteter Prüfung schreibt die Anwendung eine Warnung ins Log.
-* **Behoben: Markup-Injection im PDF-Export.** `Paragraph()` wertet Mini-HTML aus; Stoffname, Gefahrenkategorien, Ersatzstoff und Begründung werden jetzt escaped.
-* **Keine internen Fehlertexte mehr in API-Antworten** — Details gehen ins Log.
-* **Sitzung:** Ablauf nach 12 Stunden statt Flask-Standard 31 Tage.
-* **Sicherheitsheader:** CSP, `Referrer-Policy`, `Cache-Control: no-store` für angemeldete Seiten; `X-XSS-Protection` entfernt; HSTS nur noch über HTTPS. `getattr` ist nicht mehr als Jinja-Global exportiert.
-* **Container läuft nicht mehr als root** (`USER app`, UID 1000). **Achtung bei bestehenden Installationen:** die gemounteten Verzeichnisse müssen `chown -R 1000:1000` bekommen, sonst schlägt der Datenbankzugriff fehl. Siehe README.
-* **Port 5000 wird standardmäßig nur auf `127.0.0.1` veröffentlicht.** Für direkten Zugriff aus dem LAN genügt `BIND_ADDR=0.0.0.0` in der `.env`; die Anmeldung läuft dann unverschlüsselt über HTTP (bewusste Abwägung, siehe README).
-* **Compose:** `TRUSTED_PROXY` wird durchgereicht, `restart: unless-stopped`, Speicher-/CPU-/PID-Limits und ein Healthcheck ergänzt.
-* **`error.log` ist nicht mehr versioniert**, `*.log` steht in `.gitignore` und `.dockerignore`; `.dockerignore` schließt jetzt auch `.env`, `data/`, `*.db` und `openwiki/` aus. `update.sh` schreibt sein Log nach `data/logs/`.
-* **`update.sh` bricht bei Fehlern ab** (`set -euo pipefail`) statt die Anwendung in einem halb installierten Abhängigkeitsstand zu starten. `update.ps1` startet jetzt `run_prod.py` statt des Entwicklungsservers.
-* **Abhängigkeiten:** `pillow` 12.1.1 → 12.3.0 (57 Advisories, erreichbar über hochgeladene Unterschriften), `Flask` 3.1.0 → 3.1.3, `Werkzeug` 3.1.3 → 3.1.9, `cryptography` 48.0.0 → 48.0.1. `playwright`, `beautifulsoup4` und `soupsieve` entfernt — im Code nicht verwendet. `requirements.txt` ist jetzt UTF-8 statt UTF-16 (Dependabot und andere Werkzeuge konnten sie nicht lesen).
-* **`requirements.txt` mit Prüfsummen.** `pip install --require-hashes` in Dockerfile und Entrypoint. Eine untergeschobene Version fällt damit auf, auch wenn die Versionsnummer stimmt. Nebenbei ergänzt: `pyasn1`, eine echte Abhängigkeit von `ldap3`, fehlte in der Liste.
-* **Basis-Image auf Digest festgelegt.** `python:3.11-slim@sha256:…` statt des veränderlichen Tags; ein Rebuild zieht keinen anderen Stand mehr.
-* **Verzeichniskonten (`auth_source`).** Ein Benutzer, der sich über LDAP anmeldet, wird als `auth_source='ldap'` geführt. Die lokale Passwortprüfung greift für ihn nicht mehr — damit wirkt eine Sperre oder Löschung im AD auch in dieser Anwendung. Im Profil ist die Passwortänderung für solche Konten gesperrt. Bestehende Konten gelten als lokal und werden beim ersten erfolgreichen LDAP-Login umgestellt.
-* **Bremse gegen Passwortraten.** Ab fünf Fehlversuchen ist die Kombination aus Benutzername und Quelladresse 15 Minuten gesperrt.
-* **Passwortwechsel beendet fremde Sitzungen.** Jedes Konto führt eine Sitzungsversion; ein Wechsel meldet alle anderen Geräte ab.
-* **In-App-Update nur noch auf das konfigurierte Repository.** Die URL im Adminformular kann die Herkunft nicht mehr ersetzen (`UPDATE_REPO_URL` in der `.env`), Branch-Namen werden geprüft, `protocol.ext.allow=never` schließt den `ext::`-Transport aus, und alle git-Aufrufe haben ein Zeitlimit.
-* **Optionales TLS-Profil, gegen eine laufende Installation getestet.** `docker compose --profile tls up -d` startet einen Caddy-Container, der TLS terminiert (Port 80/443) und die Anwendung intern weiterleitet. Zertifikat standardmäßig aus Caddys lokaler CA; mit `CADDYFILE=Caddyfile.acme` und einer öffentlichen Domain über Let's Encrypt. Die Anwendung glaubt `X-Forwarded-*` nur noch dieser festen Proxy-Adresse (`TRUSTED_PROXY`).
-* **Automatische Schwachstellenmeldungen:** `.github/dependabot.yml` für pip, Docker und GitHub Actions. Dependabot-Alerts und Security-Updates sind aktiviert, `main` und `beta` sind gegen Force-Push und Löschen geschützt.
+* **Behoben (IDOR): `/uploads/<datei>` lieferte jedes Dokument an jeden angemeldeten Nicht-Leser.** Die Route prüfte nur die Rolle, nicht den Bereich des Stoffes. Jetzt muss die Datei zu einem Stoff gehören, den `get_gefahrstoff_query()` liefert — sonst 404.
+* **Behoben: die Inventurliste zeigte nicht freigegebene CMR-Stoffe** — sie lief am Freigabefilter vorbei.
+* **Behoben: offenes Weiterleiten in `approve_stoff`** (`next=//beispiel.de`).
+* **Passwort-Policy:** mindestens 12 Zeichen statt 4, erstmals auch bei Registrierung und Benutzeranlage geprüft. Bestehende Konten bleiben unverändert.
+* **Behoben: SPARQL-Injection über die CAS-Nummer** im Autofill-Pfad und **LDAP-Filter-/DN-Injection** über den Benutzernamen.
+* **LDAP-Zertifikatsprüfung standardmäßig an** (`LDAP_REQUIRE_CERT=true`); für interne PKIs gibt es `LDAP_CA_CERT_FILE` statt abschalten.
+* **Behoben: Markup-Injection im PDF-Export** (`Paragraph()` wertet Mini-HTML aus). Keine internen Fehlertexte mehr in API-Antworten.
+* **Sitzung und Header:** Ablauf nach 12 Stunden statt 31 Tagen; CSP, `Referrer-Policy`, `Cache-Control: no-store`; HSTS nur über HTTPS; `getattr` nicht mehr als Jinja-Global.
+* Neu: `test_sicherheitsfixes.py` (12 Tests). Gesamtstand 256 Tests.
 
 ### v3.32 – Sicherheitsdatenblätter zuverlässiger auslesen (Oktober 2026, APP_VERSION 2.6.0)
 
