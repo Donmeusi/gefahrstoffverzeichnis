@@ -1426,8 +1426,23 @@ def login():
                     # Konto existierte lokal und wird jetzt vom Verzeichnis
                     # bedient: ab hier gilt nur noch das Passwort von dort,
                     # damit eine Sperre im AD greift.
+                    #
+                    # Die lokale Rolle darf dabei nicht mitwandern. Sonst
+                    # uebernimmt ein Verzeichnisbenutzer gleicher Kennung die
+                    # Rechte des lokalen Kontos - bis hin zum Administrator
+                    # (F-05). Das Konto erhaelt deshalb die konfigurierte
+                    # LDAP-Default-Rolle; eine hoehere Rolle muss ein
+                    # Administrator danach ausdruecklich vergeben.
+                    default_role = ldap_res.get('default_role', 'lesen')
+                    alte_rolle = user.role
                     user.auth_source = 'ldap'
+                    user.role = default_role
                     db.session.commit()
+                    log_audit_event(
+                        'USER_ROLE', 'User', user.id,
+                        f'Konto "{user.username}" vom Verzeichnisdienst '
+                        f'uebernommen; Rolle von "{alte_rolle}" auf '
+                        f'"{default_role}" zurueckgesetzt (LDAP).')
 
                 anmelde_erfolg(username)
                 login_user(user)
