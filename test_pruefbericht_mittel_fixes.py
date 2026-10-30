@@ -15,6 +15,7 @@ Mit ausführen:
 import os
 import sys
 import unittest
+from io import BytesIO
 from unittest import mock
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -22,7 +23,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # Muss vor dem Import von main stehen, siehe testkonfiguration.py.
 import testkonfiguration  # noqa: F401,E402
 
-from main import app, db, User, AuditLog
+from main import (app, db, User, AuditLog, Bereich, Unterbereich,
+                  Gefahrstoff, PDF_MAX_SEITEN, signatur_passt)
 
 
 class TestLdapKontoUebernahme(unittest.TestCase):
@@ -97,6 +99,135 @@ class TestLdapKontoUebernahme(unittest.TestCase):
 
         self.assertIn('Ungültiger Benutzername oder Passwort',
                       antwort.get_data(as_text=True))
+
+
+def _pdf_mit_seiten(anzahl):
+    """Erzeugt ein echtes PDF mit der angegebenen Seitenzahl."""
+    from reportlab.pdfgen import canvas
+    puffer = BytesIO()
+    zeichner = canvas.Canvas(puffer)
+    for nummer in range(anzahl):
+        zeichner.drawString(72, 720, f'Seite {nummer + 1}')
+        zeichner.showPage()
+    zeichner.save()
+    return puffer.getvalue()
+
+
+class TestUploadSignatur(unittest.TestCase):
+    """F-07a: Endung und Dateikopf muessen zusammenpassen."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_u', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            db.session.add(admin)
+            db.session.commit()
+            bereich = Bereich(name='Upload-Bereich', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+            unterbereich = Unterbereich(name='Upload-Schrank',
+                                        bereich_id=bereich.id)
+            db.session.add(unterbereich)
+            db.session.commit()
+            self.unterbereich_id = unterbereich.id
+        self.client.post('/login', data={'username': 'admin_u',
+                                         'password': 'dummy-admin-passwort'})
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _add_mit_datei(self, name, dateiname, inhalt):
+        return self.client.post(
+            '/add',
+            data={'name': name,
+                  'unterbereich_id': str(self.unterbereich_id),
+                  'sicherheitsdatenblatt': (BytesIO(inhalt), dateiname)},
+            content_type='multipart/form-data',
+            follow_redirects=True)
+
+    def test_getarnte_exe_als_pdf_wird_abgelehnt(self):
+        antwort = self._add_mit_datei('Getarnte Datei', 'boese.pdf',
+                                      b'MZ\x90\x00\x03\x00\x00\x00')
+
+        self.assertIn('Dateiinhalt passt nicht', antwort.get_data(as_text=True))
+        with app.app_context():
+            self.assertIsNone(
+                Gefahrstoff.query.filter_by(name='Getarnte Datei').first())
+        self.assertFalse(
+            os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'],
+                                        'Getarnte_Datei_SDB.pdf')))
+
+    def test_leere_datei_wird_abgelehnt(self):
+        antwort = self._add_mit_datei('Leere Datei', 'leer.pdf', b'')
+
+        self.assertIn('Dateiinhalt passt nicht', antwort.get_data(as_text=True))
+        with app.app_context():
+            self.assertIsNone(
+                Gefahrstoff.query.filter_by(name='Leere Datei').first())
+
+    def test_echtes_pdf_wird_weiterhin_angenommen(self):
+        antwort = self._add_mit_datei('Echtes PDF', 'sdb.pdf', _pdf_mit_seiten(1))
+
+        self.assertIn('erfolgreich hinzugefügt', antwort.get_data(as_text=True))
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Echtes PDF').one()
+            self.assertIsNotNone(stoff.sicherheitsdatenblatt)
+            self.assertTrue(os.path.exists(os.path.join(
+                app.config['UPLOAD_FOLDER'], stoff.sicherheitsdatenblatt)))
+
+
+class TestPdfParsingLimits(unittest.TestCase):
+    """F-07b: Seiten- und Zeitlimit beim Auslesen von SDB-PDFs."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_p', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            db.session.add(admin)
+            db.session.commit()
+        self.client.post('/login', data={'username': 'admin_p',
+                                         'password': 'dummy-admin-passwort'})
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _parse(self, dateiname, inhalt):
+        return self.client.post(
+            '/api/parse_sdb',
+            data={'file': (BytesIO(inhalt), dateiname)},
+            content_type='multipart/form-data')
+
+    def test_pdf_ueber_seitenlimit_wird_verworfen(self):
+        seiten = PDF_MAX_SEITEN + 50
+        antwort = self._parse('zu-gross.pdf', _pdf_mit_seiten(seiten))
+
+        self.assertEqual(antwort.status_code, 400)
+        meldung = antwort.get_json()['error']
+        self.assertIn('Seiten', meldung)
+        self.assertIn(str(PDF_MAX_SEITEN), meldung)
+
+    def test_getarnte_exe_als_pdf_wird_verworfen(self):
+        antwort = self._parse('boese.pdf', b'MZ\x90\x00\x03\x00\x00\x00')
+
+        self.assertEqual(antwort.status_code, 400)
+        self.assertIn('kein gültiges PDF', antwort.get_json()['error'])
+
+    def test_signatur_pruefung_erkennt_pdf_kopf(self):
+        self.assertTrue(signatur_passt(b'%PDF-1.7\n...', 'pdf'))
+        self.assertFalse(signatur_passt(b'MZ\x90\x00', 'pdf'))
+        self.assertFalse(signatur_passt(b'', 'pdf'))
 
 
 if __name__ == '__main__':

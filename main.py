@@ -129,6 +129,32 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}
 
+# Magic Bytes je Endung. Die Endung allein reicht nicht: Eine als .pdf
+# getarnte ausfuehrbare Datei wurde bisher gespeichert und als PDF
+# ausgeliefert (F-07). Die Signaturen decken die Endungen der Whitelist ab;
+# OOXML (.docx) ist ein ZIP-Container, .doc ein OLE2-Container.
+DATEI_SIGNATUREN = {
+    'pdf': (b'%PDF-',),
+    'png': (b'\x89PNG\r\n\x1a\n',),
+    'jpg': (b'\xff\xd8\xff',),
+    'jpeg': (b'\xff\xd8\xff',),
+    'doc': (b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1',),
+    'docx': (b'PK\x03\x04',),
+}
+SIGNATUR_MAX_LAENGE = max(
+    len(signatur)
+    for signaturen in DATEI_SIGNATUREN.values()
+    for signatur in signaturen)
+
+# Grenzen fuer das Auslesen von Sicherheitsdatenblaettern. pdfplumber parst
+# beim Oeffnen die Xref-Struktur der gesamten Datei; ohne Grenze kann ein
+# 16-MB-PDF mit vielen Objekten oder Seiten einen Waitress-Thread laenger
+# blockieren als der Request vertraegt (F-07). signal.alarm ist unter
+# Waitress (mehrere Threads) nicht nutzbar, deshalb ein Arbeits-Thread mit
+# join-Zeitlimit.
+PDF_MAX_SEITEN = 200
+PDF_MAX_PARSE_SEKUNDEN = 30
+
 # Mindestlaenge fuer lokal gesetzte Passwoerter. Gilt fuer Registrierung,
 # Benutzeranlage und Passwortwechsel im Profil. Die Grenze liegt bewusst
 # ueber vier Zeichen: kontoloesende Angriffe laufen sonst im Sekundentakt
@@ -162,6 +188,39 @@ def passwort_hinweis(password):
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def signatur_passt(daten, endung):
+    """True, wenn der Dateikopf zu den Magic Bytes der Endung passt."""
+    signaturen = DATEI_SIGNATUREN.get((endung or '').lower())
+    if not signaturen or not daten:
+        return False
+    return any(daten.startswith(signatur) for signatur in signaturen)
+
+def datei_signatur_gueltig(file_obj):
+    """Prueft den Dateikopf einer hochgeladenen Datei gegen ihre Endung.
+
+    Liest nur den Kopf und setzt den Stream zurueck, damit der anschliessende
+    save() die vollstaendige Datei schreibt. Leere Dateien werden abgelehnt.
+    """
+    if not file_obj or not file_obj.filename or '.' not in file_obj.filename:
+        return False
+    endung = file_obj.filename.rsplit('.', 1)[1].lower()
+    stream = getattr(file_obj, 'stream', None)
+    if stream is None:
+        return False
+    try:
+        position = stream.tell()
+        kopf = stream.read(SIGNATUR_MAX_LAENGE)
+        stream.seek(position)
+    except (AttributeError, OSError, ValueError):
+        return False
+    return signatur_passt(kopf, endung)
+
+def upload_datei_gueltig(file_obj):
+    """Endung und Dateikopf muessen zusammenpassen."""
+    return (file_obj is not None and file_obj.filename != ''
+            and allowed_file(file_obj.filename)
+            and datei_signatur_gueltig(file_obj))
 
 def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
     """
@@ -2130,26 +2189,26 @@ def add():
             sdb_filename = ba_filename = gb_filename = None
             if 'sicherheitsdatenblatt' in request.files:
                 file = request.files['sicherheitsdatenblatt']
-                if file and file.filename != '' and allowed_file(file.filename):
+                if file and file.filename != '' and upload_datei_gueltig(file):
                     sdb_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "SDB")
                 elif file and file.filename != '':
-                    flash('Ungültiger Dateityp für das Sicherheitsdatenblatt.', 'error')
+                    flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung (Sicherheitsdatenblatt).', 'error')
                     return redirect(url_for('add'))
 
             if 'betriebsanweisung' in request.files:
                 file = request.files['betriebsanweisung']
-                if file and file.filename != '' and allowed_file(file.filename):
+                if file and file.filename != '' and upload_datei_gueltig(file):
                     ba_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "BA")
                 elif file and file.filename != '':
-                    flash('Ungültiger Dateityp für die Betriebsanweisung.', 'error')
+                    flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung (Betriebsanweisung).', 'error')
                     return redirect(url_for('add'))
 
             if 'gefaehrdungsbeurteilung' in request.files:
                 file = request.files['gefaehrdungsbeurteilung']
-                if file and file.filename != '' and allowed_file(file.filename):
+                if file and file.filename != '' and upload_datei_gueltig(file):
                     gb_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "GB")
                 elif file and file.filename != '':
-                    flash('Ungültiger Dateityp für die Gefährdungsbeurteilung.', 'error')
+                    flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung (Gefährdungsbeurteilung).', 'error')
                     return redirect(url_for('add'))
 
             neuer_stoff = Gefahrstoff(
@@ -2276,29 +2335,29 @@ def edit_stoff(id):
         # Neue Dokumente hochladen
         if 'sicherheitsdatenblatt' in request.files:
             file = request.files['sicherheitsdatenblatt']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '' and upload_datei_gueltig(file):
                 sdb_filename = save_file_with_stoff_name(file, stoff.name, "SDB")
                 stoff.sicherheitsdatenblatt = sdb_filename
             elif file and file.filename != '':
-                flash('Ungültiger Dateityp.', 'error')
+                flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
 
         if 'betriebsanweisung' in request.files:
             file = request.files['betriebsanweisung']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '' and upload_datei_gueltig(file):
                 ba_filename = save_file_with_stoff_name(file, stoff.name, "BA")
                 stoff.betriebsanweisung = ba_filename
             elif file and file.filename != '':
-                flash('Ungültiger Dateityp.', 'error')
+                flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
                 
         if 'gefaehrdungsbeurteilung' in request.files:
             file = request.files['gefaehrdungsbeurteilung']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '' and upload_datei_gueltig(file):
                 gb_filename = save_file_with_stoff_name(file, stoff.name, "GB")
                 stoff.gefaehrdungsbeurteilung = gb_filename
             elif file and file.filename != '':
-                flash('Ungültiger Dateityp.', 'error')
+                flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
 
         # Die Freigabe aendert ausschliesslich /approve bzw. /reject. Ein
@@ -3199,6 +3258,61 @@ with app.app_context():
         print(f"create_all note: {e}")
     migrate_database()
 
+def _sdb_pdf_auswerten(daten):
+    """Liest Seitentext und Tabellen aus einem SDB-PDF.
+
+    Text seitenweise holen und Tabellen nur dort, wo sie fachlich relevant
+    sind (Einstufung, Zusammensetzung). extract_tables() ist teuer; auf
+    jeder Seite aufzurufen kostet mehr Zeit als der gesamte uebrige Import.
+    """
+    seiten, tabellen = [], []
+    with pdfplumber.open(BytesIO(daten)) as pdf:
+        seitenzahl = len(pdf.pages)
+        if seitenzahl > PDF_MAX_SEITEN:
+            return {
+                'fehler': f'Das PDF hat {seitenzahl} Seiten; erlaubt sind '
+                          f'höchstens {PDF_MAX_SEITEN}.'
+            }
+        for nummer, page in enumerate(pdf.pages[:15]):
+            text = page.extract_text() or ''
+            seiten.append(text)
+            if (nummer < 6 and len(tabellen) < 12
+                    and any(k in text.lower() for k in (
+                        'einstufung', 'zusammensetzung', 'classification',
+                        'composition'))):
+                try:
+                    tabellen.extend(page.extract_tables() or [])
+                except Exception:
+                    pass
+    return {'seiten': seiten, 'tabellen': tabellen}
+
+
+def pdf_seiten_auslesen(daten):
+    """Wertet ein SDB-PDF mit Seiten- und Zeitlimit aus.
+
+    Gibt (ergebnis, fehler) zurueck. Bei einer Zeitueberschreitung laeuft der
+    Arbeits-Thread als Daemon weiter, die Anfrage wird aber sofort beantwortet
+    - ein einzelnes PDF blockiert damit keinen Waitress-Thread dauerhaft.
+    """
+    ergebnis = {}
+    fehler = {}
+
+    def _lauf():
+        try:
+            ergebnis['wert'] = _sdb_pdf_auswerten(daten)
+        except Exception as exc:      # Meldung wird vom Aufrufer uebersetzt
+            fehler['wert'] = exc
+
+    lauf = threading.Thread(target=_lauf, daemon=True)
+    lauf.start()
+    lauf.join(PDF_MAX_PARSE_SEKUNDEN)
+    if lauf.is_alive():
+        return None, 'zeitlimit'
+    if 'wert' in fehler:
+        return None, fehler['wert']
+    return ergebnis.get('wert'), None
+
+
 @app.route('/api/parse_sdb', methods=['POST'])
 @login_required
 def parse_sdb():
@@ -3215,33 +3329,33 @@ def parse_sdb():
     if not file.filename.lower().endswith('.pdf'):
         return {'error': 'Bitte eine PDF-Datei hochladen'}, 400
 
-    # Text seitenweise holen und Tabellen nur dort, wo sie fachlich relevant
-    # sind (Einstufung, Zusammensetzung). extract_tables() ist teuer; auf
-    # jedem Seite aufzurufen kostet mehr Zeit als der gesamte übrige Import.
-    seiten, tabellen = [], []
-    try:
-        with pdfplumber.open(file) as pdf:
-            for nummer, page in enumerate(pdf.pages[:15]):
-                text = page.extract_text() or ''
-                seiten.append(text)
-                if (nummer < 6 and len(tabellen) < 12
-                        and any(k in text.lower() for k in (
-                            'einstufung', 'zusammensetzung', 'classification',
-                            'composition'))):
-                    try:
-                        tabellen.extend(page.extract_tables() or [])
-                    except Exception:
-                        pass
-    except Exception as e:
+    daten = file.read()
+    if not signatur_passt(daten, 'pdf'):
+        return {'error': 'Die Datei ist leer oder kein gültiges PDF.'}, 400
+
+    auswertung, fehler = pdf_seiten_auslesen(daten)
+    if fehler == 'zeitlimit':
+        app.logger.warning(
+            'SDB-PDF: Zeitlimit von %s Sekunden ueberschritten',
+            PDF_MAX_PARSE_SEKUNDEN)
+        return {
+            'error': 'Die Auswertung des PDFs hat das Zeitlimit von '
+                     f'{PDF_MAX_PARSE_SEKUNDEN} Sekunden überschritten.'
+        }, 400
+    if fehler is not None:
         # Die Meldung von pdfminer ("No /Root object!") ist für den Nutzer
         # wertlos und nennt Interna. Sie geht ins Log, nicht ins Formular.
-        app.logger.warning('SDB-PDF nicht lesbar: %s', e)
+        app.logger.warning('SDB-PDF nicht lesbar: %s', fehler)
         return {
             'error': 'Das PDF konnte nicht geöffnet werden. Ist die Datei '
                      'beschädigt oder passwortgeschützt?'
         }, 400
 
-    ergebnis = sdb_parser.analysiere(seiten, tabellen)
+    if auswertung.get('fehler'):
+        return {'error': auswertung['fehler']}, 400
+
+    ergebnis = sdb_parser.analysiere(auswertung['seiten'],
+                                     auswertung['tabellen'])
     if not ergebnis.get('success'):
         return ergebnis, 422
     return ergebnis
