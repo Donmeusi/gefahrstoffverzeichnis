@@ -516,8 +516,12 @@ umgeht den Workflow nicht.
 **🛡️ Moderator** — Bereichs- oder Abteilungsleitung.
 * Sieht die eigenen Gefahrstoffe und alles in den Bereichen, die ihm als
   Besitzer oder als zugewiesen zugeordnet sind.
-* Darf dort alles verwalten und **Freigaben erteilen oder ablehnen**.
-* Darf Standorte anlegen und Benutzer der Rollen „Benutzer" und „Lesen" anlegen.
+* Darf dort Gefahrstoffe verwalten und **Freigaben erteilen oder ablehnen**.
+* Standorte (Bereiche und Unterbereiche) darf er nur in Bereichen anlegen und
+  löschen, deren **Besitzer** er ist. In einem ihm nur zugewiesenen Bereich
+  sieht er die Standorte ein, verwaltet dort aber nur die Gefahrstoffe.
+  Administratoren dürfen überall.
+* Darf Benutzer der Rollen „Benutzer" und „Lesen" anlegen.
 * Kann keine Administratoren verwalten — auch nicht, wenn er sie angelegt hat.
 
 **👑 Administrator** — uneingeschränkt.

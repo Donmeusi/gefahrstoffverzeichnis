@@ -199,5 +199,84 @@ class TestCmrFreigabeGate(unittest.TestCase):
             self.assertEqual(stoff.h_saetze, 'H350')
 
 
+class TestBereichLoeschen(unittest.TestCase):
+    """F-04: Nur Besitzer oder Administrator duerfen einen Bereich loeschen."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_b', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            eigentuemer = User(username='mod_besitzer', role='moderator')
+            eigentuemer.set_password('dummy-moderator-passwort')
+            zugewiesen = User(username='mod_zugewiesen', role='moderator')
+            zugewiesen.set_password('dummy-moderator-passwort')
+            db.session.add_all([admin, eigentuemer, zugewiesen])
+            db.session.commit()
+
+            fremd = Bereich(name='Fremder Bereich', owner_id=admin.id)
+            eigen = Bereich(name='Eigener Bereich', owner_id=eigentuemer.id)
+            db.session.add_all([fremd, eigen])
+            db.session.commit()
+            zugewiesen.assigned_bereiche.append(fremd)
+            db.session.commit()
+
+            ub_fremd = Unterbereich(name='Fremder Schrank',
+                                    bereich_id=fremd.id)
+            ub_eigen = Unterbereich(name='Eigener Schrank',
+                                    bereich_id=eigen.id)
+            db.session.add_all([ub_fremd, ub_eigen])
+            db.session.commit()
+            self.fremd_id = fremd.id
+            self.eigen_id = eigen.id
+            self.ub_fremd_id = ub_fremd.id
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _login(self, username):
+        self.client.get('/logout')
+        self.client.post('/login', data={'username': username,
+                                         'password': 'dummy-moderator-passwort'})
+
+    def test_zugewiesener_moderator_loescht_bereich_nicht(self):
+        self._login('mod_zugewiesen')
+        antwort = self.client.post(
+            f'/location/delete_bereich/{self.fremd_id}')
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            self.assertIsNotNone(db.session.get(Bereich, self.fremd_id),
+                                 'Zugewiesener Moderator hat den Bereich '
+                                 'geloescht')
+
+    def test_zugewiesener_moderator_loescht_unterbereich_nicht(self):
+        self._login('mod_zugewiesen')
+        antwort = self.client.post(
+            f'/location/delete_unterbereich/{self.ub_fremd_id}')
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            self.assertIsNotNone(
+                db.session.get(Unterbereich, self.ub_fremd_id),
+                'Zugewiesener Moderator hat den Unterbereich geloescht')
+
+    def test_besitzer_loescht_eigenen_bereich(self):
+        self._login('mod_besitzer')
+        antwort = self.client.post(
+            f'/location/delete_bereich/{self.eigen_id}')
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            self.assertIsNone(db.session.get(Bereich, self.eigen_id),
+                              'Der Besitzer muss seinen Bereich loeschen '
+                              'duerfen')
+
+
 if __name__ == '__main__':
     unittest.main()

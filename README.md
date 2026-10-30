@@ -24,7 +24,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ## ⚙️ Kernfunktionen
 
 *   **Sichere Authentifizierung**: Registrierung und Login. Der zuerst registrierte Nutzer erhält automatisch Administrator-Rechte.
-*   **Standort-Verwaltung**: Legen Sie Hauptbereiche und dazugehörige Unterbereiche zur genauen Verortung von Gefahrstoffen an. Moderatoren können einzelnen Bereichen als Besitzer zugewiesen werden.
+*   **Standort-Verwaltung**: Legen Sie Hauptbereiche und dazugehörige Unterbereiche zur genauen Verortung von Gefahrstoffen an. Moderatoren können einzelnen Bereichen als Besitzer zugewiesen werden. Anlegen und Löschen eines Bereichs bleiben dessen Besitzer und Administratoren vorbehalten; ein nur zugewiesener Moderator verwaltet dort die Gefahrstoffe, nicht den Standort selbst.
 *   **Gefahrstoff-Erfassung**: Umfangreiche Erfassungsmaske mit:
     *   Name, CAS-Nummer und EG-Nummer
     *   Menge und Mengeneinheit, sowie Lagerklasse (LGK)

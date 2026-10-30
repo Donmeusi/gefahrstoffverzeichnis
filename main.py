@@ -734,14 +734,22 @@ def can_edit_gefahrstoff(stoff):
 
 
 def can_manage_bereich(bereich):
-    """Prüft, ob der aktuelle Benutzer diesen Bereich verwalten darf."""
+    """Prüft, ob der aktuelle Benutzer diesen Bereich verwalten darf.
+
+    Verwalten heisst anlegen, umbenennen und loeschen. Ein Moderator, dem
+    ein Bereich nur zugewiesen ist, darf dort Stoffe bearbeiten (siehe
+    can_edit_gefahrstoff), aber nicht den Bereich selbst verwalten. Sonst
+    konnte er einen fremden Bereich samt Unterbereichen loeschen; die
+    Gefahrstoffe verlieren dabei ihren Standort. Dafuer ist der Besitzer
+    (owner_id) oder ein Administrator zustaendig.
+    """
     if not current_user.can_write:
         return False
 
     if current_user.is_admin:
         return True
     if current_user.role == 'moderator':
-        return bereich.owner_id == current_user.id or bereich in current_user.assigned_bereiche.all()
+        return bereich.owner_id == current_user.id
     return False
 
 
