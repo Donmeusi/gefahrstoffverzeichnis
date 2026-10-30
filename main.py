@@ -12,6 +12,7 @@ import os
 import json
 import subprocess
 import platform
+import secrets
 import threading
 import time
 import calendar
@@ -203,6 +204,61 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Bitte logge dich ein, um diese Seite zu sehen."
 
+# ─── Serverseitige Sitzungsliste ─────────────────────────────────────────────
+# Flask legt die Sitzung nur in einem signierten Cookie ab. Ein Logout loescht
+# damit nur das Cookie im Browser; ein zuvor kopiertes Cookie bliebe bis zum
+# Ablauf gueltig. Deshalb fuehrt die Anwendung eine Liste der ausgestellten
+# Sitzungstoken: Der Eintrag entsteht beim Login, wird bei jeder Anfrage in
+# load_user geprueft und beim Logout entfernt.
+#
+# Grenze: Die Liste liegt im Prozessspeicher. Waitress laeuft als einzelner
+# Prozess mit mehreren Threads, das genuegt hier - ein Neustart der Anwendung
+# entfernt aber alle Eintraege. Danach sind alle Sitzungen abgemeldet und die
+# Nutzer muessen sich neu anmelden (die Cookies allein sind dann wertlos).
+_sitzungen = {}
+_sitzungen_lock = threading.Lock()
+
+
+def _sitzung_registrieren(user):
+    """Stellt einen Sitzungstoken aus und traegt ihn in die Liste ein."""
+    token = secrets.token_urlsafe(32)
+    ablauf = (time.time()
+              + app.config['PERMANENT_SESSION_LIFETIME'].total_seconds())
+    jetzt = time.time()
+    with _sitzungen_lock:
+        # Abgelaufene Eintraege bei dieser Gelegenheit entfernen, damit die
+        # Liste nicht unbegrenzt waechst.
+        for alter_token, (_, alter_ablauf) in list(_sitzungen.items()):
+            if alter_ablauf < jetzt:
+                _sitzungen.pop(alter_token, None)
+        _sitzungen[token] = (user.id, ablauf)
+    session['_session_token'] = token
+
+
+def _sitzung_gueltig(user):
+    """True, wenn der Token dieser Sitzung ausgestellt und nicht abgelaufen ist."""
+    token = session.get('_session_token')
+    if not token:
+        return False
+    with _sitzungen_lock:
+        eintrag = _sitzungen.get(token)
+        if not eintrag:
+            return False
+        user_id, ablauf = eintrag
+        if ablauf < time.time():
+            _sitzungen.pop(token, None)
+            return False
+        return user_id == user.id
+
+
+def _sitzung_abmelden():
+    """Entfernt den Token dieser Sitzung aus der Liste."""
+    token = session.get('_session_token')
+    if token:
+        with _sitzungen_lock:
+            _sitzungen.pop(token, None)
+
+
 @login_manager.user_loader
 def load_user(user_id):
     user = User.query.get(int(user_id))
@@ -212,6 +268,11 @@ def load_user(user_id):
     # nach einem Passwortwechsel passt der Wert nicht mehr und die Sitzung
     # gilt als abgemeldet.
     if session.get('_session_version', 0) != (user.session_version or 0):
+        return None
+    # Serverseitige Liste: Ohne den beim Login ausgestellten Token gilt die
+    # Sitzung nicht mehr. Das betrifft ein kopiertes Cookie nach dem Logout
+    # und alle Sitzungen nach einem Neustart der Anwendung.
+    if not _sitzung_gueltig(user):
         return None
     return user
 
@@ -1372,6 +1433,7 @@ def login():
                 login_user(user)
                 session.permanent = True
                 session['_session_version'] = user.session_version or 0
+                _sitzung_registrieren(user)
                 log_audit_event('LOGIN', 'User', user.id, "Erfolgreicher LDAPs Login.")
                 return redirect(url_for('index'))
 
@@ -1390,6 +1452,7 @@ def login():
         login_user(user)
         session.permanent = True
         session['_session_version'] = user.session_version or 0
+        _sitzung_registrieren(user)
         # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
         log_audit_event('LOGIN', 'User', user.id,
                         'Lokaler Login (Passwort aus der Datenbank).')
@@ -1400,6 +1463,9 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    # Erst den serverseitigen Eintrag entfernen, dann das Cookie. Sonst
+    # bliebe ein kopiertes Cookie bis zu 12 Stunden verwendbar.
+    _sitzung_abmelden()
     logout_user()
     return redirect(url_for('login'))
 

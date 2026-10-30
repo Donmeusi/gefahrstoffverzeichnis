@@ -278,5 +278,53 @@ class TestBereichLoeschen(unittest.TestCase):
                               'duerfen')
 
 
+class TestLogoutInvalidiertSitzung(unittest.TestCase):
+    """F-34: Ein kopiertes Cookie darf nach dem Logout nicht weiter gelten."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_l', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            db.session.add(admin)
+            db.session.commit()
+        self.client.post('/login', data={'username': 'admin_l',
+                                         'password': 'dummy-admin-passwort'})
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _sitzungswert(self):
+        cookie = self.client.get_cookie('session')
+        self.assertIsNotNone(cookie, 'Es wurde kein Sitzungscookie gesetzt')
+        return cookie.value
+
+    def _replay(self, wert):
+        """Neuer Client mit dem kopierten Cookie, wie ein Angreifer ihn haette."""
+        angreifer = app.test_client()
+        angreifer.set_cookie('session', wert)
+        return angreifer.get('/')
+
+    def test_kopiertes_cookie_gilt_vor_dem_logout(self):
+        wert = self._sitzungswert()
+        self.assertEqual(self._replay(wert).status_code, 200,
+                         'Die Kopie muss vor dem Logout gueltig sein - sonst '
+                         'prueft der Test darunter nichts.')
+
+    def test_kopiertes_cookie_ist_nach_dem_logout_ungueltig(self):
+        wert = self._sitzungswert()
+        self.client.get('/logout')
+
+        antwort = self._replay(wert)
+        self.assertEqual(antwort.status_code, 302,
+                         'Kopiertes Cookie war nach dem Logout weiter gueltig')
+        self.assertIn('/login', antwort.headers.get('Location', ''))
+
+
 if __name__ == '__main__':
     unittest.main()
