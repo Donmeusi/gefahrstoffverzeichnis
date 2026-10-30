@@ -598,13 +598,22 @@ Die Anmeldung gegen ein Unternehmensverzeichnis (Active Directory, OpenLDAP) wir
 über Umgebungsvariablen eingerichtet (siehe `.env.example`). Wesentliche Werte:
 
 * `LDAP_ENABLED`, `LDAP_HOST`, `LDAP_PORT`, `LDAP_USE_SSL`
+* `LDAP_START_TLS` — StartTLS für LDAP auf Port 389, **Vorbelegung `true`**
 * `LDAP_BASE_DN`, `LDAP_USER_SEARCH_FILTER`
 * `LDAP_DEFAULT_ROLE` — die Rolle für neu angelegte Konten, **Vorbelegung
   `lesen`**
 
+Für den Transport gilt: Port 636 mit `LDAP_USE_SSL=true` (LDAPs) oder Port 389
+mit `LDAP_START_TLS=true`. Sind beide abgeschaltet, verweigert die Anwendung
+den LDAP-Login, damit Benutzername und Passwort nicht im Klartext übertragen
+werden; beim Start erscheint dazu eine Warnung im Log. Die Zertifikatsprüfung
+ist in beiden Fällen aktiv (`LDAP_REQUIRE_CERT=true`).
+
 Neue Verzeichnisbenutzer werden beim ersten Login automatisch angelegt. Wenn
 LDAP aktiv ist, aber die Anmeldung dort scheitert, prüft die Anwendung
-anschließend ein lokales Passwort.
+anschließend ein lokales Passwort. Wird ein vorhandenes lokales Konto vom
+Verzeichnisdienst übernommen, erhält es die `LDAP_DEFAULT_ROLE`; eine lokal
+vergebene höhere Rolle wird dabei bewusst nicht übernommen.
 
 ### 14.3 Datensicherung
 

@@ -25,6 +25,7 @@ import testkonfiguration  # noqa: F401,E402
 
 from main import (app, db, User, AuditLog, Bereich, Unterbereich,
                   Gefahrstoff, PDF_MAX_SEITEN, signatur_passt)
+import ldap_auth
 
 
 class TestLdapKontoUebernahme(unittest.TestCase):
@@ -228,6 +229,88 @@ class TestPdfParsingLimits(unittest.TestCase):
         self.assertTrue(signatur_passt(b'%PDF-1.7\n...', 'pdf'))
         self.assertFalse(signatur_passt(b'MZ\x90\x00', 'pdf'))
         self.assertFalse(signatur_passt(b'', 'pdf'))
+
+
+class _FakeConnection:
+    """Ersetzt ldap3.Connection; zeichnet auto_bind und Bind-Aufrufe auf."""
+
+    aufrufe = []
+
+    def __init__(self, server, user=None, password=None, auto_bind=False,
+                 **kwargs):
+        self.server = server
+        self.user = user
+        self.password = password
+        self.auto_bind = auto_bind
+        self.unbound = False
+        _FakeConnection.aufrufe.append(self)
+
+    def unbind(self):
+        self.unbound = True
+
+
+class TestLdapTransport(unittest.TestCase):
+    """F-08: LDAP darf nicht im Klartext senden."""
+
+    def setUp(self):
+        _FakeConnection.aufrufe.clear()
+
+    def _env(self, **werte):
+        basis = {
+            'LDAP_ENABLED': 'true',
+            'LDAP_HOST': 'ldap.example',
+            'LDAP_PORT': '389',
+            'LDAP_USE_SSL': 'false',
+            'LDAP_START_TLS': 'true',
+            'LDAP_USER_DN_TEMPLATE': 'uid={username},dc=example,dc=org',
+            'LDAP_REQUIRE_CERT': 'true',
+        }
+        basis.update(werte)
+        return basis
+
+    def test_starttls_wird_vor_dem_bind_angefragt(self):
+        with mock.patch.dict(os.environ, self._env(), clear=True), \
+                mock.patch.object(ldap_auth, 'Connection', _FakeConnection):
+            erfolg, info = ldap_auth.authenticate_ldap('anna', 'geheim')
+
+        self.assertTrue(erfolg)
+        self.assertEqual(len(_FakeConnection.aufrufe), 1)
+        self.assertEqual(_FakeConnection.aufrufe[0].auto_bind,
+                         ldap_auth.AUTO_BIND_TLS_BEFORE_BIND)
+        self.assertEqual(info['default_role'], 'lesen')
+
+    def test_ohne_ssl_und_starttls_wird_der_login_verweigert(self):
+        env = self._env(LDAP_START_TLS='false')
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(ldap_auth, 'Connection', _FakeConnection):
+            erfolg, meldung = ldap_auth.authenticate_ldap('anna', 'geheim')
+
+        self.assertFalse(erfolg)
+        self.assertIn('verweigert', meldung)
+        self.assertEqual(_FakeConnection.aufrufe, [],
+                         'Ohne TLS darf keine Verbindung aufgebaut werden')
+
+    def test_ssl_bleibt_der_standard(self):
+        with mock.patch.dict(os.environ, self._env(
+                LDAP_PORT='636', LDAP_USE_SSL='true',
+                LDAP_START_TLS='false'), clear=True):
+            cfg = ldap_auth.get_ldap_config()
+        self.assertTrue(cfg['use_ssl'])
+
+    def test_starttls_ist_standard_bei_ldap_auf_port_389(self):
+        with mock.patch.dict(os.environ, {'LDAP_USE_SSL': 'false'},
+                             clear=True):
+            cfg = ldap_auth.get_ldap_config()
+        self.assertTrue(cfg['start_tls'])
+
+    def test_startup_warnung_ohne_tls(self):
+        env = self._env(LDAP_START_TLS='false')
+        with mock.patch.dict(os.environ, env, clear=True), \
+                self.assertLogs(ldap_auth.logger, level='WARNING') as protokoll:
+            ldap_auth.pruefe_transport_konfiguration()
+
+        self.assertTrue(any('ohne Transportverschluesselung' in zeile
+                            for zeile in protokoll.output))
 
 
 if __name__ == '__main__':

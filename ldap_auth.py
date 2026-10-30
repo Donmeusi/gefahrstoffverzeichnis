@@ -4,8 +4,10 @@ import logging
 
 try:
     import ldap3
-    from ldap3 import Server, Connection, ALL, Tls
-    from ldap3.utils.conv import escape_filter_chars, escape_rdn
+    from ldap3 import (Server, Connection, ALL, Tls,
+                       AUTO_BIND_TLS_BEFORE_BIND)
+    from ldap3.utils.conv import escape_filter_chars
+    from ldap3.utils.dn import escape_rdn
     LDAP3_AVAILABLE = True
 except ImportError:
     LDAP3_AVAILABLE = False
@@ -25,6 +27,11 @@ def get_ldap_config():
     host = os.environ.get('LDAP_HOST', '').strip()
     port = int(os.environ.get('LDAP_PORT', '636'))
     use_ssl = os.environ.get('LDAP_USE_SSL', 'true').lower() in ('true', '1', 'yes')
+    # StartTLS ist der sichere Standard fuer unverschluesseltes LDAP auf Port
+    # 389: Die Verbindung wird vor dem Bind auf TLS hochgezogen. Ist auch das
+    # aus, wird der Login verweigert, statt das Passwort im Klartext zu senden
+    # (F-08).
+    start_tls = os.environ.get('LDAP_START_TLS', 'true').lower() in ('true', '1', 'yes')
     base_dn = os.environ.get('LDAP_BASE_DN', '').strip()
     bind_dn = os.environ.get('LDAP_BIND_DN', '').strip()
     bind_password = os.environ.get('LDAP_BIND_PASSWORD', '')
@@ -44,6 +51,7 @@ def get_ldap_config():
         'host': host,
         'port': port,
         'use_ssl': use_ssl,
+        'start_tls': start_tls,
         'base_dn': base_dn,
         'bind_dn': bind_dn,
         'bind_password': bind_password,
@@ -53,6 +61,38 @@ def get_ldap_config():
         'require_cert': require_cert,
         'ca_cert_file': os.environ.get('LDAP_CA_CERT_FILE', '').strip()
     }
+
+def _transportart(cfg):
+    """Effektive Transportverschluesselung: 'ssl', 'starttls' oder None."""
+    if cfg['use_ssl'] or cfg['port'] == 636:
+        return 'ssl'
+    if cfg['start_tls']:
+        return 'starttls'
+    return None
+
+
+def _verbindung(server, user, password, transport):
+    """Baut die Verbindung; bei StartTLS wird TLS vor dem Bind hochgezogen."""
+    auto_bind = (AUTO_BIND_TLS_BEFORE_BIND
+                 if transport == 'starttls' else True)
+    return Connection(server, user=user, password=password,
+                      auto_bind=auto_bind)
+
+
+def pruefe_transport_konfiguration():
+    """Warnt beim Start, wenn LDAP ohne TLS konfiguriert ist."""
+    if not is_ldap_enabled():
+        return
+    cfg = get_ldap_config()
+    if _transportart(cfg) is None:
+        logger.warning(
+            'LDAP ist ohne Transportverschluesselung konfiguriert '
+            '(LDAP_USE_SSL=false, LDAP_START_TLS=false). Anmeldedaten '
+            'wuerden im Klartext uebertragen; Login-Versuche werden '
+            'verweigert. LDAP_START_TLS=true setzen oder Port 636 mit '
+            'LDAP_USE_SSL=true verwenden.'
+        )
+
 
 def authenticate_ldap(username, password):
     """
@@ -69,35 +109,52 @@ def authenticate_ldap(username, password):
         return False, "Benutzername und Passwort erforderlich."
 
     cfg = get_ldap_config()
-    
-    try:
-        # TLS / SSL Zertifikatskonfiguration
-        tls_ctx = None
-        if cfg['use_ssl'] or cfg['port'] == 636:
-            validate = ssl.CERT_REQUIRED if cfg['require_cert'] else ssl.CERT_NONE
-            # Eigenes CA-Bundle (z.B. Unternehmens-PKI) statt abgeschalteter
-            # Pruefung. Ohne die Datei greift der System-Speicher.
-            if cfg['ca_cert_file']:
-                tls_ctx = Tls(validate=validate, ca_certs_file=cfg['ca_cert_file'])
-            else:
-                tls_ctx = Tls(validate=validate)
-            if not cfg['require_cert']:
-                logger.warning(
-                    'LDAP_REQUIRE_CERT ist deaktiviert: das Server-Zertifikat '
-                    'wird nicht geprueft. LDAP_CA_CERT_FILE hinterlegen statt '
-                    'die Pruefung abzuschalten.'
-                )
 
-        # Server-Objekt erstellen
+    # Ohne SSL und ohne StartTLS gingen Benutzername, Passwort und ggf. das
+    # Service-Account-Passwort im Klartext ueber das Netz. Der Login wird
+    # deshalb verweigert, statt die unsichere Konfiguration stillschweigend
+    # zu akzeptieren (F-08).
+    transport = _transportart(cfg)
+    if transport is None:
+        logger.error(
+            "LDAP-Login verweigert: weder SSL noch StartTLS aktiv "
+            "(LDAP_USE_SSL=false, LDAP_START_TLS=false). Bitte "
+            "LDAP_START_TLS=true setzen oder LDAP_USE_SSL=true mit Port 636 "
+            "verwenden."
+        )
+        return False, ("LDAP ist ohne Transportverschluesselung konfiguriert. "
+                       "Der Login wird verweigert; bitte LDAP_START_TLS=true "
+                       "setzen oder LDAP_USE_SSL=true mit Port 636 verwenden.")
+
+    try:
+        # TLS / SSL Zertifikatskonfiguration. Bei StartTLS gilt dieselbe
+        # Zertifikatspruefung wie bei SSL.
+        tls_ctx = None
+        validate = ssl.CERT_REQUIRED if cfg['require_cert'] else ssl.CERT_NONE
+        # Eigenes CA-Bundle (z.B. Unternehmens-PKI) statt abgeschalteter
+        # Pruefung. Ohne die Datei greift der System-Speicher.
+        if cfg['ca_cert_file']:
+            tls_ctx = Tls(validate=validate, ca_certs_file=cfg['ca_cert_file'])
+        else:
+            tls_ctx = Tls(validate=validate)
+        if not cfg['require_cert']:
+            logger.warning(
+                'LDAP_REQUIRE_CERT ist deaktiviert: das Server-Zertifikat '
+                'wird nicht geprueft. LDAP_CA_CERT_FILE hinterlegen statt '
+                'die Pruefung abzuschalten.'
+            )
+
+        # Server-Objekt erstellen. Bei StartTLS beginnt die Verbindung auf
+        # ldap:// und wird vom Client hochgezogen.
         host_str = cfg['host']
         if not (host_str.startswith('ldap://') or host_str.startswith('ldaps://')):
-            prefix = 'ldaps://' if (cfg['use_ssl'] or cfg['port'] == 636) else 'ldap://'
+            prefix = 'ldaps://' if transport == 'ssl' else 'ldap://'
             host_str = f"{prefix}{host_str}"
 
         server = Server(
             host_str,
             port=cfg['port'],
-            use_ssl=cfg['use_ssl'] or cfg['port'] == 636,
+            use_ssl=(transport == 'ssl'),
             tls=tls_ctx,
             get_info=ALL,
             connect_timeout=5
@@ -110,14 +167,15 @@ def authenticate_ldap(username, password):
             # escape_rdn maskiert ',', '=', '+' usw., mit denen sich sonst ein
             # anderer DN zusammenbauen liesse.
             user_dn = cfg['user_dn_template'].format(username=escape_rdn(username))
-            conn = Connection(server, user=user_dn, password=password, auto_bind=True)
+            conn = _verbindung(server, user_dn, password, transport)
             conn.unbind()
             return True, {'username': username, 'default_role': cfg['default_role']}
 
         # Methode B: Service Account Search Bind -> User Direct Bind
         elif cfg['bind_dn'] and cfg['base_dn']:
             # 1. Mit Service Account binden
-            admin_conn = Connection(server, user=cfg['bind_dn'], password=cfg['bind_password'], auto_bind=True)
+            admin_conn = _verbindung(server, cfg['bind_dn'],
+                                     cfg['bind_password'], transport)
             
             # 2. Nach dem User DN suchen
             # Ohne Maskierung hebt ein '*)(|(objectClass=*)' den Filter aus.
@@ -137,14 +195,14 @@ def authenticate_ldap(username, password):
             admin_conn.unbind()
 
             # 3. Mit gefundenem User DN & eingegebenem Passwort binden
-            user_conn = Connection(server, user=user_dn, password=password, auto_bind=True)
+            user_conn = _verbindung(server, user_dn, password, transport)
             user_conn.unbind()
             return True, {'username': username, 'default_role': cfg['default_role']}
 
         # Methode C: Direkte Authentifizierung mit Base DN
         elif cfg['base_dn']:
             user_dn = f"cn={escape_rdn(username)},{cfg['base_dn']}"
-            conn = Connection(server, user=user_dn, password=password, auto_bind=True)
+            conn = _verbindung(server, user_dn, password, transport)
             conn.unbind()
             return True, {'username': username, 'default_role': cfg['default_role']}
 
@@ -157,3 +215,8 @@ def authenticate_ldap(username, password):
     except Exception as e:
         logger.error(f"Fehler bei LDAP-Authentifizierung für '{username}': {e}")
         return False, f"LDAP-Verbindungsfehler: {str(e)}"
+
+
+# Beim Import (Anwendungsstart) einmal pruefen: Eine Konfiguration ohne SSL
+# und ohne StartTLS wird sichtbar gemeldet, auch wenn sich niemand anmeldet.
+pruefe_transport_konfiguration()
