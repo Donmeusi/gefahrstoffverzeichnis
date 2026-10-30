@@ -2,6 +2,15 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.38 – Sicherheitsfixes aus der IT-Prüfung (Oktober 2026, APP_VERSION 2.6.3)
+
+* **F-01 (Hoch): `pillow` 12.3.0 → 13.0.0.** 41 GHSA-Meldungen, fünf davon kritisch, waren erst in 13.0.0 behoben; erreichbar über die PNG-Prüfung der gezeichneten Unterschrift. Die Hash-Liste in `requirements.txt` ist aus den PyPI-Metadaten neu erzeugt (`--require-hashes` bleibt). Pillow 13 verlangt Python ≥ 3.11, das Image läuft auf 3.11. API-Gegenprobe: `Image.open`, `.format` und `verify()` sind unverändert, `main.py` braucht keine Anpassung.
+* **F-02 (Mittel): Passwort-Mindestlänge auch in `/users/edit`.** Ein Administrator oder Moderator konnte dort ein Ein-Zeichen-Passwort setzen, obwohl Registrierung, Benutzeranlage und Profil 12 Zeichen verlangen. Die Prüfung läuft jetzt vor jeder Änderung; bei zu kurzem Passwort bleibt der Datensatz unberührt.
+* **F-03 (Mittel): CMR-Freigabe-Gate über `/edit/<id>` geschlossen.** `can_edit_gefahrstoff()` verlangt für normale Benutzer jetzt `is_approved`; damit sind Lesen, Bearbeiten, Verschieben, Kopieren und Löschen eines wartenden CMR-Stoffs gesperrt. Der Edit kann die Freigabe außerdem nur noch entziehen: Wird ein freigegebener Stoff durch neue H-Sätze zum CMR-Stoff, fällt er auf „wartet" zurück. Freigeben lässt sich nur noch über `/approve`.
+* **F-04 (Mittel): Bereiche nur noch für Besitzer oder Administrator verwaltbar.** Ein Moderator, dem ein Bereich nur zugewiesen war, durfte ihn samt Unterbereichen löschen; die Gefahrstoffe verloren dabei ihren Standort. Zugewiesene Moderatoren verwalten dort weiterhin die Gefahrstoffe, aber nicht den Standort. README und HANDBUCH an die Regel angepasst.
+* **F-34 (Niedrig): Logout invalidiert die Sitzung serverseitig.** Bisher löschte der Logout nur das Cookie im Browser; ein kopiertes Cookie blieb bis zu 12 Stunden gültig. Eine Sitzungsliste im Prozessspeicher stellt beim Login einen Token aus, prüft ihn bei jeder Anfrage und entfernt ihn beim Logout. Zugriff über ein `threading.Lock`, weil Waitress mehrthreadig läuft. Grenze: Die Liste ist prozesslokal — ein Neustart meldet alle Sitzungen ab.
+* Neu: `test_pruefbericht_fixes.py` (14 Tests). Gesamtstand 270.
+
 ### v3.37 – Standort-Menü: Baum mit Schienen, lange Namen brechen um (Oktober 2026, APP_VERSION 2.6.2)
 
 * Lange und tief verschachtelte Standortnamen liefen aus der 220 px breiten Seitenleiste heraus und wurden vom `overflow: hidden` der Karte abgeschnitten — gemessen bis 120 px Überlauf bei Ebene 5. Grund: der Name war ein nackter Textknoten und damit ein anonymer Flex-Eintrag, der nicht mitschrumpft; das `overflow-wrap` am Link griff dort nicht.
