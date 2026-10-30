@@ -10,6 +10,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 import os
 import json
+import hashlib
+import re
 import subprocess
 import platform
 import secrets
@@ -408,7 +410,8 @@ class AuditLog(db.Model):
     # ("pseudonymisiert erhalten") - sondern auch den Bezug zwischen den
     # Einträgen: sie stünden danach alle als "System / Unbekannt" da und ließen
     # sich nicht einmal mehr einander zuordnen. Die erhaltene ID wirkt als
-    # Pseudonym, der Name bleibt gelöscht.
+    # Pseudonym; der Klartextname in den details-Texten wird bei der
+    # Kontolöschung durch "gelöschter Nutzer <hash8>" ersetzt (F-32).
     user = db.relationship(
         'User',
         backref=db.backref('audit_logs', lazy=True, passive_deletes=True)
@@ -553,6 +556,78 @@ def log_audit_event(action, entity_type, entity_id, details="", user_id=None):
         db.session.commit()
     except Exception as e:
         print(f"Failed to log audit event: {e}")
+
+
+def _pseudonym(username):
+    """Pseudonym eines Kontos fuer die Historie: "gelöschter Nutzer <hash8>"."""
+    return ('gelöschter Nutzer '
+            + hashlib.sha256(username.encode('utf-8')).hexdigest()[:8])
+
+
+def _fruehere_benutzernamen(user_id, username):
+    """Sammelt die frueheren Namen eines Kontos aus seinen Umbenennungen.
+
+    Eine Umbenennung steht als 'Benutzername "alt" -> "neu"' in der Historie.
+    Ohne diese Kette bliebe der alte Name nach der Loeschung stehen, obwohl
+    nur noch der aktuelle bekannt ist. Die Eintraege sind ueber entity_id dem
+    Konto zugeordnet, deshalb ist die Suche eindeutig.
+    """
+    namen = {username}
+    eintraege = AuditLog.query.filter_by(
+        entity_type='User', entity_id=user_id, action='USER_UPDATE').all()
+    weitergesucht = True
+    while weitergesucht:
+        weitergesucht = False
+        for eintrag in eintraege:
+            for alt, neu in re.findall(
+                    r'Benutzername "([^"]+)" -> "([^"]+)"',
+                    eintrag.details or ''):
+                if neu in namen and alt not in namen:
+                    namen.add(alt)
+                    weitergesucht = True
+    return namen
+
+
+def _pseudonymisiere_audit_eintraege(user_id, username):
+    """Ersetzt den Klartextnamen eines geloeschten Kontos in der Historie.
+
+    Die Eintraege bleiben als Nachweis erhalten, die Benutzer-ID ebenfalls
+    (sie ordnet sie einander zu). Der Name steht aber in den details-Texten
+    mehrerer USER_*-Ereignisse - auch im Loescheintrag selbst, den ein anderer
+    Administrator schreibt (F-32). Er wird deshalb durch ein aus dem Namen
+    abgeleitetes Pseudonym ersetzt. Ersetzt werden nur in Anfuehrungszeichen
+    stehende Vorkommen, damit nicht versehentlich Teile anderer Texte
+    getroffen werden.
+
+    Fruehere Namen aus Umbenennungen (siehe _fruehere_benutzernamen) werden
+    nur in den Eintraegen dieses Kontos ersetzt. Der aktuelle Name wird ueberall
+    ersetzt: er ist zum Zeitpunkt der Loeschung eindeutig, waehrend ein alter,
+    wieder freigegebener Name zu einem anderen Konto gehoeren kann.
+    """
+    if not username:
+        return 0
+
+    namen = _fruehere_benutzernamen(user_id, username)
+    pseudonyme = {name: _pseudonym(name) for name in namen}
+    geaendert = 0
+    for eintrag in AuditLog.query.filter(AuditLog.details.isnot(None)).all():
+        if not eintrag.details:
+            continue
+        if eintrag.entity_type == 'User' and eintrag.entity_id == user_id:
+            zu_ersetzen = namen
+        else:
+            zu_ersetzen = {username}
+
+        neu = eintrag.details
+        for name in zu_ersetzen:
+            neu = neu.replace(f'"{name}"', f'"{pseudonyme[name]}"')
+        if neu != eintrag.details:
+            eintrag.details = neu
+            geaendert += 1
+
+    if geaendert:
+        db.session.commit()
+    return geaendert
 
 
 # ─── Betriebsanweisung: individuell angepasste Inhalte ───────────────────────
@@ -3204,6 +3279,11 @@ def delete_user(id):
     db.session.commit()
     log_audit_event('USER_DELETE', 'User', geloeschte_id,
                     f'Benutzer "{geloeschter_name}" (Rolle: {geloeschte_rolle}) gelöscht.')
+    # Der Loescheintrag oben nennt den Namen noch im Klartext, damit die
+    # Meldung nicht von einem bereits geloeschten Objekt abhaengt. Danach
+    # werden alle Eintraege dieses Kontos - einschliesslich dieses einen -
+    # pseudonymisiert (F-32).
+    _pseudonymisiere_audit_eintraege(geloeschte_id, geloeschter_name)
     flash(f'Benutzer "{geloeschter_name}" wurde gelöscht.', 'info')
     return redirect(url_for('users'))
 

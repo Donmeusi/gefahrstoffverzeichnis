@@ -7,11 +7,14 @@ Jeder Test hält genau die Lücke fest, die im Prüfbericht belegt wurde:
 - F-08: LDAP konnte ohne SSL/StartTLS im Klartext senden.
 - F-32: Audit-Log behielt den Benutzernamen nach der Kontolöschung.
 
-F-09 ist eine reine Dokumentationsänderung und braucht keinen Code-Test.
+F-09 betrifft die Datenschutzdokumentation. Ein Test hält fest, dass die
+ausgehenden Verbindungen dort genannt bleiben und PubChem nicht mehr als
+einzige Verbindung bezeichnet wird.
 
 Mit ausführen:
     python -m unittest test_pruefbericht_mittel_fixes
 """
+import hashlib
 import os
 import sys
 import unittest
@@ -24,7 +27,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 import testkonfiguration  # noqa: F401,E402
 
 from main import (app, db, User, AuditLog, Bereich, Unterbereich,
-                  Gefahrstoff, PDF_MAX_SEITEN, signatur_passt)
+                  Gefahrstoff, PDF_MAX_SEITEN, signatur_passt,
+                  log_audit_event)
 import ldap_auth
 
 
@@ -311,6 +315,144 @@ class TestLdapTransport(unittest.TestCase):
 
         self.assertTrue(any('ohne Transportverschluesselung' in zeile
                             for zeile in protokoll.output))
+
+
+class TestAuditPseudonymisierung(unittest.TestCase):
+    """F-32: Nach der Kontolöschung darf kein Klartextname bleiben."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_a', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            ziel = User(username='temp_loesch', role='benutzer')
+            ziel.set_password('dummy-benutzer-passwort')
+            control = User(username='temp_loesch2', role='benutzer')
+            control.set_password('dummy-benutzer-passwort')
+            db.session.add_all([admin, ziel, control])
+            db.session.commit()
+            self.admin_id = admin.id
+            self.ziel_id = ziel.id
+
+            log_audit_event(
+                'USER_CREATE', 'User', ziel.id,
+                'Benutzer "temp_loesch" angelegt (Rolle: benutzer).',
+                user_id=admin.id)
+            log_audit_event(
+                'USER_ROLE', 'User', ziel.id,
+                'Rolle von "temp_loesch" von "benutzer" auf "lesen" geändert.',
+                user_id=admin.id)
+            # Kontrolle: Ein ähnlicher Name eines anderen Kontos bleibt stehen.
+            log_audit_event(
+                'USER_CREATE', 'User', control.id,
+                'Benutzer "temp_loesch2" angelegt (Rolle: benutzer).',
+                user_id=admin.id)
+            self.zeitstempel = {
+                eintrag.id: eintrag.timestamp
+                for eintrag in AuditLog.query.all()
+            }
+
+        self.client.post('/login', data={'username': 'admin_a',
+                                         'password': 'dummy-admin-passwort'})
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _details(self):
+        return ' | '.join(eintrag.details or ''
+                          for eintrag in AuditLog.query.all())
+
+    def test_klartextname_verschwindet_aus_dem_audit_log(self):
+        # Der Login des Administrators schreibt selbst einen Eintrag. Die
+        # Zahl wird deshalb erst unmittelbar vor dem Löschen erhoben.
+        with app.app_context():
+            anzahl_vorher = AuditLog.query.count()
+
+        antwort = self.client.post(f'/users/delete/{self.ziel_id}')
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            details = self._details()
+            self.assertNotIn('"temp_loesch"', details,
+                             'Der geloeschte Benutzername steht noch im '
+                             'Audit-Log')
+            pseudonym = ('gelöschter Nutzer '
+                         + hashlib.sha256(b'temp_loesch').hexdigest()[:8])
+            self.assertIn(pseudonym, details)
+
+            # Der Loescheintrag selbst bleibt erhalten ...
+            self.assertIsNotNone(
+                AuditLog.query.filter_by(action='USER_DELETE').first())
+            # ... und die Anzahl steigt nur um genau diesen einen Eintrag.
+            self.assertEqual(AuditLog.query.count(), anzahl_vorher + 1)
+
+    def test_aehnlicher_name_bleibt_erhalten(self):
+        self.client.post(f'/users/delete/{self.ziel_id}')
+
+        with app.app_context():
+            self.assertIn('"temp_loesch2"', self._details())
+
+    def test_frueherer_name_verschwindet_ebenfalls(self):
+        # Wer vor der Löschung umbenannt wurde, trägt den alten Namen in
+        # älteren Einträgen und in der Umbenennungszeile selbst. Auch er darf
+        # nicht im Klartext zurückbleiben.
+        with app.app_context():
+            log_audit_event(
+                'USER_UPDATE', 'User', self.ziel_id,
+                'Benutzername "temp_alt" -> "temp_loesch"',
+                user_id=self.admin_id)
+
+        self.client.post(f'/users/delete/{self.ziel_id}')
+
+        with app.app_context():
+            details = self._details()
+            self.assertNotIn('"temp_alt"', details)
+            pseudonym = ('gelöschter Nutzer '
+                         + hashlib.sha256(b'temp_alt').hexdigest()[:8])
+            self.assertIn(pseudonym, details)
+
+    def test_zeitstempel_bleiben_unveraendert(self):
+        self.client.post(f'/users/delete/{self.ziel_id}')
+
+        with app.app_context():
+            for eintrag in AuditLog.query.all():
+                if eintrag.id in self.zeitstempel:
+                    self.assertEqual(eintrag.timestamp,
+                                     self.zeitstempel[eintrag.id],
+                                     'Die Pseudonymisierung hat den '
+                                     'Zeitstempel veraendert')
+
+
+class TestDatenschutzdoku(unittest.TestCase):
+    """F-09: Alle ausgehenden Verbindungen stehen in der Datenschutzdoku."""
+
+    @classmethod
+    def setUpClass(cls):
+        pfad = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'DATENSCHUTZ_UND_TOM.md')
+        with open(pfad, encoding='utf-8') as datei:
+            cls.doku = datei.read()
+        # Abschnitt 3.3 beschreibt die externen Datenabfragen.
+        cls.abschnitt = cls.doku.split('### 3.3', 1)[1].split('### 3.4', 1)[0]
+
+    def test_wikidata_ist_als_verarbeitungstaetigkeit_dokumentiert(self):
+        self.assertIn('Wikidata', self.abschnitt)
+        self.assertIn('SPARQL', self.abschnitt)
+        self.assertIn('CAS', self.abschnitt)
+
+    def test_github_fetch_ist_als_verarbeitungstaetigkeit_dokumentiert(self):
+        self.assertIn('GitHub', self.abschnitt)
+        self.assertIn('git fetch', self.abschnitt)
+
+    def test_pubchem_ist_nicht_mehr_die_einzige_verbindung(self):
+        self.assertNotIn(
+            'Die einzige ausgehende Verbindung ist das vom Nutzer '
+            'ausgelöste PubChem-Autofill', self.doku)
 
 
 if __name__ == '__main__':
