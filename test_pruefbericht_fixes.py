@@ -57,5 +57,57 @@ class TestPillowVersion(unittest.TestCase):
         self.assertIsNone(sanitize_ba_unterschrift(roh))
 
 
+class TestPasswortPolicyEditUser(unittest.TestCase):
+    """F-02: /users/edit muss dieselbe Mindestlaenge pruefen wie /register."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_s', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            ziel = User(username='zweitkonto', role='benutzer')
+            ziel.set_password('gueltiges-passwort-123')
+            db.session.add_all([admin, ziel])
+            db.session.commit()
+            self.ziel_id = ziel.id
+        self.client.post('/login', data={'username': 'admin_s',
+                                         'password': 'dummy-admin-passwort'})
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def test_kurzes_passwort_wird_abgelehnt(self):
+        antwort = self.client.post(
+            f'/users/edit/{self.ziel_id}',
+            data={'username': 'zweitkonto', 'password': 'x',
+                  'role': 'benutzer'})
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            ziel = db.session.get(User, self.ziel_id)
+            self.assertTrue(
+                ziel.check_password('gueltiges-passwort-123'),
+                'Das alte Passwort muss unveraendert gelten')
+            self.assertFalse(ziel.check_password('x'),
+                             'Das zu kurze Passwort wurde uebernommen')
+
+    def test_ausreichend_langes_passwort_wird_uebernommen(self):
+        neues = 'neues-sicheres-passwort'
+        antwort = self.client.post(
+            f'/users/edit/{self.ziel_id}',
+            data={'username': 'zweitkonto', 'password': neues,
+                  'role': 'benutzer'})
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            ziel = db.session.get(User, self.ziel_id)
+            self.assertTrue(ziel.check_password(neues))
+
+
 if __name__ == '__main__':
     unittest.main()

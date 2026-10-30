@@ -2926,7 +2926,15 @@ def edit_user(id):
         if not username:
             flash('Benutzername ist ein Pflichtfeld.', 'error')
             return redirect(url_for('edit_user', id=id))
-            
+
+        # Dieselbe Mindestlaenge wie bei Registrierung, Benutzeranlage und
+        # eigenem Passwortwechsel. Ohne diese Pruefung liess sich die Policy
+        # umgehen, indem ein Administrator (oder ein Moderator fuer selbst
+        # angelegte Benutzer) ein Ein-Zeichen-Passwort setzte.
+        if password and passwort_hinweis(password):
+            flash(passwort_hinweis(password), 'error')
+            return redirect(url_for('edit_user', id=id))
+
         if role not in allowed_roles:
             role = user.role
             
