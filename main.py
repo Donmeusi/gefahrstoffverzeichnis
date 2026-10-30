@@ -715,7 +715,16 @@ def can_edit_gefahrstoff(stoff):
 
     if current_user.is_admin:
         return True
-        
+
+    # Ein noch nicht freigegebener Stoff ist fuer normale Benutzer auch auf
+    # /view unsichtbar (get_gefahrstoff_query). Diese Pruefung fehlte hier:
+    # ueber /edit/<id> liess sich ein wartender CMR-Stoff lesen, bearbeiten,
+    # verschieben, kopieren und loeschen. Freigeben duerfen nur die Rollen,
+    # die auch /approve bedienen - deshalb gilt die Schranke nicht fuer
+    # Moderatoren.
+    if current_user.role != 'moderator' and not stoff.is_approved:
+        return False
+
     if stoff.unterbereich_id:
         if current_user.role == 'moderator' and stoff.unterbereich.bereich.owner_id == current_user.id:
             return True
@@ -2203,10 +2212,14 @@ def edit_stoff(id):
                 flash('Ungültiger Dateityp.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
 
+        # Die Freigabe aendert ausschliesslich /approve bzw. /reject. Ein
+        # Edit darf sie hoechstens entziehen: Wird ein freigegebener Stoff
+        # durch die neuen H-Saetze zum CMR-Stoff, verliert er die Freigabe
+        # und muss erneut geprueft werden. Frueher setzte der Edit sonst
+        # is_approved=True - damit liess sich ein wartender CMR-Stoff durch
+        # Entfernen der CMR-H-Saetze selbst freigeben.
         if is_cmr_stoff(stoff.h_saetze):
             stoff.is_approved = False
-        else:
-            stoff.is_approved = True
 
         try:
             db.session.commit()

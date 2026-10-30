@@ -109,5 +109,95 @@ class TestPasswortPolicyEditUser(unittest.TestCase):
             self.assertTrue(ziel.check_password(neues))
 
 
+class TestCmrFreigabeGate(unittest.TestCase):
+    """F-03: Die Freigabe eines CMR-Stoffs darf nicht ueber /edit laufen."""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        self.client = app.test_client()
+        with app.app_context():
+            db.create_all()
+            admin = User(username='admin_c', role='admin')
+            admin.set_password('dummy-admin-passwort')
+            db.session.add(admin)
+            db.session.commit()
+            bereich = Bereich(name='Labor', owner_id=admin.id)
+            db.session.add(bereich)
+            db.session.commit()
+            unterbereich = Unterbereich(name='Schrank',
+                                        bereich_id=bereich.id)
+            db.session.add(unterbereich)
+            db.session.commit()
+            benutzer = User(username='nutzer_c', role='benutzer')
+            benutzer.set_password('dummy-benutzer-passwort')
+            benutzer.assigned_bereiche.append(bereich)
+            db.session.add(benutzer)
+            db.session.commit()
+
+            wartend = Gefahrstoff(name='CMR wartet',
+                                  unterbereich_id=unterbereich.id,
+                                  user_id=benutzer.id,
+                                  h_saetze='H350', is_approved=False)
+            offen = Gefahrstoff(name='Unbedenklich',
+                                unterbereich_id=unterbereich.id,
+                                user_id=benutzer.id,
+                                h_saetze='H302', is_approved=True)
+            db.session.add_all([wartend, offen])
+            db.session.commit()
+            self.unterbereich_id = unterbereich.id
+            self.wartend_id = wartend.id
+            self.offen_id = offen.id
+        self.client.post('/login', data={'username': 'nutzer_c',
+                                         'password': 'dummy-benutzer-passwort'})
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+    def _post_edit(self, stoff_id, h_saetze):
+        return self.client.post(f'/edit/{stoff_id}', data={
+            'name': 'Bearbeitet',
+            'unterbereich_id': str(self.unterbereich_id),
+            'h_saetze': h_saetze,
+            'menge': '',
+        })
+
+    def test_wartender_cmr_stoff_ist_im_edit_gesperrt(self):
+        antwort = self.client.get(f'/edit/{self.wartend_id}')
+        self.assertEqual(antwort.status_code, 302,
+                         'Unfreigegebener CMR-Stoff war ueber /edit lesbar')
+
+    def test_freigabe_laesst_sich_nicht_per_edit_erzwingen(self):
+        antwort = self._post_edit(self.wartend_id, 'H302')
+        self.assertEqual(antwort.status_code, 302)
+
+        with app.app_context():
+            stoff = db.session.get(Gefahrstoff, self.wartend_id)
+            self.assertFalse(stoff.is_approved,
+                             'Edit hat den CMR-Stoff selbst freigegeben')
+            self.assertEqual(stoff.h_saetze, 'H350',
+                             'Die Bearbeitung des gesperrten Stoffs kam durch')
+
+    def test_edit_gibt_einen_stoff_nicht_frei(self):
+        self._post_edit(self.offen_id, 'H302')
+
+        with app.app_context():
+            stoff = db.session.get(Gefahrstoff, self.offen_id)
+            self.assertTrue(stoff.is_approved)
+            self.assertEqual(stoff.h_saetze, 'H302')
+
+    def test_cmr_werdender_stoff_verliert_die_freigabe(self):
+        self._post_edit(self.offen_id, 'H350')
+
+        with app.app_context():
+            stoff = db.session.get(Gefahrstoff, self.offen_id)
+            self.assertFalse(stoff.is_approved,
+                             'Ein nachtraeglich CMR gewordener Stoff blieb '
+                             'sichtbar')
+            self.assertEqual(stoff.h_saetze, 'H350')
+
+
 if __name__ == '__main__':
     unittest.main()
