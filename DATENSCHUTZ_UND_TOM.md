@@ -18,7 +18,7 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 
 ### 1.2 Systemarchitektur & Deployment
 * **Architektur:** 3-Schichten-Webanwendung (Frontend, Backend, Datenbank).
-* **Backend Framework:** Python 3.11, Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF.
+* **Backend Framework:** Python 3.13, Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF.
 * **Produktions-Webserver (WSGI):** Waitress (Multi-Threaded WSGI HTTP Server) über `run_prod.py` — beide Startwege verwenden ihn: der Container über `docker-entrypoint.sh`, die native Ausführung über `update.sh`.
 * **Datenbank:** SQLite 3 (`gefahrstoffe.db`).
 * **Deployment:** Native Ausführung auf Linux/Windows-Servern oder containerisiert via Docker (`docker-compose`).

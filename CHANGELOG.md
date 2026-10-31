@@ -2,16 +2,16 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
-### v3.40 – Abhängigkeiten aktualisiert (Oktober 2026, APP_VERSION 2.6.3)
+### v3.40 – Abhängigkeiten und Python 3.13 (Oktober 2026, APP_VERSION 2.6.3)
 
 * Die fünf Dependabot-PRs zu pip (#5 bis #9) sind in einem Lockfile zusammengeführt; die Einzel-PRs hätten sich in `requirements.txt` gegenseitig überschrieben. Neu aufgelöst mit `pip-compile --generate-hashes`, Hash-Liste vollständig aus PyPI, `--require-hashes` bleibt.
 * **`cryptography` 48.0.1 → 50.0.2** — von keinem Dependabot-PR abgedeckt, aber die offenen Meldungen (2 × Hoch, 1 × Mittel) verlangen ≥ 49.0.0 bzw. ≥ 50.0.0.
 * **`mako` 1.3.12 → 1.4.3** (Mittel, ≤ 1.4.1 betroffen). Kommt über Alembic/Flask-Migrate.
 * **`reportlab` 4.4.10 → 5.1.0** — Hauptversionssprung. Der PDF-Export (`/export/pdf`) ist gegengeprüft: erzeugt weiterhin ein gültiges PDF, Piktogramme über `svglib` 2.0.2 → 2.3.2.
 * **`pillow` 13.0.0** war bereits mit v3.38 erledigt; PR #5 entfällt damit.
-* Weiter aus der Sammel-PR: `sqlalchemy` 2.0.40 → 2.1.6, `pandas` 3.0.1 → 3.1.0, `alembic` 1.18.5 → 1.20.1, `pdfplumber` 0.11.9 → 0.11.10, `lxml` 6.1.1 → 6.1.3, `pdfminer-six` 20251230 → 20260107, `tzdata` 2025.3 → 2026.5, dazu `cffi`, `click`, `greenlet`, `markupsafe`, `pycparser`, `pypdfium2`, `typing-extensions`, `webencodings`, `wtforms`.
-* **`numpy` bleibt bei 2.4.6.** Die von Dependabot vorgeschlagene 2.5.4 verlangt Python ≥ 3.12, das Image läuft auf 3.11 — die Sammel-PR war in dieser Form nicht installierbar. Ein Sprung auf 2.5.x setzt ein Basis-Image auf 3.12/3.13 voraus.
-* Gesamtstand 291 Tests, grün gegen den neuen Satz; zusätzlich PDF-Rauchtest (Export mit zwei Stoffen samt Piktogrammen).
+* Weiter aus der Sammel-PR: `sqlalchemy` 2.0.40 → 2.1.6, `pandas` 3.0.1 → 3.1.0, `numpy` 2.4.2 → 2.5.4, `alembic` 1.18.5 → 1.20.1, `pdfplumber` 0.11.9 → 0.11.10, `lxml` 6.1.1 → 6.1.3, `pdfminer-six` 20251230 → 20260107, `tzdata` 2025.3 → 2026.5, dazu `cffi`, `click`, `greenlet`, `markupsafe`, `pycparser`, `pypdfium2`, `typing-extensions`, `webencodings`, `wtforms`.
+* **Basis-Image `python:3.11-slim` → `python:3.13-slim`** (neuer Digest). Grund: Dependabots `numpy` 2.5.4 verlangt Python ≥ 3.12 — die Sammel-PR war auf 3.11 nicht installierbar. Betroffen sind nur das Image und die native Installation: **wer die App nativ ohne Docker betreibt, braucht jetzt Python 3.13** und ein neu gebautes venv. Das Datenbankschema ist unverändert. `requirements.txt` ist für 3.13 aufgelöst, README, TOM und Datenschutzdokument entsprechend angepasst.
+* Gesamtstand 291 Tests, grün gegen den neuen Satz unter Python 3.13; zusätzlich PDF-Rauchtest (Export mit zwei Stoffen samt Piktogrammen).
 
 ### v3.39 – Weitere Sicherheitsfixes aus der IT-Prüfung (Oktober 2026, APP_VERSION 2.6.3)
 

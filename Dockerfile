@@ -1,9 +1,10 @@
-# Offizielles Python-Image, auf einen Digest festgelegt. Der Tag "3.11-slim"
+# Offizielles Python-Image, auf einen Digest festgelegt. Der Tag "3.13-slim"
 # ist veraenderlich — ein Rebuild zoege dann einen anderen Stand. Der Digest
 # gehoert deshalb regelmaessig aktualisiert (siehe README, Abschnitt
 # Sicherheit): Basis-Images bekommen Sicherheitsupdates nur ueber einen neuen
 # Digest, ein Pin allein haelt sie nicht frisch.
-FROM python:3.11-slim@sha256:673719e071ecf27434fd2635bbd8d00f49f4fdd81f243143438a42ced8bedf60
+# Python 3.13 statt 3.11, weil numpy >= 2.5 Python >= 3.12 verlangt.
+FROM python:3.13-slim@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb
 
 # Arbeitsverzeichnis im Container festlegen
 WORKDIR /app

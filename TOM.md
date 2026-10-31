@@ -31,7 +31,7 @@ der eigenen TOM-Dokumentation des Betreibers zu ergänzen.
 | | |
 |---|---|
 | **Quelltext** | öffentliches Repository (`github.com/Donmeusi/gefahrstoffverzeichnis`) |
-| **Technik** | Python 3.11, Flask, SQLAlchemy, SQLite, Jinja2 |
+| **Technik** | Python 3.13, Flask, SQLAlchemy, SQLite, Jinja2 |
 | **Betriebsart laut Auslieferung** | Container (Docker Compose) oder native Ausführung |
 | **Verantwortlicher** | *[vom Betreiber zu ergänzen]* |
 
