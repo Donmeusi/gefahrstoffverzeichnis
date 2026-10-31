@@ -165,7 +165,7 @@ class TestAuditLog(unittest.TestCase):
 
     # ── Löschen ──────────────────────────────────────────────────────────────
 
-    def test_benutzer_loeschen_haelt_den_namen_fest(self):
+    def test_benutzer_loeschen_pseudonymisiert_den_namen(self):
         self._login_admin()
         zid = self._benutzer_anlegen('weg_damit', role='benutzer')
 
@@ -177,8 +177,10 @@ class TestAuditLog(unittest.TestCase):
             eintrag = AuditLog.query.filter_by(action='USER_DELETE').first()
             self.assertIsNotNone(eintrag, 'Das Löschen muss protokolliert werden')
             self.assertEqual(eintrag.entity_id, zid)
-            # Die Zeile ist weg - der Name kann nur aus dem Eintrag selbst kommen
-            self.assertIn('weg_damit', eintrag.details)
+            # Die Zeile ist weg - der Name in der Historie wird bei der
+            # Löschung durch ein Pseudonym ersetzt (F-32).
+            self.assertNotIn('weg_damit', eintrag.details)
+            self.assertIn('gelöschter Nutzer ', eintrag.details)
             self.assertIn('benutzer', eintrag.details)
 
     # ── Bereichszuweisung ────────────────────────────────────────────────────

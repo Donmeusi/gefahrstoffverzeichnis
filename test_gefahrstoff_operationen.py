@@ -194,9 +194,13 @@ class TestGefahrstoffOperationen(unittest.TestCase):
     # ── Kopieren: Freigabe ───────────────────────────────────────────────────
 
     def test_kopie_umgeht_die_cmr_freigabe_nicht(self):
-        # Ohne eigene is_approved-Angabe bekam die Kopie den Spaltenstandard True.
-        # Ein CMR-Stoff wartet nach /add auf Freigabe - die Kopie war dagegen
-        # sofort sichtbar, womit sich die Freigabe umgehen ließ.
+        # Ohne eigene is_approved-Angabe bekam die Kopie früher den
+        # Spaltenstandard True. Ein CMR-Stoff wartet nach /add auf Freigabe -
+        # die Kopie war dagegen sofort sichtbar, womit sich die Freigabe
+        # umgehen ließ. Seit F-03 ist schon der Zugriff auf einen wartenden
+        # CMR-Stoff gesperrt: /copy prüft can_edit_gefahrstoff(), und das
+        # verlangt für normale Benutzer is_approved. Der Umweg ist damit
+        # vollständig zu - es entsteht gar keine Kopie mehr.
         stoff_id, _, a2_id, _ = self._umgebung()
         with app.app_context():
             stoff = Gefahrstoff.query.get(stoff_id)
@@ -207,14 +211,15 @@ class TestGefahrstoffOperationen(unittest.TestCase):
 
         res = self.client.post(f'/copy/{stoff_id}', data={'unterbereich_id': str(a2_id)},
                                follow_redirects=True)
-        self.assertIn('freigegeben werden', res.get_data(as_text=True))
+        self.assertIn('Keine Berechtigung', res.get_data(as_text=True))
 
         with app.app_context():
             kopie = Gefahrstoff.query.filter(Gefahrstoff.id != stoff_id).first()
-            self.assertIsNotNone(kopie, 'Die Kopie sollte angelegt sein')
-            self.assertFalse(kopie.is_approved,
-                             'Eine CMR-Kopie darf nicht sofort sichtbar sein')
-            # Kontrolle: sie erscheint nicht in der Liste des Erstellers
+            self.assertIsNone(
+                kopie,
+                'Ein wartender CMR-Stoff darf für normale Benutzer nicht '
+                'kopierbar sein')
+            # Kontrolle: er erscheint nicht in der Liste des Erstellers
             self.assertNotIn('Aceton', self.client.get('/').get_data(as_text=True))
 
     def test_kopie_eines_unauffaelligen_stoffs_ist_sofort_sichtbar(self):

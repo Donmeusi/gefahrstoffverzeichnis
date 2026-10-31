@@ -2,7 +2,7 @@
 
 **Gefahrstoffverzeichnis — Webanwendung zur Gefahrstoffverwaltung**
 
-**Stand: 27. September 2026**
+**Stand: 30. Oktober 2026**
 
 > **Dokumententyp:** Technisch-Organisatorische Maßnahmen nach Art. 32 DSGVO,
 > gegliedert nach dem in der deutschen Datenschutzpraxis üblichen Katalog.
@@ -130,7 +130,7 @@ anlegen kann.
 |---|---|---|
 | Keine Weitergabe an Dritte beim Seitenaufruf | Die Anwendung lädt **keine** externen Ressourcen; Schriften und Symbole liegen in `static/` | umgesetzt |
 | Kein Cloud-Bezug | Keine Anbindung an extern betriebene Dienste im Regelbetrieb | umgesetzt |
-| Ausgehende Verbindung nur auf Anforderung | PubChem-Autofill (Abschnitt 5.3) — wird ausschließlich durch einen Klick ausgelöst | umgesetzt, zu dokumentieren |
+| Ausgehende Verbindung nur auf Anforderung | PubChem-Autofill und Wikidata-Namensabfrage (Abschnitt 5.3) — nur durch einen Klick; GitHub-Update-Prüfung nur durch einen Administrator | umgesetzt, dokumentiert |
 | Export- und Downloadrechte | `lesen` ist gesperrt; alle Exporte folgen der Bereichsfilterung | umgesetzt |
 | Nachweis der Herkunft ausgelieferter Dateien | Quell-URL, Lizenz und SHA-256 je Datei in `static/vendor/SOURCES.md` und `static/symbols/SOURCES.md` | umgesetzt |
 
@@ -194,7 +194,9 @@ anlegen kann.
 | Maßnahme | Umsetzung | Status |
 |---|---|---|
 | Auftragsverarbeitung | **nicht anwendbar** — es werden keine Dienstleister mit der Verarbeitung personenbezogener Daten beauftragt | by design |
-| Ausnahme mit Klärungsbedarf | **PubChem-Autofill** sendet die CAS-Nummer an die U.S. National Library of Medicine. Enthalten sind ausschließlich anorganische Sachdaten, keine personenbezogenen Daten und keine Bestandsdaten. Die IP-Adresse des **Servers** wird dabei jedoch übertragen — deshalb sollte die Funktion bewusst freigegeben und im Verzeichnis der Verarbeitungstätigkeiten erwähnt werden | **zu dokumentieren → R-9** |
+| Ausnahme mit Klärungsbedarf | **PubChem-Autofill** sendet die CAS-Nummer an die U.S. National Library of Medicine. Enthalten sind ausschließlich anorganische Sachdaten, keine personenbezogenen Daten und keine Bestandsdaten. Die IP-Adresse des **Servers** wird dabei jedoch übertragen — deshalb sollte die Funktion bewusst freigegeben und im Verzeichnis der Verarbeitungstätigkeiten erwähnt werden | dokumentiert; Freigabe → R-9 |
+| Weitere ausgehende Verbindung | **Wikidata SPARQL** (Wikimedia) liefert nach derselben CAS-Nummer die deutsche Stoffbezeichnung. Übertragen werden CAS-Nummer, Server-IP und ein fester User-Agent; keine Bestands- oder Personendaten. Abfrage mit 8 s Zeitlimit, Fehlschlag ist unschädlich | dokumentiert (`DATENSCHUTZ_UND_TOM.md`, Abschnitt 3.3) |
+| Weitere ausgehende Verbindung | **GitHub** (`git fetch`, beim Update zusätzlich `git pull`) prüft auf eine neuere Version. Übertragen werden Repository-Metadaten, Server-IP und TLS-Metadaten; keine Bestands- oder Personendaten. Nur ein Administrator löst die Prüfung über `/admin/system` aus | dokumentiert (`DATENSCHUTZ_UND_TOM.md`, Abschnitt 3.3) |
 
 ---
 
@@ -223,9 +225,9 @@ anlegen kann.
 |---|---|---|
 | Datenminimierung | Erhoben wird, was die GefStoffV verlangt; kein Profiling, keine Auswertung außerhalb des Zwecks | umgesetzt |
 | Datenschutzfreundliche Voreinstellungen | Neue Konten erhalten die **schwächste** Rolle (`lesen`) als Vorbelegung; Sichtbarkeit ist auf das Nötige begrenzt (Default „nichts sehen") | umgesetzt |
-| Pseudonymisierung | Audit-Einträge gelöschter Konten bleiben ohne Namen zuordenbar; eine bewusste Entscheidung **gegen** das Mitschreiben des Namens | umgesetzt |
+| Pseudonymisierung | Audit-Einträge gelöschter Konten bleiben ohne Klartextnamen über die Benutzer-ID zuordenbar; bei der Löschung ersetzt „gelöschter Nutzer <hash8>“ den Namen — auch in früheren Umbenennungen | umgesetzt |
 | Löschkonzept | Soft-Delete für Fachdaten, Hartlöschung für Konten, Unterschriften auf `NULL` beim Leeren | siehe Löschkonzept im Ergänzungsdokument |
-| Kein Datenabfluss | Keine externen Ressourcen; einzige ausgehende Verbindung ist das angeforderte PubChem-Autofill | umgesetzt |
+| Kein Datenabfluss | Keine externen Ressourcen; ausgehende Verbindungen nur PubChem-Autofill und Wikidata-Namensabfrage (auf Klick) sowie GitHub-Update-Prüfung (durch Administrator) | umgesetzt |
 
 ---
 

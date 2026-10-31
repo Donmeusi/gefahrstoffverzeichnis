@@ -10,8 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 import os
 import json
+import hashlib
+import re
 import subprocess
 import platform
+import secrets
 import threading
 import time
 import calendar
@@ -113,7 +116,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.6.2"
+APP_VERSION = "2.6.3"
 
 @app.context_processor
 def inject_globals():
@@ -127,6 +130,32 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}
+
+# Magic Bytes je Endung. Die Endung allein reicht nicht: Eine als .pdf
+# getarnte ausfuehrbare Datei wurde bisher gespeichert und als PDF
+# ausgeliefert (F-07). Die Signaturen decken die Endungen der Whitelist ab;
+# OOXML (.docx) ist ein ZIP-Container, .doc ein OLE2-Container.
+DATEI_SIGNATUREN = {
+    'pdf': (b'%PDF-',),
+    'png': (b'\x89PNG\r\n\x1a\n',),
+    'jpg': (b'\xff\xd8\xff',),
+    'jpeg': (b'\xff\xd8\xff',),
+    'doc': (b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1',),
+    'docx': (b'PK\x03\x04',),
+}
+SIGNATUR_MAX_LAENGE = max(
+    len(signatur)
+    for signaturen in DATEI_SIGNATUREN.values()
+    for signatur in signaturen)
+
+# Grenzen fuer das Auslesen von Sicherheitsdatenblaettern. pdfplumber parst
+# beim Oeffnen die Xref-Struktur der gesamten Datei; ohne Grenze kann ein
+# 16-MB-PDF mit vielen Objekten oder Seiten einen Waitress-Thread laenger
+# blockieren als der Request vertraegt (F-07). signal.alarm ist unter
+# Waitress (mehrere Threads) nicht nutzbar, deshalb ein Arbeits-Thread mit
+# join-Zeitlimit.
+PDF_MAX_SEITEN = 200
+PDF_MAX_PARSE_SEKUNDEN = 30
 
 # Mindestlaenge fuer lokal gesetzte Passwoerter. Gilt fuer Registrierung,
 # Benutzeranlage und Passwortwechsel im Profil. Die Grenze liegt bewusst
@@ -161,6 +190,39 @@ def passwort_hinweis(password):
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def signatur_passt(daten, endung):
+    """True, wenn der Dateikopf zu den Magic Bytes der Endung passt."""
+    signaturen = DATEI_SIGNATUREN.get((endung or '').lower())
+    if not signaturen or not daten:
+        return False
+    return any(daten.startswith(signatur) for signatur in signaturen)
+
+def datei_signatur_gueltig(file_obj):
+    """Prueft den Dateikopf einer hochgeladenen Datei gegen ihre Endung.
+
+    Liest nur den Kopf und setzt den Stream zurueck, damit der anschliessende
+    save() die vollstaendige Datei schreibt. Leere Dateien werden abgelehnt.
+    """
+    if not file_obj or not file_obj.filename or '.' not in file_obj.filename:
+        return False
+    endung = file_obj.filename.rsplit('.', 1)[1].lower()
+    stream = getattr(file_obj, 'stream', None)
+    if stream is None:
+        return False
+    try:
+        position = stream.tell()
+        kopf = stream.read(SIGNATUR_MAX_LAENGE)
+        stream.seek(position)
+    except (AttributeError, OSError, ValueError):
+        return False
+    return signatur_passt(kopf, endung)
+
+def upload_datei_gueltig(file_obj):
+    """Endung und Dateikopf muessen zusammenpassen."""
+    return (file_obj is not None and file_obj.filename != ''
+            and allowed_file(file_obj.filename)
+            and datei_signatur_gueltig(file_obj))
 
 def save_file_with_stoff_name(file_obj, stoff_name, suffix=""):
     """
@@ -203,6 +265,61 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Bitte logge dich ein, um diese Seite zu sehen."
 
+# ─── Serverseitige Sitzungsliste ─────────────────────────────────────────────
+# Flask legt die Sitzung nur in einem signierten Cookie ab. Ein Logout loescht
+# damit nur das Cookie im Browser; ein zuvor kopiertes Cookie bliebe bis zum
+# Ablauf gueltig. Deshalb fuehrt die Anwendung eine Liste der ausgestellten
+# Sitzungstoken: Der Eintrag entsteht beim Login, wird bei jeder Anfrage in
+# load_user geprueft und beim Logout entfernt.
+#
+# Grenze: Die Liste liegt im Prozessspeicher. Waitress laeuft als einzelner
+# Prozess mit mehreren Threads, das genuegt hier - ein Neustart der Anwendung
+# entfernt aber alle Eintraege. Danach sind alle Sitzungen abgemeldet und die
+# Nutzer muessen sich neu anmelden (die Cookies allein sind dann wertlos).
+_sitzungen = {}
+_sitzungen_lock = threading.Lock()
+
+
+def _sitzung_registrieren(user):
+    """Stellt einen Sitzungstoken aus und traegt ihn in die Liste ein."""
+    token = secrets.token_urlsafe(32)
+    ablauf = (time.time()
+              + app.config['PERMANENT_SESSION_LIFETIME'].total_seconds())
+    jetzt = time.time()
+    with _sitzungen_lock:
+        # Abgelaufene Eintraege bei dieser Gelegenheit entfernen, damit die
+        # Liste nicht unbegrenzt waechst.
+        for alter_token, (_, alter_ablauf) in list(_sitzungen.items()):
+            if alter_ablauf < jetzt:
+                _sitzungen.pop(alter_token, None)
+        _sitzungen[token] = (user.id, ablauf)
+    session['_session_token'] = token
+
+
+def _sitzung_gueltig(user):
+    """True, wenn der Token dieser Sitzung ausgestellt und nicht abgelaufen ist."""
+    token = session.get('_session_token')
+    if not token:
+        return False
+    with _sitzungen_lock:
+        eintrag = _sitzungen.get(token)
+        if not eintrag:
+            return False
+        user_id, ablauf = eintrag
+        if ablauf < time.time():
+            _sitzungen.pop(token, None)
+            return False
+        return user_id == user.id
+
+
+def _sitzung_abmelden():
+    """Entfernt den Token dieser Sitzung aus der Liste."""
+    token = session.get('_session_token')
+    if token:
+        with _sitzungen_lock:
+            _sitzungen.pop(token, None)
+
+
 @login_manager.user_loader
 def load_user(user_id):
     user = User.query.get(int(user_id))
@@ -212,6 +329,11 @@ def load_user(user_id):
     # nach einem Passwortwechsel passt der Wert nicht mehr und die Sitzung
     # gilt als abgemeldet.
     if session.get('_session_version', 0) != (user.session_version or 0):
+        return None
+    # Serverseitige Liste: Ohne den beim Login ausgestellten Token gilt die
+    # Sitzung nicht mehr. Das betrifft ein kopiertes Cookie nach dem Logout
+    # und alle Sitzungen nach einem Neustart der Anwendung.
+    if not _sitzung_gueltig(user):
         return None
     return user
 
@@ -288,7 +410,8 @@ class AuditLog(db.Model):
     # ("pseudonymisiert erhalten") - sondern auch den Bezug zwischen den
     # Einträgen: sie stünden danach alle als "System / Unbekannt" da und ließen
     # sich nicht einmal mehr einander zuordnen. Die erhaltene ID wirkt als
-    # Pseudonym, der Name bleibt gelöscht.
+    # Pseudonym; der Klartextname in den details-Texten wird bei der
+    # Kontolöschung durch "gelöschter Nutzer <hash8>" ersetzt (F-32).
     user = db.relationship(
         'User',
         backref=db.backref('audit_logs', lazy=True, passive_deletes=True)
@@ -433,6 +556,78 @@ def log_audit_event(action, entity_type, entity_id, details="", user_id=None):
         db.session.commit()
     except Exception as e:
         print(f"Failed to log audit event: {e}")
+
+
+def _pseudonym(username):
+    """Pseudonym eines Kontos fuer die Historie: "gelöschter Nutzer <hash8>"."""
+    return ('gelöschter Nutzer '
+            + hashlib.sha256(username.encode('utf-8')).hexdigest()[:8])
+
+
+def _fruehere_benutzernamen(user_id, username):
+    """Sammelt die frueheren Namen eines Kontos aus seinen Umbenennungen.
+
+    Eine Umbenennung steht als 'Benutzername "alt" -> "neu"' in der Historie.
+    Ohne diese Kette bliebe der alte Name nach der Loeschung stehen, obwohl
+    nur noch der aktuelle bekannt ist. Die Eintraege sind ueber entity_id dem
+    Konto zugeordnet, deshalb ist die Suche eindeutig.
+    """
+    namen = {username}
+    eintraege = AuditLog.query.filter_by(
+        entity_type='User', entity_id=user_id, action='USER_UPDATE').all()
+    weitergesucht = True
+    while weitergesucht:
+        weitergesucht = False
+        for eintrag in eintraege:
+            for alt, neu in re.findall(
+                    r'Benutzername "([^"]+)" -> "([^"]+)"',
+                    eintrag.details or ''):
+                if neu in namen and alt not in namen:
+                    namen.add(alt)
+                    weitergesucht = True
+    return namen
+
+
+def _pseudonymisiere_audit_eintraege(user_id, username):
+    """Ersetzt den Klartextnamen eines geloeschten Kontos in der Historie.
+
+    Die Eintraege bleiben als Nachweis erhalten, die Benutzer-ID ebenfalls
+    (sie ordnet sie einander zu). Der Name steht aber in den details-Texten
+    mehrerer USER_*-Ereignisse - auch im Loescheintrag selbst, den ein anderer
+    Administrator schreibt (F-32). Er wird deshalb durch ein aus dem Namen
+    abgeleitetes Pseudonym ersetzt. Ersetzt werden nur in Anfuehrungszeichen
+    stehende Vorkommen, damit nicht versehentlich Teile anderer Texte
+    getroffen werden.
+
+    Fruehere Namen aus Umbenennungen (siehe _fruehere_benutzernamen) werden
+    nur in den Eintraegen dieses Kontos ersetzt. Der aktuelle Name wird ueberall
+    ersetzt: er ist zum Zeitpunkt der Loeschung eindeutig, waehrend ein alter,
+    wieder freigegebener Name zu einem anderen Konto gehoeren kann.
+    """
+    if not username:
+        return 0
+
+    namen = _fruehere_benutzernamen(user_id, username)
+    pseudonyme = {name: _pseudonym(name) for name in namen}
+    geaendert = 0
+    for eintrag in AuditLog.query.filter(AuditLog.details.isnot(None)).all():
+        if not eintrag.details:
+            continue
+        if eintrag.entity_type == 'User' and eintrag.entity_id == user_id:
+            zu_ersetzen = namen
+        else:
+            zu_ersetzen = {username}
+
+        neu = eintrag.details
+        for name in zu_ersetzen:
+            neu = neu.replace(f'"{name}"', f'"{pseudonyme[name]}"')
+        if neu != eintrag.details:
+            eintrag.details = neu
+            geaendert += 1
+
+    if geaendert:
+        db.session.commit()
+    return geaendert
 
 
 # ─── Betriebsanweisung: individuell angepasste Inhalte ───────────────────────
@@ -715,7 +910,16 @@ def can_edit_gefahrstoff(stoff):
 
     if current_user.is_admin:
         return True
-        
+
+    # Ein noch nicht freigegebener Stoff ist fuer normale Benutzer auch auf
+    # /view unsichtbar (get_gefahrstoff_query). Diese Pruefung fehlte hier:
+    # ueber /edit/<id> liess sich ein wartender CMR-Stoff lesen, bearbeiten,
+    # verschieben, kopieren und loeschen. Freigeben duerfen nur die Rollen,
+    # die auch /approve bedienen - deshalb gilt die Schranke nicht fuer
+    # Moderatoren.
+    if current_user.role != 'moderator' and not stoff.is_approved:
+        return False
+
     if stoff.unterbereich_id:
         if current_user.role == 'moderator' and stoff.unterbereich.bereich.owner_id == current_user.id:
             return True
@@ -725,14 +929,22 @@ def can_edit_gefahrstoff(stoff):
 
 
 def can_manage_bereich(bereich):
-    """Prüft, ob der aktuelle Benutzer diesen Bereich verwalten darf."""
+    """Prüft, ob der aktuelle Benutzer diesen Bereich verwalten darf.
+
+    Verwalten heisst anlegen, umbenennen und loeschen. Ein Moderator, dem
+    ein Bereich nur zugewiesen ist, darf dort Stoffe bearbeiten (siehe
+    can_edit_gefahrstoff), aber nicht den Bereich selbst verwalten. Sonst
+    konnte er einen fremden Bereich samt Unterbereichen loeschen; die
+    Gefahrstoffe verlieren dabei ihren Standort. Dafuer ist der Besitzer
+    (owner_id) oder ein Administrator zustaendig.
+    """
     if not current_user.can_write:
         return False
 
     if current_user.is_admin:
         return True
     if current_user.role == 'moderator':
-        return bereich.owner_id == current_user.id or bereich in current_user.assigned_bereiche.all()
+        return bereich.owner_id == current_user.id
     return False
 
 
@@ -1348,13 +1560,29 @@ def login():
                     # Konto existierte lokal und wird jetzt vom Verzeichnis
                     # bedient: ab hier gilt nur noch das Passwort von dort,
                     # damit eine Sperre im AD greift.
+                    #
+                    # Die lokale Rolle darf dabei nicht mitwandern. Sonst
+                    # uebernimmt ein Verzeichnisbenutzer gleicher Kennung die
+                    # Rechte des lokalen Kontos - bis hin zum Administrator
+                    # (F-05). Das Konto erhaelt deshalb die konfigurierte
+                    # LDAP-Default-Rolle; eine hoehere Rolle muss ein
+                    # Administrator danach ausdruecklich vergeben.
+                    default_role = ldap_res.get('default_role', 'lesen')
+                    alte_rolle = user.role
                     user.auth_source = 'ldap'
+                    user.role = default_role
                     db.session.commit()
+                    log_audit_event(
+                        'USER_ROLE', 'User', user.id,
+                        f'Konto "{user.username}" vom Verzeichnisdienst '
+                        f'uebernommen; Rolle von "{alte_rolle}" auf '
+                        f'"{default_role}" zurueckgesetzt (LDAP).')
 
                 anmelde_erfolg(username)
                 login_user(user)
                 session.permanent = True
                 session['_session_version'] = user.session_version or 0
+                _sitzung_registrieren(user)
                 log_audit_event('LOGIN', 'User', user.id, "Erfolgreicher LDAPs Login.")
                 return redirect(url_for('index'))
 
@@ -1373,6 +1601,7 @@ def login():
         login_user(user)
         session.permanent = True
         session['_session_version'] = user.session_version or 0
+        _sitzung_registrieren(user)
         # Der LDAP-Login wurde schon immer protokolliert, der lokale nicht.
         log_audit_event('LOGIN', 'User', user.id,
                         'Lokaler Login (Passwort aus der Datenbank).')
@@ -1383,6 +1612,9 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    # Erst den serverseitigen Eintrag entfernen, dann das Cookie. Sonst
+    # bliebe ein kopiertes Cookie bis zu 12 Stunden verwendbar.
+    _sitzung_abmelden()
     logout_user()
     return redirect(url_for('login'))
 
@@ -2032,26 +2264,26 @@ def add():
             sdb_filename = ba_filename = gb_filename = None
             if 'sicherheitsdatenblatt' in request.files:
                 file = request.files['sicherheitsdatenblatt']
-                if file and file.filename != '' and allowed_file(file.filename):
+                if file and file.filename != '' and upload_datei_gueltig(file):
                     sdb_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "SDB")
                 elif file and file.filename != '':
-                    flash('Ungültiger Dateityp für das Sicherheitsdatenblatt.', 'error')
+                    flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung (Sicherheitsdatenblatt).', 'error')
                     return redirect(url_for('add'))
 
             if 'betriebsanweisung' in request.files:
                 file = request.files['betriebsanweisung']
-                if file and file.filename != '' and allowed_file(file.filename):
+                if file and file.filename != '' and upload_datei_gueltig(file):
                     ba_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "BA")
                 elif file and file.filename != '':
-                    flash('Ungültiger Dateityp für die Betriebsanweisung.', 'error')
+                    flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung (Betriebsanweisung).', 'error')
                     return redirect(url_for('add'))
 
             if 'gefaehrdungsbeurteilung' in request.files:
                 file = request.files['gefaehrdungsbeurteilung']
-                if file and file.filename != '' and allowed_file(file.filename):
+                if file and file.filename != '' and upload_datei_gueltig(file):
                     gb_filename = save_file_with_stoff_name(file, name or "Gefahrstoff", "GB")
                 elif file and file.filename != '':
-                    flash('Ungültiger Dateityp für die Gefährdungsbeurteilung.', 'error')
+                    flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung (Gefährdungsbeurteilung).', 'error')
                     return redirect(url_for('add'))
 
             neuer_stoff = Gefahrstoff(
@@ -2178,35 +2410,39 @@ def edit_stoff(id):
         # Neue Dokumente hochladen
         if 'sicherheitsdatenblatt' in request.files:
             file = request.files['sicherheitsdatenblatt']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '' and upload_datei_gueltig(file):
                 sdb_filename = save_file_with_stoff_name(file, stoff.name, "SDB")
                 stoff.sicherheitsdatenblatt = sdb_filename
             elif file and file.filename != '':
-                flash('Ungültiger Dateityp.', 'error')
+                flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
 
         if 'betriebsanweisung' in request.files:
             file = request.files['betriebsanweisung']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '' and upload_datei_gueltig(file):
                 ba_filename = save_file_with_stoff_name(file, stoff.name, "BA")
                 stoff.betriebsanweisung = ba_filename
             elif file and file.filename != '':
-                flash('Ungültiger Dateityp.', 'error')
+                flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
                 
         if 'gefaehrdungsbeurteilung' in request.files:
             file = request.files['gefaehrdungsbeurteilung']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and file.filename != '' and upload_datei_gueltig(file):
                 gb_filename = save_file_with_stoff_name(file, stoff.name, "GB")
                 stoff.gefaehrdungsbeurteilung = gb_filename
             elif file and file.filename != '':
-                flash('Ungültiger Dateityp.', 'error')
+                flash('Ungültiger Dateityp oder Dateiinhalt passt nicht zur Endung.', 'error')
                 return redirect(url_for('edit_stoff', id=id))
 
+        # Die Freigabe aendert ausschliesslich /approve bzw. /reject. Ein
+        # Edit darf sie hoechstens entziehen: Wird ein freigegebener Stoff
+        # durch die neuen H-Saetze zum CMR-Stoff, verliert er die Freigabe
+        # und muss erneut geprueft werden. Frueher setzte der Edit sonst
+        # is_approved=True - damit liess sich ein wartender CMR-Stoff durch
+        # Entfernen der CMR-H-Saetze selbst freigeben.
         if is_cmr_stoff(stoff.h_saetze):
             stoff.is_approved = False
-        else:
-            stoff.is_approved = True
 
         try:
             db.session.commit()
@@ -2926,7 +3162,15 @@ def edit_user(id):
         if not username:
             flash('Benutzername ist ein Pflichtfeld.', 'error')
             return redirect(url_for('edit_user', id=id))
-            
+
+        # Dieselbe Mindestlaenge wie bei Registrierung, Benutzeranlage und
+        # eigenem Passwortwechsel. Ohne diese Pruefung liess sich die Policy
+        # umgehen, indem ein Administrator (oder ein Moderator fuer selbst
+        # angelegte Benutzer) ein Ein-Zeichen-Passwort setzte.
+        if password and passwort_hinweis(password):
+            flash(passwort_hinweis(password), 'error')
+            return redirect(url_for('edit_user', id=id))
+
         if role not in allowed_roles:
             role = user.role
             
@@ -3035,6 +3279,11 @@ def delete_user(id):
     db.session.commit()
     log_audit_event('USER_DELETE', 'User', geloeschte_id,
                     f'Benutzer "{geloeschter_name}" (Rolle: {geloeschte_rolle}) gelöscht.')
+    # Der Loescheintrag oben nennt den Namen noch im Klartext, damit die
+    # Meldung nicht von einem bereits geloeschten Objekt abhaengt. Danach
+    # werden alle Eintraege dieses Kontos - einschliesslich dieses einen -
+    # pseudonymisiert (F-32).
+    _pseudonymisiere_audit_eintraege(geloeschte_id, geloeschter_name)
     flash(f'Benutzer "{geloeschter_name}" wurde gelöscht.', 'info')
     return redirect(url_for('users'))
 
@@ -3089,6 +3338,61 @@ with app.app_context():
         print(f"create_all note: {e}")
     migrate_database()
 
+def _sdb_pdf_auswerten(daten):
+    """Liest Seitentext und Tabellen aus einem SDB-PDF.
+
+    Text seitenweise holen und Tabellen nur dort, wo sie fachlich relevant
+    sind (Einstufung, Zusammensetzung). extract_tables() ist teuer; auf
+    jeder Seite aufzurufen kostet mehr Zeit als der gesamte uebrige Import.
+    """
+    seiten, tabellen = [], []
+    with pdfplumber.open(BytesIO(daten)) as pdf:
+        seitenzahl = len(pdf.pages)
+        if seitenzahl > PDF_MAX_SEITEN:
+            return {
+                'fehler': f'Das PDF hat {seitenzahl} Seiten; erlaubt sind '
+                          f'höchstens {PDF_MAX_SEITEN}.'
+            }
+        for nummer, page in enumerate(pdf.pages[:15]):
+            text = page.extract_text() or ''
+            seiten.append(text)
+            if (nummer < 6 and len(tabellen) < 12
+                    and any(k in text.lower() for k in (
+                        'einstufung', 'zusammensetzung', 'classification',
+                        'composition'))):
+                try:
+                    tabellen.extend(page.extract_tables() or [])
+                except Exception:
+                    pass
+    return {'seiten': seiten, 'tabellen': tabellen}
+
+
+def pdf_seiten_auslesen(daten):
+    """Wertet ein SDB-PDF mit Seiten- und Zeitlimit aus.
+
+    Gibt (ergebnis, fehler) zurueck. Bei einer Zeitueberschreitung laeuft der
+    Arbeits-Thread als Daemon weiter, die Anfrage wird aber sofort beantwortet
+    - ein einzelnes PDF blockiert damit keinen Waitress-Thread dauerhaft.
+    """
+    ergebnis = {}
+    fehler = {}
+
+    def _lauf():
+        try:
+            ergebnis['wert'] = _sdb_pdf_auswerten(daten)
+        except Exception as exc:      # Meldung wird vom Aufrufer uebersetzt
+            fehler['wert'] = exc
+
+    lauf = threading.Thread(target=_lauf, daemon=True)
+    lauf.start()
+    lauf.join(PDF_MAX_PARSE_SEKUNDEN)
+    if lauf.is_alive():
+        return None, 'zeitlimit'
+    if 'wert' in fehler:
+        return None, fehler['wert']
+    return ergebnis.get('wert'), None
+
+
 @app.route('/api/parse_sdb', methods=['POST'])
 @login_required
 def parse_sdb():
@@ -3105,33 +3409,33 @@ def parse_sdb():
     if not file.filename.lower().endswith('.pdf'):
         return {'error': 'Bitte eine PDF-Datei hochladen'}, 400
 
-    # Text seitenweise holen und Tabellen nur dort, wo sie fachlich relevant
-    # sind (Einstufung, Zusammensetzung). extract_tables() ist teuer; auf
-    # jedem Seite aufzurufen kostet mehr Zeit als der gesamte übrige Import.
-    seiten, tabellen = [], []
-    try:
-        with pdfplumber.open(file) as pdf:
-            for nummer, page in enumerate(pdf.pages[:15]):
-                text = page.extract_text() or ''
-                seiten.append(text)
-                if (nummer < 6 and len(tabellen) < 12
-                        and any(k in text.lower() for k in (
-                            'einstufung', 'zusammensetzung', 'classification',
-                            'composition'))):
-                    try:
-                        tabellen.extend(page.extract_tables() or [])
-                    except Exception:
-                        pass
-    except Exception as e:
+    daten = file.read()
+    if not signatur_passt(daten, 'pdf'):
+        return {'error': 'Die Datei ist leer oder kein gültiges PDF.'}, 400
+
+    auswertung, fehler = pdf_seiten_auslesen(daten)
+    if fehler == 'zeitlimit':
+        app.logger.warning(
+            'SDB-PDF: Zeitlimit von %s Sekunden ueberschritten',
+            PDF_MAX_PARSE_SEKUNDEN)
+        return {
+            'error': 'Die Auswertung des PDFs hat das Zeitlimit von '
+                     f'{PDF_MAX_PARSE_SEKUNDEN} Sekunden überschritten.'
+        }, 400
+    if fehler is not None:
         # Die Meldung von pdfminer ("No /Root object!") ist für den Nutzer
         # wertlos und nennt Interna. Sie geht ins Log, nicht ins Formular.
-        app.logger.warning('SDB-PDF nicht lesbar: %s', e)
+        app.logger.warning('SDB-PDF nicht lesbar: %s', fehler)
         return {
             'error': 'Das PDF konnte nicht geöffnet werden. Ist die Datei '
                      'beschädigt oder passwortgeschützt?'
         }, 400
 
-    ergebnis = sdb_parser.analysiere(seiten, tabellen)
+    if auswertung.get('fehler'):
+        return {'error': auswertung['fehler']}, 400
+
+    ergebnis = sdb_parser.analysiere(auswertung['seiten'],
+                                     auswertung['tabellen'])
     if not ergebnis.get('success'):
         return ergebnis, 422
     return ergebnis
