@@ -38,7 +38,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 ## 🛠️ Technologien
 
-*   **Backend**: Python 3.11, Flask, Flask-WTF (CSRF), Flask-SQLAlchemy, Flask-Login, pdfplumber
+*   **Backend**: Python 3.13, Flask, Flask-WTF (CSRF), Flask-SQLAlchemy, Flask-Login, pdfplumber
 *   **Datenbank**: SQLite (`gefahrstoffe.db`)
 *   **Frontend**: HTML5, Vanilla CSS3 ("Clinical & Clean" Design), JavaScript
 *   **Exporte**: Pandas (OpenPyXL) für Excel, ReportLab für PDFs
@@ -46,7 +46,7 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 ## 🚀 Installation & Ausführung
 
 ### Voraussetzungen
-1.  Python 3.11 ist auf Ihrem System installiert.
+1.  Python 3.13 ist auf Ihrem System installiert.
 2.  Empfohlen: Eine virtuelle Umgebung (Virtual Environment).
 
 ### Schritte
@@ -257,7 +257,7 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
     ```bash
     pip-compile --generate-hashes --no-annotate --output-file requirements.txt requirements.txt
     ```
-*   **Basis-Image:** Das `Dockerfile` pinnt `python:3.11-slim` auf einen Digest. Sicherheitsupdates des Basis-Images kommen nur über einen neuen Digest herein — deshalb regelmäßig aktualisieren (Dependabot schlägt es vor).
+*   **Basis-Image:** Das `Dockerfile` pinnt `python:3.13-slim` auf einen Digest. Sicherheitsupdates des Basis-Images kommen nur über einen neuen Digest herein — deshalb regelmäßig aktualisieren (Dependabot schlägt es vor).
 
 ## 🧪 Tests
 
