@@ -4,19 +4,16 @@ Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokument
 
 ### v3.41 – Import aus Excel und CSV (November 2026, APP_VERSION 2.6.3)
 
-* **Gefahrstoffe aus einer Tabelle übernehmen** (`/import`). Zwei Schritte wie beim SDB-Import: Die Datei wird geprüft und als Vorschau angezeigt, gespeichert wird erst nach Bestätigung. Ein Direktimport in einem POST wäre in einem Verzeichnis, das der Betrieb gegenüber der Aufsicht vertritt, nicht vertretbar — eine falsch gelesene Spalte fiele sonst erst beim nächsten Audit auf.
-* **Eigenes Modul `import_gefahrstoffe.py`** ohne Flask und SQLAlchemy: Datei lesen, Spalten erkennen, Zeile prüfen. Damit ist die Logik ohne Datenbank testbar (`test_import.py`, 47 Tests); nur Standortauflösung, Duplikate und das Schreiben bleiben in `main.py` (`test_import_route.py`, 15 Tests).
-* **Formate:** `.xlsx`, `.xlsm` und `.csv`. Grenzen 5 MB und 5000 Zeilen — bewusst unter `MAX_CONTENT_LENGTH`, damit nicht die falsche Datei minutenlang einen Worker blockiert. Deutsches Excel schreibt CSV mit Semikolon und cp1252; beides wird erkannt (Trennzeichen aus der Kopfzeile, Encoding-Kette UTF-8 → cp1252 → latin-1), die Kopfzeile darf nicht in Zeile 1 stehen. Das alte `.xls` wird abgelehnt, mit dem Hinweis, als `.xlsx` zu speichern.
-* **Spaltenerkennung über Aliase** („Stoff", „Handelsname", „CAS-Nr.", „Datum SDB", „Arbeitsbereich" …), unabhängig von Reihenfolge und Groß-/Kleinschreibung. Unbekannte Spalten werden ignoriert und in der Vorschau genannt, doppelt vorhandene ebenfalls (die erste gilt). Die Vorlage lässt sich unter `/import/vorlage` als `.xlsx` herunterladen, mit einem zweiten Blatt für Hinweise je Spalte.
-* **Standort:** entweder getrennt über „Bereich" und „Unterbereich" oder kombiniert über eine Spalte „Standort"/„Arbeitsbereich" (`Labor › Schrank 2`). Trennzeichen und Umlaute werden beim Vergleich normalisiert; ein Kurzname, der in zwei Bereichen vorkommt, ist ein Fehler und landet nicht im falschen Bereich. Zeilen ohne Standortangabe bekommen den beim Upload gewählten Ziel-Standort. Beim Bestätigen wird der Standort erneut geprüft — zwischen Vorschau und Bestätigung können Bereiche entzogen worden sein.
-* **Nicht deutbare Werte** führen zu Fehlern nur bei Pflichtfeldern (Name) und offensichtlichem Unsinn (negative Menge, unbekanntes Piktogramm); alles andere wird als Warnung gemeldet und nachsichtig gelesen: CAS als Zahl, Menge als „4,5 kg" in einer Zelle, Datum als Excel-Serienzahl, `ja/nein` in allen Schreibweisen. Piktogramme und Signalwort werden aus den H-Sätzen abgeleitet, wenn sie fehlen.
-* **Duplikate:** Der Schlüssel ist Name oder CAS-Nummer **am selben Standort** — derselbe Stoff in einem zweiten Bereich ist im Verzeichnis ein normaler Fall (so arbeitet auch `/copy`). Vorhandene Einträge werden wahlweise übersprungen oder **nur in leeren Feldern** ergänzt; der Import überschreibt nichts.
-* **CMR-Regel gilt auch hier:** Importierte CMR-Stoffe warten auf Freigabe. Ergänzt der Import erst die H-Sätze eines vorhandenen Stoffes und macht ihn damit zum CMR-Stoff, fällt er auf „wartet" zurück — die Freigabepflicht lässt sich nicht über einen Nachtrag umgehen.
-* **Rolle `Lesen`** darf weder importieren noch die Vorlage laden.
-* **Zwischenstand** zwischen Vorschau und Bestätigung liegt als JSON unter `APP_DATA_DIR/_import/<token>.json` (Zufallstoken, an die Benutzer-ID gebunden, nach einer Stunde gelöscht) — bewusst neben `uploads/` und nicht darin, denn `/uploads/<datei>` liefert aus diesem Verzeichnis aus. Die Flask-Sitzung ist ein signiertes Cookie und fasst keine 5000 Zeilen.
-* **Audit-Log:** ein Eintrag `IMPORT` mit Dateiname und den Zahlen angelegt/aktualisiert/übersprungen/abgelehnt, jetzt auch in der Ansicht übersetzt.
-* **Excel-Export um vier Spalten erweitert:** `Bereich`, `Unterbereich`, `Menge (Zahl)`, `Einheit`. „Arbeitsbereich" bleibt unverändert (zwei Ebenen, für Menschen gedacht); die neuen Spalten tragen den vollständigen Pfad, sonst verlöre ein verschachtelter Unterbereich beim Reimport seine oberste Ebene. Damit ist der Rundlauf Export → Import möglich; der bisherige Export war kein Importformat („4.5 kg" in einer Zelle).
-* Gesamtstand **353 Tests**, alle grün.
+* **Neu: `/import`** – Gefahrstoffe aus `.xlsx`, `.xlsm` oder `.csv` übernehmen. Zwei Schritte: Vorschau prüfen, dann bestätigen. Grenzen 5 MB und 5000 Zeilen, `.xls` wird abgelehnt.
+* **`import_gefahrstoffe.py`** – Datei lesen, Spalten über Aliase erkennen, Zeile prüfen; ohne Flask und SQLAlchemy. Deutsches CSV (Semikolon, cp1252) und eine Kopfzeile unterhalb von Zeile 1 werden erkannt.
+* **Standort** über „Bereich"/„Unterbereich" oder eine kombinierte Spalte „Standort"; ein Kurzname, der in zwei Bereichen vorkommt, wird abgelehnt statt geraten. Ohne Angabe gilt der beim Upload gewählte Ziel-Standort, bei der Bestätigung erneut geprüft.
+* **Duplikate** am selben Standort: überspringen (Standard) oder nur leere Felder füllen. Vorhandene Werte werden nie überschrieben; derselbe Stoff an einem zweiten Standort gilt nicht als Duplikat.
+* **CMR-Stoffe** aus dem Import warten auf Freigabe; ergänzt der Import H-Sätze, die einen vorhandenen Stoff zum CMR-Stoff machen, fällt er auf „wartet" zurück.
+* **Vorlage** unter `/import/vorlage` (`.xlsx`, zweites Blatt mit Hinweisen). Piktogramme und Signalwort werden aus den H-Sätzen abgeleitet, wenn sie fehlen.
+* **Zwischenstand** als JSON unter `APP_DATA_DIR/_import/` (Zufallstoken, an die Benutzer-ID gebunden, nach 60 Minuten gelöscht).
+* **Excel-Export** um `Bereich`, `Unterbereich`, `Menge (Zahl)` und `Einheit` erweitert – Export und Import bilden einen Rundlauf.
+* **Audit-Log:** Aktion `IMPORT` mit Dateiname und Zählern, in der Ansicht übersetzt. Rolle `Lesen` darf weder importieren noch die Vorlage laden.
+* Doku: Handbuch 10.1, TOM 5.4, `DATENSCHUTZ_UND_TOM` 2.1/2.2. Gesamtstand 353 Tests.
 
 ### v3.40 – Abhängigkeiten und Python 3.13 (Oktober 2026, APP_VERSION 2.6.3)
 
