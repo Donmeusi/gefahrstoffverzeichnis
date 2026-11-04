@@ -101,6 +101,9 @@
             {% if vorschau.duplikat_anzahl %}
                 {{ vorschau.duplikat_anzahl }} davon sind bereits vorhanden oder doppelt.
             {% endif %}
+            {% if vorschau.standort_ersatz_anzahl %}
+                {{ vorschau.standort_ersatz_anzahl }} Zeilen nennen einen Standort, den es nicht gibt – sie landen im Ziel-Standort.
+            {% endif %}
             {% if vorschau.fehler_anzahl %}
                 <strong class="text-danger">{{ vorschau.fehler_anzahl }} Zeilen haben Fehler und werden nicht importiert.</strong>
             {% endif %}
@@ -213,7 +216,22 @@
                                 {{ zeile.werte.get('menge') }} {{ zeile.werte.get('mengeneinheit') or '' }}
                             {% else %}–{% endif %}
                         </td>
-                        <td class="d-none-mobile">{{ zeile.standort_text or 'Ziel-Standort' }}</td>
+                        <td class="d-none-mobile">
+                            {% if zeile.werte.get('standort_ersatz') %}
+                                {# Die Angabe aus der Datei gibt es nicht - die
+                                   Zeile landet im Ziel-Standort. Das muss hier
+                                   stehen und nicht nur in der Meldungsspalte,
+                                   sonst sähe die Zeile wie die übrigen aus. #}
+                                <span class="text-accent">
+                                    {{ vorschau.ziel_name }}
+                                </span>
+                                <br><small class="text-light">
+                                    statt „{{ zeile.standort_text }}“
+                                </small>
+                            {% else %}
+                                {{ zeile.standort_text or 'Ziel-Standort' }}
+                            {% endif %}
+                        </td>
                         <td>
                             {% for fehler in zeile.fehler %}
                                 <span class="badge badge-danger">{{ fehler }}</span>

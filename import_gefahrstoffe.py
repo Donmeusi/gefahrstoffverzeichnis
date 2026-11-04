@@ -760,12 +760,19 @@ def _begrenzt(schluessel, wert, warnungen):
 # ─── Zeile prüfen ────────────────────────────────────────────────────────────
 
 def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
-                 standard_standort_id=None, epoche=None):
+                 standard_standort_id=None, standard_standort_name=None,
+                 epoche=None):
     """Prüft eine Datenzeile und übersetzt sie in Datenbankfelder.
 
     standort_aufloesen: Callable(text) -> (unterbereich_id, fehlermeldung).
     Ohne Callable bleibt der Standort unaufgelöst (für Tests der reinen
     Logik).
+
+    Ein Standort, den die App nicht kennt, ist eine Warnung und die Zeile
+    landet im Ziel-Standort - vorausgesetzt, beim Hochladen wurde einer
+    gewählt (Nutzerentscheidung 04.11.2026). Ohne Ziel-Standort bleibt es ein
+    Fehler: Sonst verlöre die Zeile ihren Standort, ohne dass es jemand
+    merkt.
 
     Die Regeln folgen add(): Die Substitutionsprüfung entscheidet, ob
     Ersatzstoff oder Begründung übernommen wird, Piktogramme und Signalwort
@@ -899,14 +906,30 @@ def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
         standort_text = standort_text[:FELDER['standort']['laenge']]
 
     standort_id = standard_standort_id
+    # Gesetzt, wenn die Angabe aus der Zeile nicht aufgelöst werden konnte und
+    # deshalb der Ziel-Standort gilt. Die Vorschau zeigt das an.
+    standort_ersatz = False
     if standort_text:
         if standort_aufloesen is None:
             standort_id = None
         else:
             standort_id, standort_fehler = standort_aufloesen(standort_text)
             if standort_fehler:
-                fehler.append(standort_fehler)
+                if standard_standort_id is not None:
+                    ziel = (f'„{standard_standort_name}“'
+                            if standard_standort_name else 'den Ziel-Standort')
+                    warnungen.append(
+                        f'{standort_fehler} Die Zeile landet in '
+                        f'{ziel}.')
+                    standort_id = standard_standort_id
+                    standort_ersatz = True
+                else:
+                    fehler.append(
+                        f'{standort_fehler} Bitte beim Hochladen einen '
+                        'Ziel-Standort wählen oder die Standortangabe '
+                        'korrigieren.')
     werte['unterbereich_id'] = standort_id
+    werte['standort_ersatz'] = standort_ersatz
 
     return PruefZeile(zeilennummer=zeilennummer, werte=werte,
                       fehler=fehler, warnungen=warnungen,

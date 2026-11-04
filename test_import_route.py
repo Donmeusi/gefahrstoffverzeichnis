@@ -163,7 +163,37 @@ class TestImportRouten(unittest.TestCase):
             stoff = Gefahrstoff.query.filter_by(name='Aceton').one()
             self.assertEqual(stoff.unterbereich_id, a2_id)
 
-    def test_fremder_bereich_wird_abgelehnt(self):
+    def test_unbekannter_standort_landet_im_ziel(self):
+        # Nutzerentscheidung 04.11.2026: Ein Standort, den es nicht gibt, ist
+        # eine Warnung; die Zeile landet im beim Upload gewählten Ziel.
+        a1_id, _, _ = self._umgebung()
+        self._login()
+        antwort, token = self._vorschau(
+            'Name;Standort\nAceton;Labor A › Schrank Z9\n', a1_id)
+
+        seite = antwort.get_data(as_text=True)
+        self.assertNotIn('Zeilen haben Fehler', seite)
+        self.assertIn('landen im Ziel-Standort', seite)
+
+        self._bestaetigen(token)
+        with app.app_context():
+            stoff = Gefahrstoff.query.filter_by(name='Aceton').one()
+            self.assertEqual(stoff.unterbereich_id, a1_id)
+
+    def test_unbekannter_standort_ohne_ziel_bleibt_fehler(self):
+        self._umgebung()
+        self._login()
+        antwort, _ = self._vorschau(
+            'Name;Standort\nAceton;Labor A › Schrank Z9\n')
+
+        seite = antwort.get_data(as_text=True)
+        self.assertIn('Zeilen haben Fehler', seite)
+
+    def test_fremder_standort_landet_nicht_im_fremden_bereich(self):
+        # Ein Bereich, den der Benutzer nicht sieht, ist für den Import
+        # derselbe Fall wie ein Tippfehler - die Meldung darf ihn nicht
+        # verraten. Die Zeile landet deshalb im eigenen Ziel-Standort, nie in
+        # Labor B.
         a1_id, _, b1_id = self._umgebung()
         self._login()
         _, token = self._vorschau(
@@ -172,7 +202,9 @@ class TestImportRouten(unittest.TestCase):
         self._bestaetigen(token)
 
         with app.app_context():
-            self.assertEqual(Gefahrstoff.query.count(), 0)
+            stoff = Gefahrstoff.query.filter_by(name='Aceton').one()
+            self.assertEqual(stoff.unterbereich_id, a1_id)
+            self.assertNotEqual(stoff.unterbereich_id, b1_id)
 
     def test_cmr_stoff_wartet_auf_freigabe(self):
         a1_id, _, _ = self._umgebung()

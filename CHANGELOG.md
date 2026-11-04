@@ -6,14 +6,15 @@ Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokument
 
 * **Neu: `/import`** – Gefahrstoffe aus `.xlsx`, `.xlsm` oder `.csv` übernehmen. Zwei Schritte: Vorschau prüfen, dann bestätigen. Grenzen 5 MB und 5000 Zeilen, `.xls` wird abgelehnt.
 * **`import_gefahrstoffe.py`** – Datei lesen, Spalten über Aliase erkennen, Zeile prüfen; ohne Flask und SQLAlchemy. Deutsches CSV (Semikolon, cp1252) und eine Kopfzeile unterhalb von Zeile 1 werden erkannt.
-* **Standort** über „Bereich"/„Unterbereich" oder eine kombinierte Spalte „Standort"; ein Kurzname, der in zwei Bereichen vorkommt, wird abgelehnt statt geraten. Ohne Angabe gilt der beim Upload gewählte Ziel-Standort, bei der Bestätigung erneut geprüft.
+* **Standort** über „Bereich"/„Unterbereich" oder eine kombinierte Spalte „Standort". Ohne Angabe gilt der beim Upload gewählte Ziel-Standort, bei der Bestätigung erneut geprüft.
+* **Unbekannter Standort ist eine Warnung, kein Fehler** (04.11.2026): Die Zeile landet im Ziel-Standort, die Vorschau zeigt in der Standort-Spalte „statt ‚…‘" und zählt die Fälle in der Zusammenfassung. Ohne gewählten Ziel-Standort bleibt es ein Fehler. Das gilt auch für Bereiche ohne Berechtigung — die Meldung verrät deren Existenz nicht.
 * **Duplikate** am selben Standort: überspringen (Standard) oder nur leere Felder füllen. Vorhandene Werte werden nie überschrieben; derselbe Stoff an einem zweiten Standort gilt nicht als Duplikat.
 * **CMR-Stoffe** aus dem Import warten auf Freigabe; ergänzt der Import H-Sätze, die einen vorhandenen Stoff zum CMR-Stoff machen, fällt er auf „wartet" zurück.
 * **Vorlage** unter `/import/vorlage` (`.xlsx`, zweites Blatt mit Hinweisen). Piktogramme und Signalwort werden aus den H-Sätzen abgeleitet, wenn sie fehlen.
 * **Zwischenstand** als JSON unter `APP_DATA_DIR/_import/` (Zufallstoken, an die Benutzer-ID gebunden, nach 60 Minuten gelöscht).
 * **Excel-Export** um `Bereich`, `Unterbereich`, `Menge (Zahl)` und `Einheit` erweitert – Export und Import bilden einen Rundlauf.
 * **Audit-Log:** Aktion `IMPORT` mit Dateiname und Zählern, in der Ansicht übersetzt. Rolle `Lesen` darf weder importieren noch die Vorlage laden.
-* Doku: Handbuch 10.1, TOM 5.4, `DATENSCHUTZ_UND_TOM` 2.1/2.2. Gesamtstand 353 Tests.
+* Doku: Handbuch 10.1, TOM 5.4, `DATENSCHUTZ_UND_TOM` 2.1/2.2. Gesamtstand 358 Tests.
 
 ### v3.40 – Abhängigkeiten und Python 3.13 (Oktober 2026, APP_VERSION 2.6.3)
 

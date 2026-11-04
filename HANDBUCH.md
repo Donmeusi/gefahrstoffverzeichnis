@@ -512,15 +512,26 @@ Der **Excel-Export** lässt sich ebenfalls wieder importieren.
 **Der Standort** kommt entweder aus zwei Spalten („Bereich" und „Unterbereich")
 oder aus einer Spalte „Standort"/„Arbeitsbereich" in der Form
 `Labor › Schrank 2`. Fehlt die Angabe in einer Zeile, gilt der Standort, den Sie
-beim Hochladen ausgewählt haben. Ein Unterbereichsname, der in zwei Bereichen
-vorkommt, wird abgelehnt, statt einen davon zu raten — in dem Fall bitte den
-vollständigen Pfad angeben.
+beim Hochladen ausgewählt haben.
+
+**Nennt eine Zeile einen Standort, den es in der App nicht gibt** (oder einen
+Bereich, für den Sie keine Berechtigung haben), ist das eine Warnung: Die Zeile
+wird in den beim Hochladen gewählten Ziel-Standort übernommen, und die
+Standort-Spalte der Vorschau zeigt beides — den Ziel-Standort und den Namen aus
+der Datei, der nicht gefunden wurde. Die Zeile bleibt also importierbar, ohne
+dass die falsche Angabe unbemerkt verschwindet. **Ohne Ziel-Standort** ist ein
+unbekannter Standort dagegen ein Fehler; die App rät keinen Standort.
+
+Ein Unterbereichsname, der in **zwei Bereichen** vorkommt, wird ebenfalls nicht
+geraten, sondern nach derselben Regel in den Ziel-Standort gelegt — in dem Fall
+bitte den vollständigen Pfad angeben, dann greift die Zeile richtig.
 
 **Was in der Vorschau steht.** Jede Zeile bekommt einen Status:
 
 * **bereit** — wird beim Bestätigen angelegt.
 * **Warnung** — wird angelegt, aber etwas fehlt oder ist ungewöhnlich (keine
-  CAS-Nummer, Menge ohne Einheit, unbekannter H-Satz). Bitte lesen.
+  CAS-Nummer, Menge ohne Einheit, unbekannter H-Satz, Standort nicht gefunden).
+  Bitte lesen.
 * **Fehler** — wird **nicht** angelegt. Das trifft nur Pflichtangaben und klar
   Falsches: fehlender Name, negative Menge, ein Piktogramm, das es nicht gibt.
 * **bereit / vorhanden** — der Stoff steht schon im Verzeichnis (gleicher Name

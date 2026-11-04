@@ -325,10 +325,49 @@ class TestStandort(unittest.TestCase):
         self.assertEqual(zeile.werte['unterbereich_id'], 3)
         self.assertEqual(zeile.standort_text, '')
 
-    def test_unbekannter_standort_ist_ein_fehler(self):
+    def test_unbekannter_standort_ohne_ziel_ist_ein_fehler(self):
+        # Ohne Ziel-Standort gibt es kein Auffangnetz: Die Zeile verlöre sonst
+        # ihren Standort, ohne dass es jemand merkt.
         zeile = pruefe({'name': 'Aceton', 'standort': 'Keller'},
                        standort_aufloesen=self.aufloeser)
         self.assertFalse(zeile.gueltig)
+        self.assertTrue(any('Ziel-Standort wählen' in f for f in zeile.fehler))
+
+    def test_unbekannter_standort_mit_ziel_ist_eine_warnung(self):
+        zeile = pruefe({'name': 'Aceton', 'standort': 'Keller'},
+                       standort_aufloesen=self.aufloeser,
+                       standard_standort_id=3,
+                       standard_standort_name='Labor / Schrank 1')
+        self.assertTrue(zeile.gueltig)
+        self.assertEqual(zeile.werte['unterbereich_id'], 3)
+        self.assertTrue(zeile.werte['standort_ersatz'])
+        self.assertTrue(any('„Labor / Schrank 1“' in w
+                            for w in zeile.warnungen))
+
+    def test_eigener_standort_ist_kein_ersatz(self):
+        zeile = pruefe({'name': 'Aceton', 'standort': 'Labor › Schrank 2'},
+                       standort_aufloesen=self.aufloeser,
+                       standard_standort_id=3,
+                       standard_standort_name='Labor / Schrank 1')
+        self.assertEqual(zeile.werte['unterbereich_id'], 7)
+        self.assertFalse(zeile.werte['standort_ersatz'])
+
+    def test_ersatz_standort_zaehlt_als_gleicher_standort(self):
+        # Zwei Zeilen mit unbrauchbaren Standortangaben landen beide im
+        # Ziel-Standort - dort sind sie Duplikate, nicht an ihren Wunschorten.
+        zeilen = [
+            pruefe({'name': 'Aceton', 'cas_nummer': '67-64-1',
+                    'standort': 'Keller'},
+                   standort_aufloesen=self.aufloeser,
+                   standard_standort_id=3,
+                   standard_standort_name='Labor / Schrank 1'),
+            pruefe({'name': 'Aceton', 'cas_nummer': '67-64-1',
+                    'standort': 'Dachboden'},
+                   standort_aufloesen=self.aufloeser,
+                   standard_standort_id=3,
+                   standard_standort_name='Labor / Schrank 1'),
+        ]
+        self.assertEqual(imp.markiere_duplikate(zeilen), 1)
 
 
 class TestDuplikate(unittest.TestCase):

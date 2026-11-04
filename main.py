@@ -2864,7 +2864,9 @@ def import_vorschau():
     for nummer, roh in import_gefahrstoffe.zeilen_als_dicts(tabelle, zuordnung):
         zeilen.append(import_gefahrstoffe.pruefe_zeile(
             roh, nummer, standort_aufloesen=aufloesen,
-            standard_standort_id=ziel_id, epoche=tabelle.epoche))
+            standard_standort_id=ziel_id,
+            standard_standort_name=standort_text(ziel_id),
+            epoche=tabelle.epoche))
 
     import_gefahrstoffe.markiere_duplikate(zeilen)
 
@@ -2912,6 +2914,8 @@ def import_vorschau():
                 1 for z in zeilen
                 if z.gueltig and (z.werte.get('duplikat_von')
                                   or z.werte.get('vorhanden_id'))),
+            'standort_ersatz_anzahl': sum(
+                1 for z in zeilen if z.werte.get('standort_ersatz')),
         })
 
 
