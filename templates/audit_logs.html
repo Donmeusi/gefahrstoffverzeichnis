@@ -95,6 +95,8 @@
                         <span class="badge badge-danger"><i class="fa-solid fa-ban" aria-hidden="true"></i> Abgelehnt</span>
                     {% elif log.action == 'INVENTUR' %}
                         <span class="badge badge-info"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Inventur</span>
+                    {% elif log.action == 'IMPORT' %}
+                        <span class="badge badge-info"><i class="fa-solid fa-file-import" aria-hidden="true"></i> Import</span>
                     {% else %}
                         <span class="badge badge-neutral">{{ log.action }}</span>
                     {% endif %}

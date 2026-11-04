@@ -36,9 +36,10 @@ der eigenen TOM-Dokumentation des Betreibers zu ergänzen.
 | **Verantwortlicher** | *[vom Betreiber zu ergänzen]* |
 
 **Systemgrenze:** Die Anwendung verarbeitet Daten ausschließlich in einer
-SQLite-Datei und einem Upload-Verzeichnis im Datenverzeichnis (`APP_DATA_DIR`).
-Es gibt keine Mandantentrennung und keine Schnittstelle zu Fremdsystemen —
-mit einer Ausnahme (Abschnitt 5.3).
+SQLite-Datei und einem Upload-Verzeichnis im Datenverzeichnis (`APP_DATA_DIR`),
+dazu ein Zwischenspeicher für den Tabellenimport (`_import/`, siehe
+Abschnitt 5.4). Es gibt keine Mandantentrennung und keine Schnittstelle zu
+Fremdsystemen — mit einer Ausnahme (Abschnitt 5.3).
 
 ---
 
@@ -197,6 +198,22 @@ anlegen kann.
 | Ausnahme mit Klärungsbedarf | **PubChem-Autofill** sendet die CAS-Nummer an die U.S. National Library of Medicine. Enthalten sind ausschließlich anorganische Sachdaten, keine personenbezogenen Daten und keine Bestandsdaten. Die IP-Adresse des **Servers** wird dabei jedoch übertragen — deshalb sollte die Funktion bewusst freigegeben und im Verzeichnis der Verarbeitungstätigkeiten erwähnt werden | dokumentiert; Freigabe → R-9 |
 | Weitere ausgehende Verbindung | **Wikidata SPARQL** (Wikimedia) liefert nach derselben CAS-Nummer die deutsche Stoffbezeichnung. Übertragen werden CAS-Nummer, Server-IP und ein fester User-Agent; keine Bestands- oder Personendaten. Abfrage mit 8 s Zeitlimit, Fehlschlag ist unschädlich | dokumentiert (`DATENSCHUTZ_UND_TOM.md`, Abschnitt 3.3) |
 | Weitere ausgehende Verbindung | **GitHub** (`git fetch`, beim Update zusätzlich `git pull`) prüft auf eine neuere Version. Übertragen werden Repository-Metadaten, Server-IP und TLS-Metadaten; keine Bestands- oder Personendaten. Nur ein Administrator löst die Prüfung über `/admin/system` aus | dokumentiert (`DATENSCHUTZ_UND_TOM.md`, Abschnitt 3.3) |
+
+### 5.4 Zwischenspeicher des Tabellenimports
+
+Der Import aus Excel oder CSV läuft in zwei Schritten (prüfen, dann
+bestätigen). Damit zwischen beiden Schritten kein großer Warenkorb im
+signierten Sitzungs-Cookie landet, liegt der geprüfte Stand kurzzeitig auf dem
+Datenträger.
+
+| Maßnahme | Umsetzung | Status |
+|---|---|---|
+| Ablage | `APP_DATA_DIR/_import/<Token>.json`, ein Zufallstoken aus 24 Byte (`secrets.token_urlsafe`). Der Name ist nicht ratbar, das Token wird zusätzlich gegen ein Muster geprüft — Pfadangaben sind damit ausgeschlossen | umgesetzt |
+| Zweckbindung | Inhalt sind ausschließlich die Zeilen der hochgeladenen Datei samt Prüfergebnis und die Benutzer-ID des Hochladenden. Keine Sitzungs-, Passwort- oder Auditdaten | umgesetzt |
+| Bindung an das Konto | Beim Bestätigen wird die gespeicherte Benutzer-ID mit der angemeldeten verglichen; ein fremdes Token endet mit HTTP 403 | umgesetzt |
+| Kein Abruf über das Web | Das Verzeichnis liegt **neben** `uploads/` und nicht darin. `/uploads/<datei>` liefert nur aus dem Upload-Verzeichnis aus | umgesetzt |
+| Aufbewahrung | Nach erfolgreichem Import sofort gelöscht; bei jedem neuen Upload werden Reste gelöscht, die älter als 60 Minuten sind. Scheitert der Import, bleibt der Stand für einen zweiten Versuch liegen und läuft spätestens mit dem nächsten Upload aus | umgesetzt, **kein Hintergrundjob** — ohne weiteren Import bleibt eine Datei über die Stunde hinaus liegen |
+| Sicherung | Der Zwischenspeicher ist **nicht** Teil der Datensicherung und nicht wiederherstellbar. Ein Abbruch kostet nur das erneute Hochladen | by design |
 
 ---
 

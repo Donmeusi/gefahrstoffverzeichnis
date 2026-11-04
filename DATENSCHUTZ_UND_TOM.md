@@ -35,7 +35,7 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 | **Benutzer-Stammdaten** | Benutzername, Ersteller-ID | Authentifizierung, Zuordnung von Datenbesitz | SQLite DB (`user`-Tabelle) |
 | **Authentifizierungsdaten** | Passwort-Hash (`scrypt:32768:8:1` über `werkzeug.security`, geprüft am 27.09.2026 mit Werkzeug 3.1.8) | Autorisierung beim Systemzugang | Einweg-Hash, Passwörter werden **niemals** im Klartext gespeichert |
 | **Rollen & Rechte** | Systemrolle (`admin`, `moderator`, `benutzer`, `lesen`), Bereichszuweisungen | Zugriffsbeschränkung gemäß Minimalprinzip (Need-to-know) | SQLite DB (`user`-Tabelle & `user_bereiche`) |
-| **Audit- & Protokolldaten** | User-ID, Aktions-Typ (`CREATE`, `UPDATE`, `DELETE`, `APPROVE`, `REJECT`, `LOGIN`), Datum/Uhrzeit (UTC), Details | Nachvollziehbarkeit & Rechenschaftspflicht (Art. 5 Abs. 2 DSGVO) | SQLite DB (`audit_log`-Tabelle) |
+| **Audit- & Protokolldaten** | User-ID, Aktions-Typ (`CREATE`, `UPDATE`, `DELETE`, `IMPORT`, `APPROVE`, `REJECT`, `LOGIN`), Datum/Uhrzeit (UTC), Details | Nachvollziehbarkeit & Rechenschaftspflicht (Art. 5 Abs. 2 DSGVO) | SQLite DB (`audit_log`-Tabelle) |
 | **Session & Sicherheit** | Session-Cookie (`session`), CSRF-Token | Sitzungssteuerung & Schutz vor Cross-Site Request Forgery | In-Memory Session / Browser-Cookie (`HTTPOnly`, `SameSite=Lax`, `Secure`) |
 | **Unterschrift der Betriebsanweisung** | Name (Klartext, max. 80 Zeichen) **oder** Unterschriftsbild (PNG als Data-URL, max. 300 kB) | Nachweis der erstellten bzw. unterwiesenen Betriebsanweisung | SQLite DB, Spalte `ba_unterschrift` am jeweiligen Gefahrstoff |
 
@@ -43,6 +43,7 @@ Die Anwendung dient der betrieblichen Erfassung, Verwaltung, Dokumentation und �
 * **Gefahrstoffdaten:** Stoffname, CAS-Nummer, EG-Nummer, GHS-Piktogramme, Signalwort, Gefahrenkategorien, H-Sätze, P-Sätze, Lagerklasse (LGK), Mengen und Mengeneinheiten.
 * **Standortdaten:** Hierarchische Bezeichnungen von Standorten, Hauptbereichen und Unterbereichen/Schränken.
 * **Dokumente:** Sicherheitsdatenblätter (SDB), Betriebsanweisungen (BA), Gefährdungsbeurteilungen (GB) im PDF- oder DOC-Format.
+* **Temporäre Importdaten:** Beim Import aus Excel oder CSV liegt der geprüfte Stand zwischen Vorschau und Bestätigung als JSON-Datei unter `_import/` im Datenverzeichnis. Er enthält ausschließlich die Zeilen der hochgeladenen Tabelle, das Prüfergebnis und die Benutzer-ID des Hochladenden, ist an ein Zufallstoken gebunden und wird nach dem Import sofort, spätestens nach 60 Minuten beim nächsten Upload gelöscht. Er ist nicht Teil der Datensicherung. Einzelheiten: `TOM.md`, Abschnitt 5.4.
 
 ### 2.3 Unterschrift zur Betriebsanweisung
 

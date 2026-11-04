@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Import – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+{# Gleiches Makro wie in add.html. Es liegt dort lokal, weil nur die
+   Standortauswahl es braucht - ein Include nur für vier Zeilen wäre mehr
+   Aufwand als Nutzen. #}
+{% macro render_unterbereich_options(unterbereich, level) %}
+<option value="{{ unterbereich.id }}">{{ ('&nbsp;' * (4 * level)) | safe }}&rsaquo; {{ unterbereich.name }}</option>
+{% for child in unterbereich.children %}
+    {{ render_unterbereich_options(child, level + 1) }}
+{% endfor %}
+{% endmacro %}
+
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-file-import h1-icon" aria-hidden="true"></i> Import aus Excel oder CSV</h1>
+        <p class="text-muted subline">
+            Datei prüfen, Vorschau kontrollieren, dann übernehmen
+        </p>
+    </div>
+    <div class="btn-row">
+        <a href="{{ url_for('import_vorlage') }}" class="btn btn-outline">
+            <i class="fa-solid fa-download" aria-hidden="true"></i> Vorlage herunterladen
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Zurück
+        </a>
+    </div>
+</div>
+
+{% if not vorschau %}
+{# ── Schritt 1: Datei und Ziel ─────────────────────────────────────────── #}
+<div class="card card-form">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('import_vorschau') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="form-group">
+                <label for="datei">Datei</label>
+                <input type="file" id="datei" name="datei" required
+                       accept=".xlsx,.xlsm,.csv">
+                <small class="form-text">
+                    .xlsx bis 5 MB und 5000 Zeilen. Das alte Format .xls wird
+                    nicht unterstützt - bitte als .xlsx oder .csv speichern.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="unterbereich_id">Ziel-Standort für Zeilen ohne Standortangabe</label>
+                <select id="unterbereich_id" name="unterbereich_id">
+                    <option value="">– Kein Standort zugewiesen –</option>
+                    {% for bereich in bereiche %}
+                    <optgroup label="{{ bereich.name }}">
+                        {% for unter in bereich.unterbereiche %}
+                            {% if not unter.parent_id %}
+                                {{ render_unterbereich_options(unter, 0) }}
+                            {% endif %}
+                        {% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                </select>
+                <small class="form-text">
+                    Hat die Datei eine Spalte „Standort“ oder „Bereich“ und
+                    „Unterbereich“, gilt die Angabe aus der Zeile. Sonst landet
+                    die Zeile hier.
+                </small>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                <span>
+                    Es wird nichts gespeichert, solange die Vorschau nicht
+                    bestätigt ist. Piktogramme und Signalwort leitet die App
+                    aus den H-Sätzen ab, wenn sie fehlen.
+                </span>
+            </div>
+
+            <div class="btn-row">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    Datei prüfen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% else %}
+{# ── Schritt 2: Vorschau ──────────────────────────────────────────────── #}
+<div class="card">
+    <div class="card-body">
+        <h2 class="card-title">
+            <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+            Vorschau: {{ vorschau.dateiname }}
+        </h2>
+
+        <p class="text-muted">
+            {{ vorschau.anzahl }} Datenzeilen gelesen.
+            {% if vorschau.duplikat_anzahl %}
+                {{ vorschau.duplikat_anzahl }} davon sind bereits vorhanden oder doppelt.
+            {% endif %}
+            {% if vorschau.fehler_anzahl %}
+                <strong class="text-danger">{{ vorschau.fehler_anzahl }} Zeilen haben Fehler und werden nicht importiert.</strong>
+            {% endif %}
+        </p>
+
+        {% if ziel_id %}
+        <p class="text-muted text-sm">
+            Ziel-Standort für Zeilen ohne Angabe:
+            <strong>{{ vorschau.ziel_name }}</strong>
+        </p>
+        {% endif %}
+
+        {% if vorschau.hinweise %}
+        <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <span>
+                {% for hinweis in vorschau.hinweise %}
+                    {{ hinweis }}{% if not loop.last %}<br>{% endif %}
+                {% endfor %}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if vorschau.unbekannt or vorschau.doppelt %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <span>
+                {% if vorschau.unbekannt %}
+                    Ignorierte Spalten: {{ vorschau.unbekannt | join(', ') }}.
+                {% endif %}
+                {% if vorschau.doppelt %}
+                    Doppelt vorhandene Spalten (die erste gilt):
+                    {{ vorschau.doppelt | join(', ') }}.
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('import_bestaetigen') }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="token" value="{{ vorschau.token }}"/>
+
+    <div class="card">
+        <div class="card-body">
+            <fieldset>
+                <legend class="text-sm text-muted">Was soll mit Stoffen geschehen, die schon im Verzeichnis stehen?</legend>
+                <div class="inline-row">
+                    <label class="inline-row">
+                        <input type="radio" name="duplikate" value="ueberspringen" checked>
+                        Überspringen
+                    </label>
+                    <label class="inline-row">
+                        <input type="radio" name="duplikate" value="aktualisieren">
+                        Aktualisieren – nur leere Felder füllen
+                    </label>
+                </div>
+            </fieldset>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="data-table">
+                <caption class="sr-only">Zeilen der Importdatei mit Prüfergebnis</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">
+                            <span class="sr-only">Übernehmen</span>
+                        </th>
+                        <th scope="col">Zeile</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Name</th>
+                        <th scope="col" class="d-none-mobile">CAS</th>
+                        <th scope="col" class="d-none-mobile">Menge</th>
+                        <th scope="col" class="d-none-mobile">Standort</th>
+                        <th scope="col">Meldungen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set klassen = {'ok': 'badge-success', 'warnung': 'badge-warning',
+                                      'duplikat': 'badge-neutral', 'fehler': 'badge-danger'} %}
+                    {% set texte = {'ok': 'bereit', 'warnung': 'Warnung',
+                                    'duplikat': 'übersprungen', 'fehler': 'Fehler'} %}
+                    {% for zeile in vorschau.zeilen %}
+                    {% set status = zeile.status %}
+                    {% set ueberspringen = (status == 'fehler') or zeile.werte.get('duplikat_von') %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="zeilen" value="{{ loop.index0 }}"
+                                   id="zeile-{{ loop.index0 }}"
+                                   {% if not ueberspringen %}checked{% endif %}
+                                   {% if ueberspringen %}disabled{% endif %}>
+                            <label class="sr-only" for="zeile-{{ loop.index0 }}">
+                                Zeile {{ zeile.zeilennummer }} übernehmen
+                            </label>
+                        </td>
+                        <td>{{ zeile.zeilennummer }}</td>
+                        <td><span class="badge {{ klassen[status] }}">{{ texte[status] }}</span></td>
+                        <td>
+                            {{ zeile.werte.get('name') or '–' }}
+                            {% if zeile.werte.get('vorhanden_id') %}
+                            <br><small class="text-light">vorhanden: {{ zeile.werte.get('vorhanden_name') }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="d-none-mobile">{{ zeile.werte.get('cas_nummer') or '–' }}</td>
+                        <td class="d-none-mobile">
+                            {% if zeile.werte.get('menge') is not none %}
+                                {{ zeile.werte.get('menge') }} {{ zeile.werte.get('mengeneinheit') or '' }}
+                            {% else %}–{% endif %}
+                        </td>
+                        <td class="d-none-mobile">{{ zeile.standort_text or 'Ziel-Standort' }}</td>
+                        <td>
+                            {% for fehler in zeile.fehler %}
+                                <span class="badge badge-danger">{{ fehler }}</span>
+                            {% endfor %}
+                            {% for warnung in zeile.warnungen %}
+                                <span class="text-sm"><i class="fa-solid fa-triangle-exclamation text-accent" aria-hidden="true"></i> {{ warnung }}</span>{% if not loop.last %}<br>{% endif %}
+                            {% endfor %}
+                            {% if not zeile.fehler and not zeile.warnungen %}–{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="btn-row mt-3">
+        <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+            Ausgewählte Zeilen importieren
+        </button>
+        <a href="{{ url_for('import_seite') }}" class="btn btn-outline">
+            Abbrechen
+        </a>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

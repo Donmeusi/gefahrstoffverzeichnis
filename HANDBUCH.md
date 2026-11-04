@@ -486,6 +486,64 @@ wo die Menge entsteht:
 Exportiert wird immer genau das, was gerade gefiltert ist. Die Rolle `Lesen`
 darf nicht exportieren.
 
+### 10.1 Import aus Excel oder CSV
+
+Über die Schaltfläche **Import** auf dem Dashboard (neben „Neuer Gefahrstoff")
+lassen sich Stoffe aus einer Tabelle übernehmen. Es sind zwei Schritte:
+hochladen und prüfen, dann auswählen und übernehmen. **Gespeichert wird erst
+nach Ihrer Bestätigung** — im ersten Schritt passiert nichts.
+
+**Die Datei.** `.xlsx`, `.xlsm` oder `.csv`, bis 5 MB und 5000 Zeilen. Die
+Kopfzeile muss nicht in der ersten Zeile stehen. Deutsches Excel schreibt CSV
+mit Semikolon; das wird erkannt, Sie müssen beim Speichern nichts umstellen.
+Das alte Format `.xls` wird nicht unterstützt — bitte als `.xlsx` speichern.
+
+**Die Spalten.** Die Beschriftungen dürfen heißen, wie sie in Ihrem Verzeichnis
+heißen: „Stoff", „Stoffname" oder „Handelsname" für den Namen, „CAS-Nr." oder
+„CAS" für die Nummer, „Datum SDB" oder „SDB-Datum" für das Datum, „Arbeitsbereich"
+für den Standort und so weiter. Eine Spalte mit unbekannter Beschriftung wird
+übersprungen und in der Vorschau genannt — nichts wird stillschweigend
+verworfen. Die Reihenfolge der Spalten ist beliebig.
+
+Wer keine eigene Tabelle hat, lädt unter **Import → Vorlage herunterladen** eine
+leere `.xlsx` mit allen Spalten herunter. Das zweite Blatt erklärt jede Spalte.
+Der **Excel-Export** lässt sich ebenfalls wieder importieren.
+
+**Der Standort** kommt entweder aus zwei Spalten („Bereich" und „Unterbereich")
+oder aus einer Spalte „Standort"/„Arbeitsbereich" in der Form
+`Labor › Schrank 2`. Fehlt die Angabe in einer Zeile, gilt der Standort, den Sie
+beim Hochladen ausgewählt haben. Ein Unterbereichsname, der in zwei Bereichen
+vorkommt, wird abgelehnt, statt einen davon zu raten — in dem Fall bitte den
+vollständigen Pfad angeben.
+
+**Was in der Vorschau steht.** Jede Zeile bekommt einen Status:
+
+* **bereit** — wird beim Bestätigen angelegt.
+* **Warnung** — wird angelegt, aber etwas fehlt oder ist ungewöhnlich (keine
+  CAS-Nummer, Menge ohne Einheit, unbekannter H-Satz). Bitte lesen.
+* **Fehler** — wird **nicht** angelegt. Das trifft nur Pflichtangaben und klar
+  Falsches: fehlender Name, negative Menge, ein Piktogramm, das es nicht gibt.
+* **bereit / vorhanden** — der Stoff steht schon im Verzeichnis (gleicher Name
+  oder gleiche CAS-Nummer **am selben Standort**). Was damit geschieht,
+  entscheiden Sie über den Schalter *Überspringen* oder *Aktualisieren – nur
+  leere Felder füllen*. Ein zweiter Standort gilt nicht als Duplikat.
+
+An- und abwählen lassen sich alle Zeilen, die keinen Fehler haben. Fehlerhafte
+Zeilen sind gesperrt, damit sie nicht aus Versehen halb übernommen werden.
+
+**Was der Import nie tut:** vorhandene Werte überschreiben. Auch beim
+Aktualisieren werden nur Felder gefüllt, die leer sind. Wenn ein Stoff mit seiner
+Sicherheitsdatenblatt-Einstufung im Verzeichnis steht und die Tabelle etwas
+anderes sagt, bleibt das Verzeichnis stehen.
+
+**CMR-Stoffe** aus dem Import warten wie beim Anlegen auf Freigabe. Ergänzt der
+Import bei einem vorhandenen Stoff H-Sätze, die ihn zum CMR-Stoff machen, fällt
+er auf „wartet" zurück.
+
+Die Rolle `Lesen` darf weder importieren noch die Vorlage laden. Jeder Import
+erscheint in der Systemhistorie (`IMPORT`) mit Dateiname und der Zahl der
+angelegten, aktualisierten, übersprungenen und abgelehnten Zeilen.
+
 ## 11. Freigabe-Workflow
 
 Stoffe mit **CMR-Einstufung** (z. B. H350 „Kann Krebs erzeugen") werden beim

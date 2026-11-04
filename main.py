@@ -18,7 +18,7 @@ import secrets
 import threading
 import time
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from html import escape as html_escape
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
@@ -38,6 +38,7 @@ import mengenschwellen
 import wikidata
 import echa_anhang_vi
 import sdb_parser
+import import_gefahrstoffe
 from piktogramme import piktogramme_fuer, signalwort_fuer, codes_aus_text, unbekannte_codes
 from types import SimpleNamespace
 
@@ -156,6 +157,28 @@ SIGNATUR_MAX_LAENGE = max(
 # join-Zeitlimit.
 PDF_MAX_SEITEN = 200
 PDF_MAX_PARSE_SEKUNDEN = 30
+
+# Ablage für den Excel-/CSV-Import. Zwischen Vorschau und Bestätigung liegt der
+# geprüfte Stand als JSON-Datei unter einem Zufallstoken: Die Flask-Sitzung ist
+# ein signiertes Cookie und fasst keine 5000 Zeilen. Nach einer Stunde wird
+# aufgeräumt - wer die Vorschau so lange offen lässt, lädt neu hoch.
+#
+# Bewusst neben uploads/ und nicht darin: /uploads/<filename> liefert aus
+# diesem Verzeichnis aus, und ein Zwischenstand hat dort nichts zu suchen.
+IMPORT_ORDNER = os.path.join(app_data_dir, '_import')
+IMPORT_TOKEN_MUSTER = re.compile(r'^[A-Za-z0-9_-]{16,64}$')
+IMPORT_ZWISCHENSTAND_SEKUNDEN = 3600
+
+# Felder, die beim Aktualisieren vorhandener Stoffe gefüllt werden - aber nur,
+# wenn sie dort leer sind. Der Import überschreibt nichts (dieselbe Regel wie
+# der SDB-Import); wer Werte ändern will, bearbeitet den Stoff.
+IMPORT_AKTUALISIERBARE_FELDER = (
+    'cas_nummer', 'eg_nummer', 'signalwort', 'piktogramme',
+    'gefahrenkategorien', 'h_saetze', 'p_saetze', 'lagerort', 'lagerklasse',
+    'menge', 'mengeneinheit', 'sdb_datum', 'substitutionspruefung',
+    'ersatzstoff', 'begruendung', 'substitution_geprueft_am',
+    'unterbereich_id',
+)
 
 # Mindestlaenge fuer lokal gesetzte Passwoerter. Gilt fuer Registrierung,
 # Benutzeranlage und Passwortwechsel im Profil. Die Grenze liegt bewusst
@@ -2577,6 +2600,459 @@ def copy_stoff(id):
             flash(f'Fehler beim Kopieren. Details stehen im Server-Log.', 'error')
     return render_template('move_copy.html', stoff=stoff, bereiche=bereiche, action='Kopieren')
 
+# ─── Import ──────────────────────────────────────────────────────────────────
+#
+# Zwei Schritte, wie beim SDB-Import: Erst wird geprüft und angezeigt, was
+# passieren würde, gespeichert wird erst nach Bestätigung. Ein Direktimport in
+# einem POST wäre in einem Verzeichnis, das der Betrieb gegenüber der
+# Aufsicht vertritt, nicht vertretbar - eine falsch gelesene Spalte fällt
+# sonst erst beim nächsten Audit auf.
+#
+# Die Regeln selbst stehen in import_gefahrstoffe.py (Datei lesen, Spalten
+# erkennen, Zeile prüfen). Hier bleibt, was die Datenbank braucht: Standorte
+# auflösen, Duplikate finden, anlegen und protokollieren.
+
+def _import_ordner_sicherstellen():
+    os.makedirs(IMPORT_ORDNER, exist_ok=True)
+
+
+def _import_pfad(token):
+    return os.path.join(IMPORT_ORDNER, f'{token}.json')
+
+
+def _import_aufraeumen():
+    """Löscht Zwischenstände, die älter als eine Stunde sind."""
+    _import_ordner_sicherstellen()
+    grenze = time.time() - IMPORT_ZWISCHENSTAND_SEKUNDEN
+    try:
+        namen = os.listdir(IMPORT_ORDNER)
+    except OSError:
+        return
+    for name in namen:
+        pfad = os.path.join(IMPORT_ORDNER, name)
+        try:
+            if os.path.isfile(pfad) and os.path.getmtime(pfad) < grenze:
+                os.remove(pfad)
+        except OSError:
+            # Ein liegengebliebener Zwischenstand ist kein Grund, den Import
+            # scheitern zu lassen.
+            pass
+
+
+def _import_json_default(wert):
+    """Datumswerte für den Zwischenstand als ISO-Text ablegen."""
+    if isinstance(wert, (datetime, date)):
+        return wert.isoformat()
+    raise TypeError(f'{type(wert).__name__} ist nicht JSON-serialisierbar')
+
+
+def _import_als_datum(wert):
+    if isinstance(wert, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', wert):
+        try:
+            return date.fromisoformat(wert)
+        except ValueError:
+            return None
+    return wert
+
+
+def _standort_index(bereiche):
+    """Zwei Register für die Standortauflösung im Import.
+
+    'lang' enthält den vollständigen Pfad ("Bereich › Unterbereich › Kind"),
+    'kurz' den namentlichen Unterbereich. Die Normalisierung entfernt
+    Trennzeichen und Umlaute, damit "Labor > Schrank 2", "Labor › Schrank 2"
+    und "Labor/Schrank 2" denselben Eintrag treffen.
+
+    Ein Kurzname, der in zwei Bereichen vorkommt, wird auf None gesetzt: Dann
+    ist die Angabe mehrdeutig und die Zeile bekommt einen Fehler, statt im
+    falschen Bereich zu landen.
+    """
+    lang = {}
+    kurz = {}
+    for bereich in bereiche:
+        unterbereiche = Unterbereich.query.filter_by(
+            bereich_id=bereich.id).all()
+        for unter in unterbereiche:
+            lang[import_gefahrstoffe.kopf_normalisieren(
+                unter.get_full_path())] = unter.id
+            schluessel = import_gefahrstoffe.kopf_normalisieren(unter.name)
+            if schluessel in kurz:
+                if kurz[schluessel] != unter.id:
+                    kurz[schluessel] = None
+            else:
+                kurz[schluessel] = unter.id
+    return lang, kurz
+
+
+def _standort_aufloeser(lang, kurz):
+    def aufloesen(text):
+        schluessel = import_gefahrstoffe.kopf_normalisieren(text)
+        if schluessel in lang:
+            return lang[schluessel], None
+        if schluessel in kurz and kurz[schluessel] is not None:
+            return kurz[schluessel], None
+        if schluessel in kurz:
+            return None, (f'Standort „{text}“ ist nicht eindeutig - bitte '
+                          'Bereich und Unterbereich angeben.')
+        return None, f'Standort „{text}“ wurde nicht gefunden.'
+    return aufloesen
+
+
+def _import_finde_duplikat(werte):
+    """Vorhandener Stoff am selben Standort, gleiche CAS-Nummer oder gleicher
+    Name.
+
+    Der Standort gehört zum Schlüssel: Derselbe Stoff in zwei Bereichen ist im
+    Verzeichnis ein normaler Fall (so arbeitet auch /copy), und ein Import in
+    einen zweiten Standort soll diesen Eintrag nicht als Dublette abtun.
+    """
+    ziel = werte.get('unterbereich_id')
+
+    def am_standort(abfrage):
+        if ziel is None:
+            return abfrage.filter(Gefahrstoff.unterbereich_id.is_(None))
+        return abfrage.filter(Gefahrstoff.unterbereich_id == ziel)
+
+    cas = (werte.get('cas_nummer') or '').strip()
+    if cas:
+        stoff = am_standort(
+            Gefahrstoff.query.filter(
+                Gefahrstoff.is_deleted == False,
+                db.func.lower(Gefahrstoff.cas_nummer) == cas.lower())
+        ).order_by(Gefahrstoff.id).first()
+        if stoff is not None:
+            return stoff
+
+    name = (werte.get('name') or '').strip()
+    if not name:
+        return None
+    return am_standort(
+        Gefahrstoff.query.filter(
+            Gefahrstoff.is_deleted == False,
+            db.func.lower(Gefahrstoff.name) == name.lower())
+    ).order_by(Gefahrstoff.id).first()
+
+
+def _import_neuer_stoff(werte):
+    """Baut den Gefahrstoff aus geprüften Werten - dieselben Felder wie /add."""
+    return Gefahrstoff(
+        name=werte.get('name'),
+        cas_nummer=werte.get('cas_nummer'),
+        eg_nummer=werte.get('eg_nummer'),
+        signalwort=werte.get('signalwort'),
+        piktogramme=werte.get('piktogramme'),
+        gefahrenkategorien=werte.get('gefahrenkategorien'),
+        h_saetze=werte.get('h_saetze'),
+        p_saetze=werte.get('p_saetze'),
+        lagerort=werte.get('lagerort'),
+        lagerklasse=werte.get('lagerklasse'),
+        menge=werte.get('menge'),
+        mengeneinheit=werte.get('mengeneinheit'),
+        sdb_datum=_import_als_datum(werte.get('sdb_datum')),
+        substitutionspruefung=werte.get('substitutionspruefung'),
+        ersatzstoff=werte.get('ersatzstoff'),
+        begruendung=werte.get('begruendung'),
+        substitution_geprueft_am=_import_als_datum(
+            werte.get('substitution_geprueft_am')),
+        unterbereich_id=werte.get('unterbereich_id'),
+        user_id=current_user.id,
+        # Dieselbe CMR-Regel wie in /add und /copy.
+        is_approved=not is_cmr_stoff(werte.get('h_saetze')),
+    )
+
+
+def _import_aktualisiere(stoff, werte):
+    """Füllt leere Felder eines vorhandenen Stoffes. Rückgabe: geändert?
+
+    Vorhandene Werte bleiben stehen - der Import ist keine Rückschreib-
+    funktion für das Verzeichnis. Das entspricht dem SDB-Import, der
+    Unterschiede nur als Konflikt anzeigt.
+    """
+    geaendert = False
+    neue_h_saetze = False
+    for feld in IMPORT_AKTUALISIERBARE_FELDER:
+        neuer_wert = werte.get(feld)
+        if feld in ('sdb_datum', 'substitution_geprueft_am'):
+            neuer_wert = _import_als_datum(neuer_wert)
+        if neuer_wert in (None, ''):
+            continue
+        alt = getattr(stoff, feld, None)
+        if alt not in (None, ''):
+            continue
+        setattr(stoff, feld, neuer_wert)
+        geaendert = True
+        if feld == 'h_saetze':
+            neue_h_saetze = True
+
+    # Wenn erst der Import H-Sätze ergänzt und diese einen CMR-Stoff ergeben,
+    # muss er vor der Sichtbarkeit freigegeben werden - sonst ließe sich die
+    # Freigabepflicht über einen Nachtrag umgehen.
+    if neue_h_saetze and is_cmr_stoff(stoff.h_saetze):
+        stoff.is_approved = False
+    return geaendert
+
+
+def _import_zeile_als_dict(zeile):
+    return {
+        'zeilennummer': zeile.zeilennummer,
+        'werte': zeile.werte,
+        'fehler': zeile.fehler,
+        'warnungen': zeile.warnungen,
+        'standort_text': zeile.standort_text,
+    }
+
+
+def _import_zeile_aus_dict(daten):
+    return import_gefahrstoffe.PruefZeile(
+        zeilennummer=daten.get('zeilennummer', 0),
+        werte=daten.get('werte', {}),
+        fehler=daten.get('fehler', []),
+        warnungen=daten.get('warnungen', []),
+        standort_text=daten.get('standort_text', ''),
+    )
+
+
+@app.route('/import', methods=['GET'])
+@login_required
+def import_seite():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+    return render_template('import.html', bereiche=get_accessible_bereiche(),
+                           vorschau=None, ziel_id=None)
+
+
+@app.route('/import', methods=['POST'])
+@login_required
+def import_vorschau():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+
+    datei = request.files.get('datei')
+    if not datei or not datei.filename:
+        flash('Bitte eine Datei auswählen.', 'error')
+        return redirect(url_for('import_seite'))
+
+    # Browser schicken je nach Herkunft einen Pfad mit ("C:\\fakepath\\...").
+    # Für Anzeige und Endung zählt nur der Dateiname.
+    anzeige_name = os.path.basename(datei.filename.replace('\\', '/'))
+    endung = (anzeige_name.rsplit('.', 1)[-1].lower()
+              if '.' in anzeige_name else '')
+    if endung not in import_gefahrstoffe.UNTERSTUETZTE_ENDUNGEN:
+        flash('Nur .xlsx und .csv werden unterstützt.', 'error')
+        return redirect(url_for('import_seite'))
+
+    bereiche = get_accessible_bereiche()
+    ziel_id, fehler = ziel_standort_pruefen(
+        request.form.get('unterbereich_id'), bereiche)
+    if fehler:
+        flash(fehler, 'error')
+        return redirect(url_for('import_seite'))
+
+    try:
+        tabelle = import_gefahrstoffe.lies_datei(datei.read(), anzeige_name)
+        zuordnung, unbekannt, doppelt = import_gefahrstoffe.erkenne_spalten(
+            tabelle.kopf)
+    except import_gefahrstoffe.ImportFehler as ausnahme:
+        flash(str(ausnahme), 'error')
+        return redirect(url_for('import_seite'))
+
+    lang, kurz = _standort_index(bereiche)
+    aufloesen = _standort_aufloeser(lang, kurz)
+    zeilen = []
+    for nummer, roh in import_gefahrstoffe.zeilen_als_dicts(tabelle, zuordnung):
+        zeilen.append(import_gefahrstoffe.pruefe_zeile(
+            roh, nummer, standort_aufloesen=aufloesen,
+            standard_standort_id=ziel_id, epoche=tabelle.epoche))
+
+    import_gefahrstoffe.markiere_duplikate(zeilen)
+
+    # Vorhandene Stoffe gleich mitschicken: Das ist die Information, die aus
+    # einer Liste einen Import macht, der nicht 200 Dubletten anlegt.
+    for zeile in zeilen:
+        if not zeile.gueltig:
+            continue
+        stoff = _import_finde_duplikat(zeile.werte)
+        if stoff is not None:
+            zeile.werte['vorhanden_id'] = stoff.id
+            zeile.werte['vorhanden_name'] = stoff.name
+            zeile.warnungen.append(
+                f'Bereits im Verzeichnis: „{stoff.name}“ (ID {stoff.id}).')
+
+    _import_aufraeumen()
+    token = secrets.token_urlsafe(24)
+    zwischenstand = {
+        'dateiname': anzeige_name,
+        'user_id': current_user.id,
+        'angelegt': datetime.utcnow().isoformat(),
+        'standard_standort_id': ziel_id,
+        'hinweise': tabelle.hinweise,
+        'unbekannt': unbekannt,
+        'doppelt': doppelt,
+        'zeilen': [_import_zeile_als_dict(z) for z in zeilen],
+    }
+    with open(_import_pfad(token), 'w', encoding='utf-8') as datei_obj:
+        json.dump(zwischenstand, datei_obj, ensure_ascii=False,
+                  default=_import_json_default)
+
+    return render_template(
+        'import.html', bereiche=bereiche, ziel_id=ziel_id,
+        vorschau={
+            'token': token,
+            'dateiname': anzeige_name,
+            'ziel_name': standort_text(ziel_id),
+            'hinweise': tabelle.hinweise,
+            'unbekannt': unbekannt,
+            'doppelt': doppelt,
+            'zeilen': zeilen,
+            'anzahl': len(zeilen),
+            'fehler_anzahl': sum(1 for z in zeilen if not z.gueltig),
+            'duplikat_anzahl': sum(
+                1 for z in zeilen
+                if z.gueltig and (z.werte.get('duplikat_von')
+                                  or z.werte.get('vorhanden_id'))),
+        })
+
+
+@app.route('/import/vorlage')
+@login_required
+def import_vorlage():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+    return send_file(
+        BytesIO(import_gefahrstoffe.vorlage_xlsx()),
+        download_name='gefahrstoffe_import_vorlage.xlsx',
+        as_attachment=True)
+
+
+@app.route('/import/bestaetigen', methods=['POST'])
+@login_required
+def import_bestaetigen():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+
+    token = request.form.get('token', '')
+    if not IMPORT_TOKEN_MUSTER.fullmatch(token):
+        flash('Der Import ist abgelaufen. Bitte die Datei erneut hochladen.',
+              'error')
+        return redirect(url_for('import_seite'))
+
+    pfad = _import_pfad(token)
+    try:
+        with open(pfad, encoding='utf-8') as datei_obj:
+            zwischenstand = json.load(datei_obj)
+    except (OSError, ValueError):
+        flash('Der Import ist abgelaufen. Bitte die Datei erneut hochladen.',
+              'error')
+        return redirect(url_for('import_seite'))
+
+    # Der Zwischenstand gehört dem Benutzer, der ihn erzeugt hat. Das Token
+    # allein soll nicht genügen, auch wenn es zufällig ist.
+    if zwischenstand.get('user_id') != current_user.id:
+        abort(403)
+
+    strategie = request.form.get('duplikate', 'ueberspringen')
+    if strategie not in ('ueberspringen', 'aktualisieren'):
+        strategie = 'ueberspringen'
+
+    rohdaten = zwischenstand.get('zeilen', [])
+    auswahl = set()
+    for wert in request.form.getlist('zeilen'):
+        try:
+            index = int(wert)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= index < len(rohdaten):
+            auswahl.add(index)
+
+    if not auswahl:
+        flash('Es wurde keine Zeile zum Import ausgewählt.', 'warning')
+        return redirect(url_for('import_seite'))
+
+    zugriff_ids = {b.id for b in get_accessible_bereiche()}
+    angelegt = aktualisiert = uebersprungen = abgelehnt = 0
+    cmr_angelegt = 0
+
+    try:
+        for index in sorted(auswahl):
+            daten = rohdaten[index]
+            zeile = _import_zeile_aus_dict(daten)
+            if not zeile.gueltig or zeile.werte.get('duplikat_von'):
+                uebersprungen += 1
+                continue
+
+            werte = zeile.werte
+            if not werte.get('name'):
+                abgelehnt += 1
+                continue
+
+            # Standort erneut prüfen: Zwischen Vorschau und Bestätigung können
+            # Bereiche gelöscht oder entzogen worden sein.
+            ziel = werte.get('unterbereich_id')
+            if ziel is not None:
+                unter = db.session.get(Unterbereich, ziel)
+                if unter is None or unter.bereich_id not in zugriff_ids:
+                    abgelehnt += 1
+                    continue
+
+            vorhanden = _import_finde_duplikat(werte)
+            if vorhanden is not None:
+                if strategie == 'ueberspringen':
+                    uebersprungen += 1
+                    continue
+                if _import_aktualisiere(vorhanden, werte):
+                    aktualisiert += 1
+                else:
+                    uebersprungen += 1
+                continue
+
+            db.session.add(_import_neuer_stoff(werte))
+            angelegt += 1
+            if is_cmr_stoff(werte.get('h_saetze')):
+                cmr_angelegt += 1
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Fehler beim Import')
+        flash('Der Import wurde abgebrochen, es wurde nichts gespeichert.',
+              'error')
+        return redirect(url_for('import_seite'))
+
+    # Erst nach dem Commit aufräumen: Scheitert der Import, bleibt der
+    # Zwischenstand für einen zweiten Versuch liegen (und läuft nach einer
+    # Stunde ohnehin aus).
+    try:
+        os.remove(pfad)
+    except OSError:
+        pass
+
+    log_audit_event('IMPORT', 'Gefahrstoff', None, {
+        'datei': zwischenstand.get('dateiname', ''),
+        'angelegt': angelegt,
+        'aktualisiert': aktualisiert,
+        'uebersprungen': uebersprungen,
+        'abgelehnt': abgelehnt,
+    })
+
+    teile = [f'{angelegt} angelegt']
+    if aktualisiert:
+        teile.append(f'{aktualisiert} aktualisiert')
+    if uebersprungen:
+        teile.append(f'{uebersprungen} übersprungen')
+    if abgelehnt:
+        teile.append(f'{abgelehnt} abgelehnt')
+    kategorie = 'success' if angelegt or aktualisiert else 'warning'
+    flash('Import abgeschlossen: ' + ', '.join(teile) + '.', kategorie)
+    if cmr_angelegt:
+        flash(f'{cmr_angelegt} CMR-Stoff(e) aus dem Import warten wie beim '
+              'Anlegen auf die Freigabe.', 'info')
+    return redirect(url_for('index'))
+
+
 # ─── Export ──────────────────────────────────────────────────────────────────
 
 @app.route('/export/excel')
@@ -2594,6 +3070,18 @@ def export_excel():
     data = []
     for s in stoffe:
         standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
+
+        # Getrennte Standortspalten für den Import. "Arbeitsbereich" bleibt
+        # unverändert (zwei Ebenen, für Menschen gedacht); die neuen Spalten
+        # tragen den vollständigen Pfad, sonst verlöre ein verschachtelter
+        # Unterbereich beim Reimport seine oberste Ebene.
+        if s.unterbereich:
+            pfad_teile = s.unterbereich.get_full_path().split(' › ')
+            bereich_name = pfad_teile[0]
+            unterbereich_pfad = ' › '.join(pfad_teile[1:])
+        else:
+            bereich_name = '-'
+            unterbereich_pfad = '-'
         
         piktos_str = ""
         if s.piktogramme:
@@ -2617,7 +3105,13 @@ def export_excel():
             'Datum SDB': s.sdb_datum.strftime('%d.%m.%Y') if s.sdb_datum else "-",
             'Substitutionsprüfung': s.substitutionspruefung,
             'Ersatzstoff': s.ersatzstoff,
-            'Begründung': s.begruendung
+            'Begründung': s.begruendung,
+            # Zusatzspalten, damit die exportierte Datei wieder importiert
+            # werden kann (siehe import_gefahrstoffe.py).
+            'Bereich': bereich_name,
+            'Unterbereich': unterbereich_pfad,
+            'Menge (Zahl)': s.menge,
+            'Einheit': s.mengeneinheit,
         })
     df = pd.DataFrame(data)
     output = BytesIO()

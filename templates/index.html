@@ -66,6 +66,9 @@
         </a>
         {% endif %}
         {% if current_user.can_write %}
+        <a href="{{ url_for('import_seite') }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-file-import" aria-hidden="true"></i> Import
+        </a>
         <a href="{{ url_for('add') }}" class="btn btn-primary btn-sm">
             <i class="fa-solid fa-plus"></i> Neuer Gefahrstoff
         </a>
