@@ -10,3 +10,7 @@ openwiki/
 *.log
 .env.*
 !.env.example
+
+# Claude Code: "nicht mehr fragen" speichert komplette Befehle inklusive
+# Passwörtern und Tokens als Freigabe. Gehört nie ins Repo.
+.claude/settings.local.json
