@@ -4,7 +4,7 @@
 # Sicherheit): Basis-Images bekommen Sicherheitsupdates nur ueber einen neuen
 # Digest, ein Pin allein haelt sie nicht frisch.
 # Python 3.13 statt 3.11, weil numpy >= 2.5 Python >= 3.12 verlangt.
-FROM python:3.13-slim@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb
+FROM python:3.15-slim@sha256:94d3426f1def7db4a106a232ac121bfd975393e5dfd40a619b955fae45fe7913
 
 # Arbeitsverzeichnis im Container festlegen
 WORKDIR /app
