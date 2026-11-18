@@ -117,7 +117,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.6.3"
+APP_VERSION = "2.6.4"
 
 @app.context_processor
 def inject_globals():
@@ -2756,8 +2756,11 @@ def _import_neuer_stoff(werte):
             werte.get('substitution_geprueft_am')),
         unterbereich_id=werte.get('unterbereich_id'),
         user_id=current_user.id,
-        # Dieselbe CMR-Regel wie in /add und /copy.
-        is_approved=not is_cmr_stoff(werte.get('h_saetze')),
+        # Dieselbe CMR-Regel wie in /add und /copy, ergänzt um die
+        # CMR-Kennzeichnung der Quelldatei: Eine Liste, die CMR selbst führt,
+        # nennt oft keine H-Sätze.
+        is_approved=not (is_cmr_stoff(werte.get('h_saetze'))
+                         or werte.get('cmr')),
     )
 
 
@@ -2770,6 +2773,7 @@ def _import_aktualisiere(stoff, werte):
     """
     geaendert = False
     neue_h_saetze = False
+    neue_cmr_angabe = bool(werte.get('cmr'))
     for feld in IMPORT_AKTUALISIERBARE_FELDER:
         neuer_wert = werte.get(feld)
         if feld in ('sdb_datum', 'substitution_geprueft_am'):
@@ -2787,9 +2791,28 @@ def _import_aktualisiere(stoff, werte):
     # Wenn erst der Import H-Sätze ergänzt und diese einen CMR-Stoff ergeben,
     # muss er vor der Sichtbarkeit freigegeben werden - sonst ließe sich die
     # Freigabepflicht über einen Nachtrag umgehen.
-    if neue_h_saetze and is_cmr_stoff(stoff.h_saetze):
-        stoff.is_approved = False
+    if ((neue_h_saetze and is_cmr_stoff(stoff.h_saetze))
+            or neue_cmr_angabe):
+        if stoff.is_approved:
+            stoff.is_approved = False
+            geaendert = True
     return geaendert
+
+
+def _import_zuordnung_anzeigen(tabelle, zuordnung):
+    """Spalte → Feld für die Vorschau, in der Reihenfolge der Datei.
+
+    Ohne diese Anzeige wäre bei einer fremden Datei nicht nachprüfbar, welche
+    Spalte die App als Namen, Standort oder Menge gelesen hat. Gerade weil
+    die Erkennung jetzt rät, muss das Ergebnis sichtbar sein.
+    """
+    anzeige = []
+    for feld, index in sorted(zuordnung.items(), key=lambda paar: paar[1]):
+        anzeige.append({
+            'spalte': import_gefahrstoffe.spaltenname(tabelle, index),
+            'feld': import_gefahrstoffe.FELDER[feld]['label'],
+        })
+    return anzeige
 
 
 def _import_zeile_als_dict(zeile):
@@ -2852,8 +2875,19 @@ def import_vorschau():
 
     try:
         tabelle = import_gefahrstoffe.lies_datei(datei.read(), anzeige_name)
-        zuordnung, unbekannt, doppelt = import_gefahrstoffe.erkenne_spalten(
-            tabelle.kopf)
+        zuordnung, _, _ = import_gefahrstoffe.erkenne_spalten(tabelle.kopf)
+        # Was die Kopfzeile nicht hergibt, wird aus dem Zelleninhalt bestimmt
+        # (CAS-Muster, H-Sätze, GHS-Codes, Textspalte als Name). Dateien mit
+        # fremden Beschriftungen und solche ganz ohne Kopfzeile werden damit
+        # lesbar, statt abgelehnt zu werden.
+        zuordnung, inhalt_hinweise = import_gefahrstoffe.ergaenze_aus_inhalt(
+            tabelle, zuordnung)
+        tabelle.hinweise.extend(inhalt_hinweise)
+        # Eine Spalte, die der Inhalt zugeordnet hat, ist nicht mehr
+        # "ignoriert" - die Liste wird deshalb aus der endgültigen Zuordnung
+        # neu gebildet.
+        unbekannt, doppelt = import_gefahrstoffe.spalten_bericht(
+            tabelle, zuordnung)
     except import_gefahrstoffe.ImportFehler as ausnahme:
         flash(str(ausnahme), 'error')
         return redirect(url_for('import_seite'))
@@ -2872,8 +2906,11 @@ def import_vorschau():
 
     # Vorhandene Stoffe gleich mitschicken: Das ist die Information, die aus
     # einer Liste einen Import macht, der nicht 200 Dubletten anlegt.
+    # Zusammengefasste und aufgebrauchte Zeilen werden nicht angelegt und
+    # brauchen deshalb auch keinen Vergleich mit dem Bestand.
     for zeile in zeilen:
-        if not zeile.gueltig:
+        if (not zeile.gueltig or zeile.werte.get('zusammengefasst_in')
+                or zeile.werte.get('aufgebraucht')):
             continue
         stoff = _import_finde_duplikat(zeile.werte)
         if stoff is not None:
@@ -2907,13 +2944,17 @@ def import_vorschau():
             'hinweise': tabelle.hinweise,
             'unbekannt': unbekannt,
             'doppelt': doppelt,
+            'zuordnung': _import_zuordnung_anzeigen(tabelle, zuordnung),
             'zeilen': zeilen,
             'anzahl': len(zeilen),
             'fehler_anzahl': sum(1 for z in zeilen if not z.gueltig),
+            'zusammengefasst_anzahl': sum(
+                1 for z in zeilen if z.werte.get('zusammengefasst_in')),
+            'aufgebraucht_anzahl': sum(
+                1 for z in zeilen if z.werte.get('aufgebraucht')),
             'duplikat_anzahl': sum(
                 1 for z in zeilen
-                if z.gueltig and (z.werte.get('duplikat_von')
-                                  or z.werte.get('vorhanden_id'))),
+                if z.gueltig and z.werte.get('vorhanden_id')),
             'standort_ersatz_anzahl': sum(
                 1 for z in zeilen if z.werte.get('standort_ersatz')),
         })
@@ -2978,13 +3019,20 @@ def import_bestaetigen():
 
     zugriff_ids = {b.id for b in get_accessible_bereiche()}
     angelegt = aktualisiert = uebersprungen = abgelehnt = 0
+    zusammengefasst = aufgebraucht = 0
     cmr_angelegt = 0
 
     try:
         for index in sorted(auswahl):
             daten = rohdaten[index]
             zeile = _import_zeile_aus_dict(daten)
-            if not zeile.gueltig or zeile.werte.get('duplikat_von'):
+            if zeile.werte.get('zusammengefasst_in'):
+                zusammengefasst += 1
+                continue
+            if zeile.werte.get('aufgebraucht'):
+                aufgebraucht += 1
+                continue
+            if not zeile.gueltig:
                 uebersprungen += 1
                 continue
 
@@ -3015,7 +3063,7 @@ def import_bestaetigen():
 
             db.session.add(_import_neuer_stoff(werte))
             angelegt += 1
-            if is_cmr_stoff(werte.get('h_saetze')):
+            if is_cmr_stoff(werte.get('h_saetze')) or werte.get('cmr'):
                 cmr_angelegt += 1
 
         db.session.commit()
@@ -3040,11 +3088,17 @@ def import_bestaetigen():
         'aktualisiert': aktualisiert,
         'uebersprungen': uebersprungen,
         'abgelehnt': abgelehnt,
+        'zusammengefasst': zusammengefasst,
+        'aufgebraucht': aufgebraucht,
     })
 
     teile = [f'{angelegt} angelegt']
     if aktualisiert:
         teile.append(f'{aktualisiert} aktualisiert')
+    if zusammengefasst:
+        teile.append(f'{zusammengefasst} Zeilen zu Gebinden zusammengefasst')
+    if aufgebraucht:
+        teile.append(f'{aufgebraucht} als aufgebraucht übersprungen')
     if uebersprungen:
         teile.append(f'{uebersprungen} übersprungen')
     if abgelehnt:

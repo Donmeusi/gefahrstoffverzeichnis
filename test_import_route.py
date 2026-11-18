@@ -116,6 +116,66 @@ class TestImportRouten(unittest.TestCase):
         with app.app_context():
             self.assertEqual(Gefahrstoff.query.count(), 0)
 
+    # Die Gebindeliste aus dem Nutzerbeispiel vom 18.11.2026: fremde
+    # Beschriftungen, mehrere Behälter je Stoff, CMR und Aufgebraucht.
+    GEBINDELISTE = (
+        'Gebinde-nummer;Produkt;Summenformel;Trivialname;Cas-Nummer;'
+        'Hersteller;Art. Nr.;Raum;Anmerkung;Aufgebraucht;CMR\n'
+        '1;Natriumhydroxid;NaOH;Ätznatron;1310-73-2;EMSURE;1.06498.0500;'
+        '205;ACS;nein;nein\n'
+        '2;Natriumhydroxid;NaOH;Ätznatron;1310-73-2;Chemapol;501420688;'
+        '205;k.A.;nein;nein\n'
+        '3;Borsäure;H3BO3;Borofax;10043-35-3;Roth;281307854;'
+        '205;96%;nein;ja\n'
+        '4;Aceton;C3H6O;Propanon;67-64-1;Roth;1.0001;'
+        '205;;ja;nein\n')
+
+    def test_fremde_spaltenstruktur_wird_angenommen(self):
+        a1_id, _, _ = self._umgebung()
+        self._login()
+
+        antwort, token = self._vorschau(self.GEBINDELISTE, a1_id)
+
+        html = antwort.get_data(as_text=True)
+        self.assertEqual(antwort.status_code, 200)
+        self.assertIsNotNone(token)
+        self.assertIn('Erkannte Spalten', html)
+        self.assertIn('Natriumhydroxid', html)
+        # Die Zuordnung nennt die Spalte, aus der der Name kommt.
+        self.assertIn('Produkt', html)
+
+    def test_gebindeliste_wird_zusammengefasst_und_uebernommen(self):
+        a1_id, _, _ = self._umgebung()
+        self._login()
+        _, token = self._vorschau(self.GEBINDELISTE, a1_id)
+
+        self._bestaetigen(token, zeilen=('0', '1', '2', '3'))
+
+        with app.app_context():
+            # Natriumhydroxid (zwei Gebinde), Borsäure - Aceton ist
+            # aufgebraucht und wird nicht angelegt.
+            self.assertEqual(Gefahrstoff.query.count(), 2)
+            natrium = Gefahrstoff.query.filter_by(
+                name='Natriumhydroxid').one()
+            self.assertEqual(natrium.lagerort, '205')
+            self.assertEqual(natrium.cas_nummer, '1310-73-2')
+            borsaeure = Gefahrstoff.query.filter_by(name='Borsäure').one()
+            # CMR aus der Spalte, ohne H-Sätze -> Freigabe nötig.
+            self.assertFalse(borsaeure.is_approved)
+            self.assertIsNone(Gefahrstoff.query.filter_by(
+                name='Aceton').first())
+
+    def test_datei_ohne_name_spalte_wird_gedeutet(self):
+        a1_id, _, _ = self._umgebung()
+        self._login()
+
+        antwort, token = self._vorschau(
+            'Artikelnummer;Preis\nA-1;5\nA-2;7\n', a1_id)
+
+        self.assertEqual(antwort.status_code, 200)
+        self.assertIsNotNone(token)
+        self.assertIn('anhand des Inhalts', antwort.get_data(as_text=True))
+
     def test_unbekannte_endung_wird_abgelehnt(self):
         self._umgebung()
         self._login()

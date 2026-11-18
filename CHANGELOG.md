@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.42 – Import toleranter gegenüber fremden Tabellen (November 2026, APP_VERSION 2.6.4)
+
+* **Fremde Beschriftungen werden gedeutet.** Alias-Liste um „Produkt“, „Raum“, „Gebinde-Nummer“ und weitere erweitert; zusätzlich greifen einzelne Wörter einer Beschriftung. Eine Datei mit „Produkt“ statt „Name“ wurde bisher vollständig abgelehnt.
+* **Rückfall über den Zellinhalt** (`ergaenze_aus_inhalt`): CAS-Muster, H-/P-Sätze, GHS-Codes und Signalwort werden erkannt, die überzeugendste Textspalte gilt als Stoffname. Tabellen ohne Kopfzeile werden gelesen. Welche Spalte was wurde, steht in der Vorschau unter „Erkannte Spalten“.
+* **Blattauswahl:** Alle Blätter werden bewertet, gelesen wird das passendste; die Kopfzeile wird bis Zeile 100 gesucht.
+* **Zeilenfehler sind Warnungen:** unbekanntes Piktogramm, unlesbare oder negative Menge, zu langer Name (wird gekürzt). Fehler bleiben nur bei fehlendem Namen und unauflösbarem Standort ohne Ziel.
+* **Spalten `CMR` und `Aufgebraucht`:** CMR aus der Quelle erzwingt die Freigabe auch ohne H-Sätze; aufgebrauchte Zeilen werden nicht angelegt.
+* **Gebinde statt Duplikate** (`markiere_duplikate`): gleicher Stoff am selben Standort und Lagerort wird zusammengefasst, Mengen gleicher Einheit addiert. Bisher fielen diese Zeilen als „doppelt“ weg.
+* Vorschau, Abschlussmeldung und Audit-Log zählen zusammengefasste und aufgebrauchte Zeilen. Gesamtstand 369 Tests.
+
 ### v3.41 – Import aus Excel und CSV (November 2026, APP_VERSION 2.6.3)
 
 * **Neu: `/import`** – Gefahrstoffe aus `.xlsx`, `.xlsm` oder `.csv` übernehmen. Zwei Schritte: Vorschau prüfen, dann bestätigen. Grenzen 5 MB und 5000 Zeilen, `.xls` wird abgelehnt.

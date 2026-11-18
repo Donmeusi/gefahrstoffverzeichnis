@@ -3151,6 +3151,25 @@ footer i { color: var(--primary-ink); }
 .search-header { margin-bottom: 0; flex: 0 1 300px; min-width: 0; }
 
 /* ============================================================
+   IMPORT: ERKANNTE SPALTEN
+   ============================================================ */
+/* Ein <details> ohne schwebendes Panel: Die Zuordnungstabelle kann 20 Zeilen
+   haben, das .column-picker-Panel waere dafuer zu klein. Der Marker wird
+   durch ein Dreieck ersetzt, damit das Auf- und Zuklappen sichtbar bleibt. */
+.import-zuordnung { margin: 0.75rem 0 1rem; }
+.import-zuordnung > summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--primary-ink);
+}
+.import-zuordnung > summary::-webkit-details-marker { display: none; }
+.import-zuordnung > summary::before { content: "\25B8\00A0\00A0"; }
+.import-zuordnung[open] > summary::before { content: "\25BE\00A0\00A0"; }
+.import-zuordnung .table-responsive { margin-top: 0.5rem; }
+
+/* ============================================================
    BEWEGUNG REDUZIEREN
    ============================================================ */
 /* Die Oberfläche bewegt sich an vielen Stellen: body läuft bei jedem

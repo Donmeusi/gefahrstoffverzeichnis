@@ -135,7 +135,7 @@ class TestLesen(unittest.TestCase):
         paare = imp.zeilen_als_dicts(tabelle, {'name': 0})
         self.assertEqual([nummer for nummer, _ in paare], [2, 4])
 
-    def test_nur_erstes_blatt_mit_hinweis(self):
+    def test_mehrere_blaetter_mit_hinweis(self):
         daten = xlsx_bytes([['Name'], ['Aceton']])
         # Zweites Blatt ergänzen
         wb = load_workbook(io.BytesIO(daten))
@@ -146,10 +146,52 @@ class TestLesen(unittest.TestCase):
         tabelle = imp.lies_datei(puffer.getvalue(), 'test.xlsx')
         self.assertTrue(any('Blatt' in h for h in tabelle.hinweise))
 
-    def test_fehlende_name_spalte_ist_ein_fehler(self):
-        with self.assertRaises(imp.ImportFehler) as kontext:
-            tabelle_aus([['Artikelnummer', 'Preis'], ['A-1', '5']])
-        self.assertIn('Kopfzeile', str(kontext.exception))
+    def test_deckblatt_vor_der_tabelle_wird_uebersprungen(self):
+        """Das Datenblatt muss nicht das erste sein (Nutzerbeispiel 18.11.2026)."""
+        arbeitsmappe = Workbook()
+        deckblatt = arbeitsmappe.active
+        deckblatt.title = 'Deckblatt'
+        deckblatt.append(['Gefahrstoffverzeichnis'])
+        deckblatt.append(['Stand: November 2026'])
+        blatt = arbeitsmappe.create_sheet('Verzeichnis')
+        blatt.append(['Produkt', 'CAS-Nummer'])
+        blatt.append(['Aceton', '67-64-1'])
+        puffer = io.BytesIO()
+        arbeitsmappe.save(puffer)
+
+        tabelle = imp.lies_datei(puffer.getvalue(), 'test.xlsx')
+        self.assertEqual(tabelle.kopf, ['Produkt', 'CAS-Nummer'])
+        self.assertEqual(tabelle.zeilen, [['Aceton', '67-64-1']])
+        self.assertTrue(any('Verzeichnis' in h for h in tabelle.hinweise))
+
+    def test_fehlende_name_spalte_wird_aus_dem_inhalt_gedeutet(self):
+        """Ohne Namen-Spalte wird die Datei gedeutet, nicht abgelehnt."""
+        tabelle = tabelle_aus([['Artikelnummer', 'Preis'],
+                               ['A-1', '5'],
+                               ['A-2', '7']])
+        zuordnung, unbekannt, _ = imp.erkenne_spalten(tabelle.kopf)
+        zuordnung, hinweise = imp.ergaenze_aus_inhalt(tabelle, zuordnung)
+        unbekannt, _ = imp.spalten_bericht(tabelle, zuordnung)
+
+        self.assertEqual(zuordnung.get('name'), 0)
+        self.assertTrue(any('Inhalts' in h for h in hinweise))
+        self.assertEqual(unbekannt, ['Preis'])
+
+    def test_datei_ohne_kopfzeile_wird_gelesen(self):
+        """Eine reine Datenliste ohne Beschriftung ist kein Fehler mehr."""
+        tabelle = tabelle_aus([
+            ['Aceton', '67-64-1', '5'],
+            ['Toluol', '108-88-3', '2'],
+        ])
+        zuordnung, _, _ = imp.erkenne_spalten(tabelle.kopf)
+        zuordnung, _ = imp.ergaenze_aus_inhalt(tabelle, zuordnung)
+
+        self.assertEqual(tabelle.kopf, [])
+        self.assertEqual(zuordnung.get('name'), 0)
+        self.assertEqual(zuordnung.get('cas_nummer'), 1)
+        # Beide Zeilen sind Daten - die erste darf nicht als Kopfzeile gelten.
+        self.assertEqual(len(tabelle.zeilen), 2)
+        self.assertEqual(tabelle.erste_zeile, 1)
 
     def test_alte_xls_datei_wird_abgelehnt(self):
         with self.assertRaises(imp.ImportFehler) as kontext:
@@ -170,6 +212,89 @@ class TestLesen(unittest.TestCase):
         self.assertIn('MB', str(kontext.exception))
 
 
+class TestFremdeStrukturen(unittest.TestCase):
+    """Dateien, die dem eigenen Spaltenkatalog nicht folgen (18.11.2026).
+
+    Vorlage ist die Gebindeliste des Nutzers: "Produkt" statt "Name", "Raum"
+    statt "Lagerort", dazu CMR und "Aufgebraucht". Eine solche Datei wurde
+    vorher vollständig abgelehnt.
+    """
+
+    KOPF = ['Gebinde-nummer', 'Produkt', 'Summenformel', 'Trivialname',
+            'Cas-Nummer', 'Hersteller', 'Art. Nr.', 'Raum', 'Anmerkung',
+            'Aufgebraucht', 'CMR']
+
+    ZEILEN = [
+        [1, 'Natriumhydroxid', 'NaOH', 'Ätznatron', '1310-73-2', 'EMSURE',
+         '1.06498.0500', '205', '≥ 99%, p.a., ACS', 'nein', 'nein'],
+        [2, 'Natriumhydroxid', 'NaOH', 'Ätznatron', '1310-73-2', 'Chemapol',
+         '501420688', 'Gefahrenlager', 'k.A.', 'nein', 'nein'],
+        [3, 'Borsäure', 'H3BO3', 'Borofax', '10043-35-3', 'Roth',
+         '281307854', '205', '96%', 'nein', 'ja'],
+        [4, 'Borsäure', 'H3BO3', 'Borofax', '10043-35-3', 'Germed DDR',
+         'k.A.', '205', '0,1 mol', 'nein', 'ja'],
+        [5, 'Aceton', 'C3H6O', 'Propanon', '67-64-1', 'Roth', '1.0001',
+         '205', '', 'ja', 'nein'],
+    ]
+
+    def tabelle(self):
+        return tabelle_aus([self.KOPF] + self.ZEILEN)
+
+    def zeilen(self):
+        tabelle = self.tabelle()
+        zuordnung, _, _ = imp.erkenne_spalten(tabelle.kopf)
+        return [imp.pruefe_zeile(roh, nummer) for nummer, roh
+                in imp.zeilen_als_dicts(tabelle, zuordnung)]
+
+    def test_spalten_werden_erkannt(self):
+        tabelle = self.tabelle()
+        zuordnung, unbekannt, _ = imp.erkenne_spalten(tabelle.kopf)
+
+        self.assertEqual(tabelle.kopf[zuordnung['name']], 'Produkt')
+        self.assertEqual(tabelle.kopf[zuordnung['cas_nummer']], 'Cas-Nummer')
+        self.assertEqual(tabelle.kopf[zuordnung['lagerort']], 'Raum')
+        self.assertEqual(tabelle.kopf[zuordnung['cmr']], 'CMR')
+        self.assertEqual(tabelle.kopf[zuordnung['aufgebraucht']],
+                         'Aufgebraucht')
+        self.assertIn('Summenformel', unbekannt)
+        self.assertIn('Hersteller', unbekannt)
+
+    def test_zeilen_werden_gelesen(self):
+        zeilen = self.zeilen()
+
+        self.assertTrue(all(zeile.gueltig for zeile in zeilen))
+        self.assertEqual(zeilen[0].werte['name'], 'Natriumhydroxid')
+        self.assertEqual(zeilen[0].werte['lagerort'], '205')
+        self.assertEqual(zeilen[2].werte['cmr'], True)
+        self.assertEqual(zeilen[4].status, 'aufgebraucht')
+
+    def test_gebinde_werden_zusammengefasst(self):
+        """Borsäure steht zweimal im selben Raum - ein Eintrag, zwei Gebinde."""
+        zeilen = self.zeilen()
+        imp.markiere_duplikate(zeilen)
+
+        self.assertEqual(zeilen[2].werte['anzahl_gebinde'], 2)
+        self.assertEqual(zeilen[3].werte['zusammengefasst_in'], 4)
+        # Natriumhydroxid steht in zwei Räumen - bleibt getrennt.
+        self.assertNotIn('anzahl_gebinde', zeilen[0].werte)
+        self.assertNotIn('anzahl_gebinde', zeilen[1].werte)
+
+    def test_stichwort_im_kopf_genuegt(self):
+        """Zusatzwörter in der Beschriftung dürfen den Treffer nicht kippen."""
+        zuordnung, unbekannt, _ = imp.erkenne_spalten(
+            ['Produktbezeichnung nach CLP', 'Raum-Nr.', 'Kostenstelle'])
+        self.assertEqual(zuordnung.get('name'), 0)
+        self.assertEqual(zuordnung.get('lagerort'), 1)
+        self.assertEqual(unbekannt, ['Kostenstelle'])
+
+    def test_widerspruechliches_stichwort_wird_nicht_geraten(self):
+        """Trifft ein Wort zwei Felder, bleibt die Spalte unbestimmt."""
+        zuordnung, unbekannt, _ = imp.erkenne_spalten(['Ort Menge'])
+        self.assertNotIn('standort', zuordnung)
+        self.assertNotIn('menge', zuordnung)
+        self.assertIn('Ort Menge', unbekannt)
+
+
 class TestWerte(unittest.TestCase):
 
     def test_menge_mit_einheit_in_einer_zelle(self):
@@ -187,14 +312,18 @@ class TestWerte(unittest.TestCase):
         self.assertEqual(zeile.werte['menge'], 5.0)
         self.assertTrue(any('ohne Einheit' in w for w in zeile.warnungen))
 
-    def test_unlesbare_menge_ist_ein_fehler(self):
+    def test_unlesbare_menge_ist_eine_warnung(self):
+        """Seit 18.11.2026: Die Zeile bleibt importierbar, die Menge fehlt."""
         zeile = pruefe({'name': 'Aceton', 'menge': 'viel'})
-        self.assertFalse(zeile.gueltig)
-        self.assertTrue(any('keine Zahl' in f for f in zeile.fehler))
+        self.assertTrue(zeile.gueltig)
+        self.assertIsNone(zeile.werte['menge'])
+        self.assertTrue(any('keine Zahl' in w for w in zeile.warnungen))
 
-    def test_negative_menge_ist_ein_fehler(self):
+    def test_negative_menge_wird_verworfen(self):
         zeile = pruefe({'name': 'Aceton', 'menge': '-1'})
-        self.assertFalse(zeile.gueltig)
+        self.assertTrue(zeile.gueltig)
+        self.assertIsNone(zeile.werte['menge'])
+        self.assertTrue(any('negativ' in w for w in zeile.warnungen))
 
     def test_einheit_aus_spalte_gewinnt(self):
         zeile = pruefe({'name': 'Aceton', 'menge': '4,5 kg',
@@ -244,10 +373,12 @@ class TestWerte(unittest.TestCase):
                         'piktogramme': 'GHS 08; ghs-07'})
         self.assertEqual(zeile.werte['piktogramme'], 'GHS07,GHS08')
 
-    def test_unbekanntes_piktogramm_ist_ein_fehler(self):
+    def test_unbekanntes_piktogramm_ist_eine_warnung(self):
+        """Es wird nicht übernommen, die Zeile bleibt aber importierbar."""
         zeile = pruefe({'name': 'Aceton', 'piktogramme': 'GHS10'})
-        self.assertFalse(zeile.gueltig)
-        self.assertTrue(any('GHS01 bis GHS09' in f for f in zeile.fehler))
+        self.assertTrue(zeile.gueltig)
+        self.assertIsNone(zeile.werte['piktogramme'])
+        self.assertTrue(any('GHS01 bis GHS09' in w for w in zeile.warnungen))
 
     def test_signalwort_wird_normalisiert(self):
         zeile = pruefe({'name': 'Aceton', 'signalwort': 'achtung!'})
@@ -279,9 +410,11 @@ class TestWerte(unittest.TestCase):
         self.assertEqual(len(zeile.werte['gefahrenkategorien']), 500)
         self.assertTrue(any('gekürzt' in w for w in zeile.warnungen))
 
-    def test_zu_langer_name_ist_ein_fehler(self):
+    def test_zu_langer_name_wird_gekuerzt(self):
         zeile = pruefe({'name': 'x' * 101})
-        self.assertFalse(zeile.gueltig)
+        self.assertTrue(zeile.gueltig)
+        self.assertEqual(len(zeile.werte['name']), 100)
+        self.assertTrue(any('gekürzt' in w for w in zeile.warnungen))
 
     def test_cas_format_warnt(self):
         zeile = pruefe({'name': 'Aceton', 'cas_nummer': '67641'})
@@ -372,7 +505,8 @@ class TestStandort(unittest.TestCase):
 
 class TestDuplikate(unittest.TestCase):
 
-    def test_gleiche_cas_wird_markiert(self):
+    def test_gleiche_cas_wird_zusammengefasst(self):
+        """Gebindelisten führen denselben Stoff mehrfach - kein Datenverlust."""
         zeilen = [
             pruefe({'name': 'Aceton', 'cas_nummer': '67-64-1'}),
             pruefe({'name': 'Aceton technisch', 'cas_nummer': '67-64-1'}),
@@ -380,9 +514,46 @@ class TestDuplikate(unittest.TestCase):
         anzahl = imp.markiere_duplikate(zeilen)
 
         self.assertEqual(anzahl, 1)
-        self.assertNotIn('duplikat_von', zeilen[0].werte)
-        self.assertEqual(zeilen[1].werte['duplikat_von'], 2)
-        self.assertEqual(zeilen[1].status, 'duplikat')
+        self.assertEqual(zeilen[0].werte['anzahl_gebinde'], 2)
+        self.assertEqual(zeilen[0].werte['zusammengefasst_aus'], [2])
+        self.assertEqual(zeilen[1].werte['zusammengefasst_in'], 2)
+        self.assertEqual(zeilen[1].status, 'zusammengefasst')
+
+    def test_mengen_gleicher_einheit_werden_addiert(self):
+        zeilen = [
+            pruefe({'name': 'Aceton', 'menge': '2', 'mengeneinheit': 'L'}),
+            pruefe({'name': 'Aceton', 'menge': '3', 'mengeneinheit': 'L'}),
+        ]
+        imp.markiere_duplikate(zeilen)
+        self.assertEqual(zeilen[0].werte['menge'], 5.0)
+        self.assertEqual(zeilen[0].werte['mengeneinheit'], 'L')
+
+    def test_mengen_verschiedener_einheit_werden_nicht_addiert(self):
+        zeilen = [
+            pruefe({'name': 'Aceton', 'menge': '2', 'mengeneinheit': 'L'}),
+            pruefe({'name': 'Aceton', 'menge': '3', 'mengeneinheit': 'kg'}),
+        ]
+        imp.markiere_duplikate(zeilen)
+        self.assertEqual(zeilen[0].werte['menge'], 2.0)
+        self.assertTrue(any('nicht addiert' in w for w in zeilen[0].warnungen))
+
+    def test_verschiedene_lagerorte_werden_nicht_zusammengefasst(self):
+        """Raum 205 und Gefahrenlager sind zwei Behälterplätze."""
+        zeilen = [
+            pruefe({'name': 'Natriumhydroxid', 'cas_nummer': '1310-73-2',
+                    'lagerort': '205'}),
+            pruefe({'name': 'Natriumhydroxid', 'cas_nummer': '1310-73-2',
+                    'lagerort': 'Gefahrenlager'}),
+        ]
+        self.assertEqual(imp.markiere_duplikate(zeilen), 0)
+
+    def test_aufgebrauchte_zeilen_werden_nicht_zusammengefasst(self):
+        zeilen = [
+            pruefe({'name': 'Aceton'}),
+            pruefe({'name': 'Aceton', 'aufgebraucht': 'ja'}),
+        ]
+        self.assertEqual(imp.markiere_duplikate(zeilen), 0)
+        self.assertEqual(zeilen[1].status, 'aufgebraucht')
 
     def test_gleicher_stoff_an_zwei_standorten_ist_kein_duplikat(self):
         """Derselbe Stoff in zwei Bereichen ist im Verzeichnis zulässig."""

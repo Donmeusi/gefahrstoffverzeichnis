@@ -20,11 +20,21 @@ Drei Fallen, die den Aufbau bestimmen:
   deshalb einzeln und nachsichtig gelesen; abgelehnt wird eine Zeile nur,
   wenn ein Pflichtfeld fehlt oder ein Wert nicht deutbar ist.
 
+Eine vierte Regel seit 18.11.2026: **Eine fremde Struktur ist kein Fehler.**
+Selbst geführte Gebindelisten heißen "Produkt" statt "Name", "Raum" statt
+"Lagerort" und führen CMR und aufgebrauchte Behälter in eigenen Spalten.
+Deshalb: das beste Blatt statt des ersten, die Kopfzeile auch weiter unten,
+Stichwörter in der Beschriftung, und wenn das alles nicht trifft, der
+Zellinhalt (CAS-Muster, H-Sätze, GHS-Codes, Textspalte als Name). Abgelehnt
+wird nur, was gar keine Tabelle ist.
+
 Aufbau:
   lies_datei()        Bytes -> RohTabelle (Kopfzeile + Zeilen, alles Rohwerte)
   erkenne_spalten()   Kopfzeile -> {feld: Spaltenindex}
+  ergaenze_aus_inhalt() fehlende Spalten aus den Zellwerten bestimmen
+  spalten_bericht()   unbekannte und doppelte Spalten für die Vorschau
   pruefe_zeile()      Rohwerte einer Zeile -> PrüfZeile (Werte/Fehler/Warnungen)
-  markiere_duplikate() Duplikate innerhalb der Datei kennzeichnen
+  markiere_duplikate() gleiche Stoffe am selben Ort zu Gebinden zusammenfassen
   vorlage_xlsx()      Importvorlage als XLSX
 
 Geprüft in test_import.py.
@@ -103,51 +113,64 @@ _WAHRHEIT = {
 FELDER = {
     'name': {
         'label': 'Name', 'pflicht': True, 'laenge': 100,
-        'aliase': ('Name', 'Stoff', 'Stoffname', 'Bezeichnung',
-                   'Produktname', 'Handelsname', 'Stoffbezeichnung'),
+        # "Produkt" ist die gebräuchlichste Beschriftung in selbst geführten
+        # Gebindelisten und war der Grund, warum solche Dateien bisher
+        # vollständig abgelehnt wurden (Nutzerbeispiel 18.11.2026).
+        'aliase': ('Name', 'Stoff', 'Stoffname', 'Stoff-/Produktname',
+                   'Stoff/Produkt', 'Stoffname / Produktname',
+                   'Bezeichnung', 'Produkt', 'Produktname',
+                   'Produktbezeichnung', 'Produktidentifikator',
+                   'Handelsname', 'Handelsname (Produkt)', 'Stoffbezeichnung',
+                   'Name des Stoffes', 'Substanz', 'Chemikalie',
+                   'Chemikalienname', 'Reagenz', 'Präparat', 'Material'),
     },
     'cas_nummer': {
         'label': 'CAS-Nummer', 'laenge': 20,
         'aliase': ('CAS-Nummer', 'CAS', 'CAS-Nr.', 'CAS-Nr', 'CAS-No',
-                   'CAS-Nr', 'CAS Registry Number', 'CAS RN'),
+                   'CAS-Nr', 'CAS Registry Number', 'CAS RN', 'CAS Number',
+                   'CAS-#', 'CAS ID'),
     },
     'eg_nummer': {
         'label': 'EG-Nummer', 'laenge': 20,
         'aliase': ('EG-Nummer', 'EG-Nr.', 'EG-Nr', 'EG-No', 'EG',
-                   'EC-Nummer', 'EC-Nr.', 'EC-No', 'EC', 'EINECS',
-                   'EINECS-Nummer'),
+                   'EC-Nummer', 'EC-Nr.', 'EC-No', 'EC', 'EC Number',
+                   'EINECS', 'EINECS-Nummer', 'ELINCS'),
     },
     'signalwort': {
         'label': 'Signalwort', 'laenge': 10,
-        'aliase': ('Signalwort', 'Signal Word'),
+        'aliase': ('Signalwort', 'Signal Word', 'Gefahrensignal'),
     },
     'piktogramme': {
         'label': 'Piktogramme', 'laenge': 100,
         'aliase': ('Piktogramme', 'Piktogramm', 'Piktos',
-                   'GHS-Piktogramme'),
+                   'GHS-Piktogramme', 'Gefahrenpiktogramme', 'GHS-Symbole',
+                   'Hazard Pictograms'),
     },
     'gefahrenkategorien': {
         'label': 'Einstufung & Gefahren', 'laenge': 500,
         'aliase': ('Einstufung & Gefahren', 'Einstufung', 'Einstufung GHS',
-                   'Einstufung und Gefahren', 'Gefahrenkategorien',
-                   'Gefahrenklassen', 'GHS-Klassifizierung',
+                   'Einstufung und Gefahren', 'Einstufung (CLP)',
+                   'Gefahrenkategorien', 'Gefahrenklassen',
+                   'Gefahrenklasse', 'GHS-Klassifizierung',
                    'Classification'),
     },
     'h_saetze': {
         'label': 'H-Sätze', 'laenge': 200,
         'aliase': ('H-Sätze', 'H-Saetze', 'H-Satz', 'H-Saetz',
-                   'H-Gefahrenhinweise', 'H-Statements',
-                   'Hazard Statements', 'H-Codes'),
+                   'H-Gefahrenhinweise', 'H-Statements', 'H Statements',
+                   'Hazard Statements', 'H-Codes', 'Gefahrenhinweise'),
     },
     'p_saetze': {
         'label': 'P-Sätze', 'laenge': 300,
         'aliase': ('P-Sätze', 'P-Saetze', 'P-Satz', 'P-Saetz',
                    'P-Sicherheitshinweise', 'P-Statements',
-                   'Precautionary Statements', 'P-Codes'),
+                   'P Statements', 'Precautionary Statements', 'P-Codes',
+                   'Sicherheitshinweise'),
     },
     'menge': {
         'label': 'Menge', 'laenge': None,
-        'aliase': ('Menge', 'Bestand', 'Quantity', 'Amount',
+        'aliase': ('Menge', 'Bestand', 'Füllmenge', 'Inhalt',
+                   'Quantity', 'Amount', 'Volumen',
                    # Zusatzspalte des Excel-Exports: gleiche Bedeutung, nur
                    # ohne Einheit. Welche der beiden gewinnt, ist egal - die
                    # Einheit kommt in beiden Fällen richtig an.
@@ -156,21 +179,24 @@ FELDER = {
     'mengeneinheit': {
         'label': 'Einheit', 'laenge': 10,
         'aliase': ('Einheit', 'Mengeneinheit', 'Maßeinheit',
-                   'Masseinheit', 'Unit'),
+                   'Masseinheit', 'Unit', 'ME'),
     },
     'lagerort': {
         'label': 'Lagerort', 'laenge': 100,
         'aliase': ('Lagerort', 'Lagerplatz', 'Regal', 'Schrank',
-                   'Detailstandort'),
+                   'Detailstandort', 'Raum', 'Raumnummer', 'Raum-Nr.',
+                   'Raumname', 'Lagerraum', 'Fach', 'Aufstellungsort',
+                   'Ort im Raum'),
     },
     'lagerklasse': {
         'label': 'Lagerklasse', 'laenge': 10,
         'aliase': ('Lagerklasse', 'LGK', 'LGK-Klasse', 'TRGS 510',
-                   'Storage Class'),
+                   'Lagerklasse (TRGS 510)', 'Storage Class'),
     },
     'bereich': {
         'label': 'Bereich', 'laenge': 100,
-        'aliase': ('Bereich', 'Bereichsname'),
+        'aliase': ('Bereich', 'Bereichsname', 'Abteilung',
+                   'Organisationseinheit'),
     },
     'unterbereich': {
         'label': 'Unterbereich', 'laenge': 200,
@@ -182,7 +208,8 @@ FELDER = {
         # genau das in die Spalte "Arbeitsbereich", damit ist der Rundlauf
         # möglich, ohne dass jemand zwei Spalten nachtragen muss.
         'label': 'Standort (Bereich › Unterbereich)', 'laenge': 300,
-        'aliase': ('Standort', 'Arbeitsbereich', 'Ort', 'Location'),
+        'aliase': ('Standort', 'Arbeitsbereich', 'Ort', 'Location',
+                   'Aufstellungsort (Bereich)'),
     },
     'sdb_datum': {
         'label': 'SDB-Datum', 'laenge': None,
@@ -207,6 +234,31 @@ FELDER = {
         'aliase': ('Substitutionsprüfung geprüft am',
                    'Substitutionspruefung geprueft am',
                    'Geprüft am', 'Datum Substitutionsprüfung'),
+    },
+    # Drei Spalten, die es in der Datenbank nicht gibt, die aber das Ergebnis
+    # des Imports ändern. Sie stehen deshalb im Katalog und nicht bei den
+    # ignorierten Spalten.
+    'cmr': {
+        # Eine Quelle, die CMR selbst führt, darf nicht erst durch die
+        # H-Satz-Ableitung als CMR gelten - sonst wäre der Stoff sofort
+        # sichtbar, obwohl eine Freigabe nötig ist.
+        'label': 'CMR-Stoff', 'laenge': None,
+        'aliase': ('CMR', 'CMR-Stoff', 'CMR ja/nein', 'CMR-Einstufung',
+                   'Krebserzeugend', 'CMR-Stoff (ja/nein)'),
+    },
+    'aufgebraucht': {
+        # Gebindelisten führen aufgebrauchte Behälter mit. Die Zeile bleibt
+        # in der Vorschau sichtbar, wird aber nicht angelegt.
+        'label': 'Aufgebraucht', 'laenge': None,
+        'aliase': ('Aufgebraucht', 'Verbraucht', 'Entnommen', 'Leer',
+                   'Bestand aufgebraucht', 'Aufgebraucht (ja/nein)'),
+    },
+    'gebinde': {
+        # Nur für die Zusammenfassung: Mehrere Zeilen desselben Stoffes am
+        # selben Ort sind mehrere Gebinde, kein Duplikat.
+        'label': 'Gebinde-Nummer', 'laenge': 50,
+        'aliase': ('Gebinde-Nummer', 'Gebindenummer', 'Gebinde-Nr.',
+                   'Gebindenr.', 'Gebinde', 'Gebinde-ID'),
     },
 }
 
@@ -293,7 +345,11 @@ class PruefZeile:
     def status(self):
         if self.fehler:
             return 'fehler'
-        if self.werte.get('duplikat_von') or self.werte.get('vorhanden_id'):
+        if self.werte.get('aufgebraucht'):
+            return 'aufgebraucht'
+        if self.werte.get('zusammengefasst_in'):
+            return 'zusammengefasst'
+        if self.werte.get('vorhanden_id'):
             return 'duplikat'
         if self.warnungen:
             return 'warnung'
@@ -324,6 +380,83 @@ for _schluessel, _angabe in FELDER.items():
         _ALIASE.setdefault(kopf_normalisieren(_alias), _schluessel)
 del _schluessel, _angabe, _alias
 
+# Zweite Stufe: einzelne Wörter einer Beschriftung. Sie greift nur, wenn die
+# vollständige Beschriftung keinen Alias trifft - "Produktidentifikator nach
+# CLP" oder "Raum-Nr." sollen nicht an der Schreibweise scheitern. Ein Wort,
+# das auf zwei Felder passt, ordnet nichts zu: Raten wäre hier schlimmer als
+# eine gemeldete Spalte.
+_STICHWOERTER = {}
+for _wort, _feld in (
+    ('produkt', 'name'), ('produktname', 'name'),
+    ('produktbezeichnung', 'name'), ('produktidentifikator', 'name'),
+    ('stoff', 'name'), ('stoffname', 'name'), ('stoffbezeichnung', 'name'),
+    ('substanz', 'name'), ('handelsname', 'name'), ('chemikalienname', 'name'),
+    ('bezeichnung', 'name'), ('chemikalie', 'name'), ('reagenz', 'name'),
+    ('praeparat', 'name'), ('material', 'name'), ('gefahrstoff', 'name'),
+    ('cas', 'cas_nummer'), ('casnummer', 'cas_nummer'),
+    ('ec', 'eg_nummer'), ('einecs', 'eg_nummer'),
+    ('signalwort', 'signalwort'), ('signal', 'signalwort'),
+    ('piktogramm', 'piktogramme'), ('piktos', 'piktogramme'),
+    ('symbol', 'piktogramme'), ('symbole', 'piktogramme'),
+    ('ghs', 'piktogramme'),
+    ('hsaetze', 'h_saetze'), ('hsatz', 'h_saetze'),
+    ('gefahrenhinweis', 'h_saetze'), ('gefahrenhinweise', 'h_saetze'),
+    ('psaetze', 'p_saetze'), ('psatz', 'p_saetze'),
+    ('sicherheitshinweis', 'p_saetze'),
+    ('sicherheitshinweise', 'p_saetze'),
+    ('menge', 'menge'), ('bestand', 'menge'), ('fuellmenge', 'menge'),
+    ('inhalt', 'menge'), ('volumen', 'menge'), ('quantity', 'menge'),
+    ('amount', 'menge'),
+    ('einheit', 'mengeneinheit'), ('mengeneinheit', 'mengeneinheit'),
+    ('masseinheit', 'mengeneinheit'), ('unit', 'mengeneinheit'),
+    ('raum', 'lagerort'), ('raumnummer', 'lagerort'), ('raumname', 'lagerort'),
+    ('lagerort', 'lagerort'), ('lagerplatz', 'lagerort'),
+    ('lagerraum', 'lagerort'), ('schrank', 'lagerort'), ('regal', 'lagerort'),
+    ('fach', 'lagerort'), ('detailstandort', 'lagerort'),
+    ('lagerklasse', 'lagerklasse'), ('lgk', 'lagerklasse'),
+    ('bereich', 'bereich'), ('abteilung', 'bereich'),
+    ('unterbereich', 'unterbereich'), ('arbeitsbereich', 'unterbereich'),
+    ('standort', 'standort'), ('ort', 'standort'),
+    ('location', 'standort'),
+    ('einstufung', 'gefahrenkategorien'),
+    ('gefahrenklasse', 'gefahrenkategorien'),
+    ('gefahrenklassen', 'gefahrenkategorien'),
+    ('gefahrenkategorien', 'gefahrenkategorien'),
+    ('sdb', 'sdb_datum'), ('sicherheitsdatenblatt', 'sdb_datum'),
+    ('substitution', 'substitutionspruefung'),
+    ('substitutionspruefung', 'substitutionspruefung'),
+    ('ersatzstoff', 'ersatzstoff'), ('alternativstoff', 'ersatzstoff'),
+    ('substitut', 'ersatzstoff'), ('begruendung', 'begruendung'),
+    ('cmr', 'cmr'), ('krebserzeugend', 'cmr'), ('mutagen', 'cmr'),
+    ('reproduktionstoxisch', 'cmr'),
+    ('aufgebraucht', 'aufgebraucht'), ('verbraucht', 'aufgebraucht'),
+    ('entnommen', 'aufgebraucht'),
+    ('gebinde', 'gebinde'), ('gebindenummer', 'gebinde'),
+):
+    _STICHWOERTER.setdefault(kopf_normalisieren(_wort), _feld)
+del _wort, _feld
+
+
+def _woerter(text):
+    """Einzelwörter einer Beschriftung, umlautfrei und kleingeschrieben."""
+    wert = str(text if text is not None else '').strip().casefold()
+    for zeichen, ersatz in (('ä', 'ae'), ('ö', 'oe'), ('ü', 'ue'),
+                            ('ß', 'ss')):
+        wert = wert.replace(zeichen, ersatz)
+    return [wort for wort in re.split(r'[^a-z0-9]+', wert) if wort]
+
+
+def _stichwort_treffer(zelle):
+    """Feld über einzelne Wörter der Beschriftung, None bei Mehrdeutigkeit."""
+    treffer = {}
+    for wort in _woerter(zelle):
+        feld = _STICHWOERTER.get(wort)
+        if feld:
+            treffer[feld] = treffer.get(feld, 0) + 1
+    if len(treffer) == 1:
+        return next(iter(treffer))
+    return None
+
 
 def erkenne_spalten(kopfzeile):
     """Ordnet Spalten den Feldern zu.
@@ -333,15 +466,30 @@ def erkenne_spalten(kopfzeile):
       unbekannt  Beschriftungen ohne Treffer - werden ignoriert und gemeldet
       doppelt    Beschriftungen, die ein bereits belegtes Feld noch einmal
                  treffen. Die erste Spalte gewinnt.
+
+    Zwei Stufen: erst die vollständigen Aliase, dann einzelne Wörter. Die
+    zweite Stufe läuft über alle Spalten, nachdem die erste fertig ist - sonst
+    könnte ein Stichwort eine Spalte belegen, die ein anderer Alias exakt
+    getroffen hätte.
     """
     zuordnung = {}
     unbekannt = []
     doppelt = []
+    offene = []
     for index, zelle in enumerate(kopfzeile or []):
         norm = kopf_normalisieren(zelle)
         if not norm:
             continue
         schluessel = _ALIASE.get(norm)
+        if schluessel is None:
+            offene.append((index, zelle))
+        elif schluessel in zuordnung:
+            doppelt.append(str(zelle).strip())
+        else:
+            zuordnung[schluessel] = index
+
+    for index, zelle in offene:
+        schluessel = _stichwort_treffer(zelle)
         if schluessel is None:
             unbekannt.append(str(zelle).strip())
         elif schluessel in zuordnung:
@@ -355,16 +503,30 @@ def _ist_leer(wert):
     return wert is None or (isinstance(wert, str) and not wert.strip())
 
 
+# Wie weit unterhalb des Blattanfangs eine Kopfzeile gesucht wird. Manche
+# Dateien haben Titel, Anschrift und Datum davor; 100 Zeilen decken das ab,
+# ohne bei einer langen Liste jede Zeile zu prüfen.
+KOPF_SUCHE_ZEILEN = 100
+
+# So viele Blätter werden bewertet. Mehr ist bei einer Gefahrstoffliste
+# unrealistisch und würde nur Laufzeit kosten.
+MAX_BLAETTER = 20
+
+_CAS_MUSTER = re.compile(r'\d{2,7}-\d{2}-\d')
+
+
 def _kopf_zeile_finden(zeilen):
     """Sucht die Kopfzeile unter den ersten nicht leeren Zeilen.
 
     Viele Dateien haben eine Titelzeile oder eine leere Zeile vor der Tabelle.
-    Gewählt wird die Zeile mit den meisten erkannten Feldern; "Name" muss dabei
-    sein, sonst ist es keine Kopfzeile. Ohne diese Suche scheitert jede Datei
-    mit einem Titel in A1.
+    Gewählt wird die Zeile mit den meisten erkannten Feldern. Eine Spalte
+    "Name" ist nicht mehr Bedingung: Fehlt sie, wird sie später aus dem
+    Zelleninhalt bestimmt (ergaenze_aus_inhalt). Verlangt sind aber zwei
+    erkannte Felder - eine einzelne Zelle, die zufällig wie eine Beschriftung
+    aussieht, ist noch keine Kopfzeile.
     """
     kandidaten = []
-    for index, zeile in enumerate(zeilen[:10]):
+    for index, zeile in enumerate(zeilen[:KOPF_SUCHE_ZEILEN]):
         if all(_ist_leer(z) for z in zeile):
             continue
         zuordnung, _, _ = erkenne_spalten(zeile)
@@ -373,13 +535,32 @@ def _kopf_zeile_finden(zeilen):
         return None, None
 
     beste = max(kandidaten, key=lambda k: (k[0], -k[1]))
-    if beste[0] == 0 or 'name' not in beste[2]:
+    if beste[0] < 2:
         return None, None
     return beste[1], beste[2]
 
 
+def _sieht_wie_daten_aus(zeile):
+    """Spricht dafür, dass diese Zeile Daten und keine Beschriftung enthält?"""
+    werte = [wert for wert in zeile if not _ist_leer(wert)]
+    if not werte:
+        return False
+    if any(_CAS_MUSTER.fullmatch(_text(wert)) for wert in werte):
+        return True
+    zahlen = sum(1 for wert in werte
+                 if isinstance(wert, (int, float, _dt.datetime, _dt.date)))
+    return zahlen >= 2 and zahlen * 2 >= len(werte)
+
+
 def _tabelle_aus_rohzeilen(rohzeilen, hinweise, epoche=None):
-    """Schneidet Kopfzeile und Datenzeilen aus der gelesenen Datei."""
+    """Schneidet Kopfzeile und Datenzeilen aus der gelesenen Datei.
+
+    Findet sich keine Kopfzeile, wird die Datei nicht abgelehnt: Sieht die
+    erste Zeile wie Daten aus, gelten alle Zeilen als Daten und die Spalten
+    werden aus dem Inhalt bestimmt. Sonst gilt die erste Zeile als
+    Kopfzeile ohne bekannte Beschriftungen - dasselbe Ergebnis, nur mit
+    anderen Zeilennummern.
+    """
     # Leerzeilen am Ende entfernen. Leerzeilen in der Mitte bleiben stehen:
     # Ihre Zeilennummer ist die Orientierung, die der Benutzer in Excel hat.
     while rohzeilen and all(_ist_leer(z) for z in rohzeilen[-1]):
@@ -388,18 +569,32 @@ def _tabelle_aus_rohzeilen(rohzeilen, hinweise, epoche=None):
     if not rohzeilen:
         raise ImportFehler('Die Datei enthält keine Daten.')
 
-    kopf_index, zuordnung = _kopf_zeile_finden(rohzeilen)
+    kopf_index, _ = _kopf_zeile_finden(rohzeilen)
     if kopf_index is None:
-        erste = next((z for z in rohzeilen if not all(_ist_leer(w) for w in z)),
-                     [])
-        gefunden = ', '.join(str(z).strip() for z in erste if not _ist_leer(z))
-        raise ImportFehler(
-            'Die Kopfzeile wurde nicht erkannt. Es fehlt eine Spalte "Name" '
-            f'(gefunden: {gefunden[:200] or "nichts"}).')
+        erste = next((index for index, zeile in enumerate(rohzeilen)
+                      if not all(_ist_leer(w) for w in zeile)), None)
+        if erste is None:
+            raise ImportFehler('Die Datei enthält keine Daten.')
+        if _sieht_wie_daten_aus(rohzeilen[erste]):
+            kopf = []
+            daten_start = erste
+            hinweise.append(
+                'Keine Kopfzeile erkannt - die Spalten wurden aus dem '
+                'Zelleninhalt bestimmt.')
+        else:
+            kopf = [('' if z is None else str(z).strip())
+                    for z in rohzeilen[erste]]
+            daten_start = erste + 1
+            hinweise.append(
+                'Die Kopfzeile wurde nicht sicher erkannt - die Spalten '
+                'wurden zusätzlich aus dem Zelleninhalt bestimmt.')
+    else:
+        kopf = [('' if z is None else str(z).strip())
+                for z in rohzeilen[kopf_index]]
+        daten_start = kopf_index + 1
 
-    kopf = [('' if z is None else str(z).strip()) for z in rohzeilen[kopf_index]]
     daten = []
-    for index in range(kopf_index + 1, len(rohzeilen)):
+    for index in range(daten_start, len(rohzeilen)):
         zeile = rohzeilen[index]
         # Ganz leere Zeilen zählen nicht als Fehler. Sie werden übersprungen,
         # ihre Nummer aber nicht weitergegeben: die Nummer der nächsten Zeile
@@ -474,21 +669,49 @@ def _lies_excel(daten):
 
     try:
         hinweise = []
-        if len(arbeitsmappe.worksheets) > 1:
-            hinweise.append(
-                f'Nur das erste Blatt „{arbeitsmappe.worksheets[0].title}“ '
-                'wurde gelesen.')
-        blatt = arbeitsmappe.worksheets[0]
+        blaetter = arbeitsmappe.worksheets
+        if not blaetter:
+            raise ImportFehler('Die Arbeitsmappe enthält kein Blatt.')
 
-        rohzeilen = []
-        for zeile in blatt.iter_rows(values_only=True):
-            # Ein paar Zeilen Puffer, damit die Grenze erst nach der
-            # Kopfzeilensuche greift; die eigentliche Prüfung steht in
-            # _tabelle_aus_rohzeilen().
-            if len(rohzeilen) > MAX_ZEILEN + 20:
-                raise ImportFehler(
-                    f'Die Datei enthält mehr als {MAX_ZEILEN} Zeilen.')
-            rohzeilen.append(list(zeile))
+        # Jedes Blatt bekommt eine Punktzahl; gelesen wird das beste. Eine
+        # Arbeitsmappe mit einem Deckblatt, einer Hinweistabelle und dem
+        # eigentlichen Verzeichnis war bisher ein Fehlschlag, sobald das
+        # Deckblatt vorn lag.
+        beste = None
+        for blatt in blaetter[:MAX_BLAETTER]:
+            rohzeilen = []
+            zu_viele = False
+            for zeile in blatt.iter_rows(values_only=True):
+                # Ein paar Zeilen Puffer, damit die Grenze erst nach der
+                # Kopfzeilensuche greift; die eigentliche Prüfung steht in
+                # _tabelle_aus_rohzeilen().
+                if len(rohzeilen) > MAX_ZEILEN + 20:
+                    zu_viele = True
+                    break
+                rohzeilen.append(list(zeile))
+
+            kopf_index, zuordnung = _kopf_zeile_finden(rohzeilen)
+            zeilen_mit_inhalt = sum(
+                1 for zeile in rohzeilen
+                if not all(_ist_leer(w) for w in zeile))
+            erste = next((zeile for zeile in rohzeilen
+                          if not all(_ist_leer(w) for w in zeile)), [])
+            datenartig = 1 if (kopf_index is not None
+                               or _sieht_wie_daten_aus(erste)) else 0
+            punkte = (1 if kopf_index is not None else 0,
+                      datenartig, len(zuordnung or {}), zeilen_mit_inhalt)
+            if beste is None or punkte > beste[0]:
+                beste = (punkte, blatt.title, rohzeilen, zu_viele)
+
+        _, titel, rohzeilen, zu_viele = beste
+        if zu_viele:
+            raise ImportFehler(
+                f'Das Blatt „{titel}“ enthält mehr als {MAX_ZEILEN} Zeilen. '
+                'Bitte in Teildateien aufteilen.')
+        if len(blaetter) > 1:
+            hinweise.append(
+                f'Blatt „{titel}“ gelesen; die übrigen Blätter enthielten '
+                'keine passendere Tabelle.')
 
         return _tabelle_aus_rohzeilen(rohzeilen, hinweise,
                                       epoche=getattr(arbeitsmappe, 'epoch', None))
@@ -578,6 +801,140 @@ def zeilen_als_dicts(tabelle, zuordnung):
             roh[schluessel] = zeile[index] if index < len(zeile) else None
         ergebnis.append((nummer, roh))
     return ergebnis
+
+
+def _spaltenwerte(tabelle):
+    """Die nicht leeren Zellwerte je Spalte, als Text und auf 200 gekürzt."""
+    breite = max((len(zeile) for zeile in tabelle.zeilen), default=0)
+    spalten = []
+    for index in range(breite):
+        werte = [_text(zeile[index]) for zeile in tabelle.zeilen
+                 if index < len(zeile) and not _ist_leer(zeile[index])]
+        spalten.append(werte[:200])
+    return spalten
+
+
+def _anteil(werte, test, minimum=0.6):
+    """Anteil der Werte, die den Test bestehen, mindestens 'minimum'."""
+    if not werte:
+        return False
+    return sum(1 for wert in werte if test(wert)) / len(werte) >= minimum
+
+
+def _ist_zahl_text(text):
+    return bool(re.fullmatch(r'[+-]?\d+([.,]\d+)?', text.strip()))
+
+
+def _ist_janein(text):
+    return re.sub(r'[^a-z0-9]', '', text.casefold()) in _WAHRHEIT
+
+
+def ergaenze_aus_inhalt(tabelle, zuordnung):
+    """Ergänzt fehlende Spalten anhand der Zellwerte.
+
+    Rückgabe: (zuordnung, hinweise). Die Kopfzeile hat Vorrang; hier werden
+    nur Felder belegt, die sie nicht geliefert hat, und jede Spalte höchstens
+    einmal. Der Rückfall ist nötig für Dateien mit fremden Beschriftungen
+    ("Produkt", "Raum") und für solche ganz ohne Kopfzeile - bisher wurden
+    beide abgelehnt.
+
+    Erkannt werden nur Felder, die sich am Inhalt sicher unterscheiden
+    lassen: CAS-Nummer, H-/P-Sätze, Piktogramme, Signalwort und - als
+    letzter Ausweg - der Stoffname. Mengen werden bewusst nicht geraten:
+    Eine Artikelnummer ist auch eine Zahl.
+    """
+    zuordnung = dict(zuordnung)
+    hinweise = []
+    spalten = _spaltenwerte(tabelle)
+
+    regeln = (
+        ('cas_nummer', lambda wert: bool(_CAS_MUSTER.fullmatch(wert)), 0.6),
+        ('h_saetze', lambda wert: bool(re.search(r'\bH\s?\d{3}', wert)), 0.6),
+        ('p_saetze', lambda wert: bool(re.search(r'\bP\s?\d{3}', wert)), 0.6),
+        ('piktogramme',
+         lambda wert: bool(re.search(r'GHS\s?-?\s?\d', wert, re.IGNORECASE)),
+         0.5),
+        ('signalwort',
+         lambda wert: (re.sub(r'[^a-z]', '', wert.casefold())
+                       in SIGNALWOERTER), 0.6),
+    )
+    for feld, test, minimum in regeln:
+        if feld in zuordnung:
+            continue
+        for index, werte in enumerate(spalten):
+            if index in zuordnung.values():
+                continue
+            if _anteil(werte, test, minimum):
+                zuordnung[feld] = index
+                hinweise.append(
+                    f'Spalte „{spaltenname(tabelle, index)}“ wurde anhand '
+                    f'des Inhalts als {FELDER[feld]["label"]} erkannt.')
+                break
+
+    if 'name' not in zuordnung:
+        index = _name_spalte_raten(tabelle, spalten, zuordnung)
+        if index is not None:
+            zuordnung['name'] = index
+            hinweise.append(
+                f'Spalte „{spaltenname(tabelle, index)}“ wurde anhand des '
+                'Inhalts als Stoffname verwendet - bitte in der Vorschau '
+                'prüfen.')
+    return zuordnung, hinweise
+
+
+def spalten_bericht(tabelle, zuordnung):
+    """(unbekannt, doppelt) für die Vorschau, aus der endgültigen Zuordnung.
+
+    Nötig, weil ergaenze_aus_inhalt() Spalten nachträglich belegt: Eine solche
+    Spalte ist nicht mehr "ignoriert" und darf nicht mehr in der Meldung
+    stehen. "Doppelt" heißt: Die Beschriftung würde ein bereits belegtes Feld
+    noch einmal treffen - die erste Spalte gilt.
+    """
+    belegt = set(zuordnung.values())
+    unbekannt = []
+    doppelt = []
+    for index, label in enumerate(tabelle.kopf):
+        label = (label or '').strip()
+        if not label or index in belegt:
+            continue
+        schluessel = (_ALIASE.get(kopf_normalisieren(label))
+                      or _stichwort_treffer(label))
+        if schluessel is not None and schluessel in zuordnung:
+            doppelt.append(label)
+        else:
+            unbekannt.append(label)
+    return unbekannt, doppelt
+
+
+def spaltenname(tabelle, index):
+    if index < len(tabelle.kopf) and tabelle.kopf[index]:
+        return tabelle.kopf[index]
+    return f'Spalte {index + 1}'
+
+
+def _name_spalte_raten(tabelle, spalten, zuordnung):
+    """Die überzeugendste Textspalte, die noch keinem Feld zugeordnet ist."""
+    belegt = set(zuordnung.values())
+    bester = None
+    beste_punkte = (0, 0)
+    for index, werte in enumerate(spalten):
+        if index in belegt or not werte:
+            continue
+        if _anteil(werte, _ist_zahl_text, 0.5):
+            continue
+        if _anteil(werte, _ist_janein, 0.8):
+            continue
+        if _anteil(werte, lambda wert: bool(_CAS_MUSTER.fullmatch(wert))):
+            continue
+        if _anteil(werte, lambda wert: bool(re.search(r'\b[HP]\s?\d{3}', wert))):
+            continue
+        # Vorzug: viele gefüllte Zeilen, dann viele verschiedene Werte. Bei
+        # Gleichstand gewinnt die linke Spalte (strenge Größer-Prüfung).
+        punkte = (len(werte), len(set(wert.casefold() for wert in werte)))
+        if punkte > beste_punkte:
+            beste_punkte = punkte
+            bester = index
+    return bester
 
 
 # ─── Werte lesen ─────────────────────────────────────────────────────────────
@@ -785,12 +1142,13 @@ def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
     werte = {}
 
     # -- Name: einziges Pflichtfeld -----------------------------------------
+    # Ein zu langer Name wird gekürzt und gemeldet, nicht abgelehnt: Der
+    # Eintrag ist sonst vollständig und die Kürzung in der Vorschau sichtbar.
     name = _text(roh.get('name'))
     if not name:
         fehler.append('Name fehlt.')
-    elif len(name) > FELDER['name']['laenge']:
-        fehler.append(f'Name ist länger als {FELDER["name"]["laenge"]} '
-                      'Zeichen.')
+    else:
+        name = _begrenzt('name', name, warnungen)
     werte['name'] = name or None
 
     # -- Nummern und Freitexte ---------------------------------------------
@@ -817,7 +1175,9 @@ def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
     h_codes = codes_aus_text(h_saetze) if h_saetze else []
 
     # -- Piktogramme: explizit oder aus den H-Sätzen ------------------------
-    piktogramme = _piktogramme(roh.get('piktogramme'), fehler)
+    # Ein unbekanntes Piktogramm ist eine Warnung, kein Zeilenfehler: Es wird
+    # nicht übernommen, die übrigen Angaben der Zeile sind aber brauchbar.
+    piktogramme = _piktogramme(roh.get('piktogramme'), warnungen)
     if not piktogramme and h_codes:
         piktogramme = piktogramme_fuer(h_saetze)
         if piktogramme:
@@ -835,10 +1195,12 @@ def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
     # -- Menge und Einheit --------------------------------------------------
     menge, einheit_in_zelle = _menge_und_einheit(roh.get('menge'))
     if _text(roh.get('menge')) and menge is None:
-        fehler.append(
-            f'Menge „{_text(roh.get("menge"))}“ ist keine Zahl.')
+        warnungen.append(
+            f'Menge „{_text(roh.get("menge"))}“ ist keine Zahl - die Menge '
+            'bleibt leer.')
     if menge is not None and menge < 0:
-        fehler.append('Menge darf nicht negativ sein.')
+        warnungen.append('Menge ist negativ - sie wird nicht übernommen.')
+        menge = None
     werte['menge'] = menge
 
     einheit, problem = _einheit(roh.get('mengeneinheit'))
@@ -895,6 +1257,32 @@ def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
         warnungen.append(
             'Substitutionsprüfung "nein", aber keine Begründung angegeben.')
 
+    # -- CMR-Kennzeichnung aus der Quelle ----------------------------------
+    # Führt die Datei CMR selbst, gilt sie zusätzlich zu den H-Sätzen. Sonst
+    # wäre ein Stoff, dessen SDB keine H-Sätze nennt, sofort sichtbar.
+    cmr = _wahrheit(roh.get('cmr'))
+    if _text(roh.get('cmr')) and cmr is None:
+        warnungen.append(
+            f'CMR-Angabe „{_text(roh.get("cmr"))}“ nicht verstanden '
+            '(erwartet ja oder nein).')
+    werte['cmr'] = (cmr == 'ja') if cmr else None
+    if werte['cmr']:
+        warnungen.append(
+            'Als CMR-Stoff gekennzeichnet - der Stoff wartet nach dem Import '
+            'auf die Freigabe.')
+
+    # -- Aufgebrauchte Gebinde --------------------------------------------
+    # Sie bleiben in der Vorschau stehen, werden aber nicht angelegt.
+    aufgebraucht = _wahrheit(roh.get('aufgebraucht'))
+    if _text(roh.get('aufgebraucht')) and aufgebraucht is None:
+        warnungen.append(
+            f'Angabe „Aufgebraucht“ („{_text(roh.get("aufgebraucht"))}“) '
+            'nicht verstanden (erwartet ja oder nein).')
+    werte['aufgebraucht'] = (aufgebraucht == 'ja') if aufgebraucht else None
+
+    # Nur für die Zusammenfassung mehrerer Zeilen, keine Datenbankspalte.
+    werte['gebinde'] = _text(roh.get('gebinde')) or None
+
     # -- Standort -----------------------------------------------------------
     standort_text = _text(roh.get('standort'))
     bereich = _text(roh.get('bereich'))
@@ -936,39 +1324,94 @@ def pruefe_zeile(roh, zeilennummer, standort_aufloesen=None,
                       standort_text=standort_text)
 
 
+def _duplikat_schluessel(zeile):
+    """Schlüssel, unter dem zwei Zeilen denselben Eintrag beschreiben.
+
+    CAS-Nummer (sonst Name), Standort und Lagerort. Der Lagerort gehört dazu,
+    weil "Raum 205" und "Gefahrenlager" zwei verschiedene Behälterplätze sind
+    - auch wenn derselbe Stoff dort steht.
+    """
+    cas = (zeile.werte.get('cas_nummer') or '').strip().casefold()
+    name = (zeile.werte.get('name') or '').strip().casefold()
+    if not cas and not name:
+        return None
+    lagerort = (zeile.werte.get('lagerort') or '').strip().casefold()
+    return (cas or name, bool(cas), zeile.werte.get('unterbereich_id'),
+            lagerort)
+
+
+def _fasse_zusammen(erste, weitere):
+    """Übernimmt eine Zeile in die erste desselben Stoffes am selben Ort.
+
+    Gebindelisten führen denselben Stoff mehrfach - je Behälter eine Zeile.
+    Bisher galt das als Duplikat und die Zeilen wurden verworfen. Jetzt wird
+    daraus ein Verzeichniseintrag: Mengen werden addiert, leere Felder aus den
+    weiteren Zeilen gefüllt. Nichts verschwindet stillschweigend - beide
+    Zeilen bleiben in der Vorschau sichtbar.
+    """
+    weitere.werte['zusammengefasst_in'] = erste.zeilennummer
+    erfasst = erste.werte.setdefault('zusammengefasst_aus', [])
+    erfasst.append(weitere.zeilennummer)
+    erste.werte['anzahl_gebinde'] = len(erfasst) + 1
+    erste.warnungen.append(
+        f'Zeile {weitere.zeilennummer} als weiteres Gebinde übernommen.')
+
+    for feld in ('cas_nummer', 'eg_nummer', 'signalwort', 'piktogramme',
+                 'gefahrenkategorien', 'h_saetze', 'p_saetze', 'lagerklasse',
+                 'sdb_datum', 'cmr', 'gebinde'):
+        if not erste.werte.get(feld) and weitere.werte.get(feld):
+            erste.werte[feld] = weitere.werte[feld]
+
+    menge = weitere.werte.get('menge')
+    if menge is None:
+        return
+    eigene = erste.werte.get('menge')
+    eigene_einheit = (erste.werte.get('mengeneinheit') or '').casefold()
+    fremde_einheit = (weitere.werte.get('mengeneinheit') or '').casefold()
+    if eigene is None:
+        erste.werte['menge'] = menge
+        if not erste.werte.get('mengeneinheit'):
+            erste.werte['mengeneinheit'] = weitere.werte.get('mengeneinheit')
+    elif eigene_einheit == fremde_einheit:
+        erste.werte['menge'] = eigene + menge
+    else:
+        # Nicht addieren: "2 L" und "3 kg" ergeben keine Menge. Die erste
+        # Menge bleibt stehen, der Hinweis steht in der Vorschau.
+        erste.warnungen.append(
+            f'Menge aus Zeile {weitere.zeilennummer} ('
+            f'{weitere.werte.get("mengeneinheit") or "ohne Einheit"}) wurde '
+            'nicht addiert - sie hat eine andere Einheit.')
+
+
 def markiere_duplikate(zeilen):
-    """Markiert Zeilen, die innerhalb der Datei doppelt vorkommen.
+    """Fasst Zeilen desselben Stoffes am selben Ort zusammen.
 
-    Schlüssel ist die CAS-Nummer zusammen mit dem Standort; ohne CAS der Name
-    mit dem Standort. Derselbe Stoff an zwei Standorten ist kein Duplikat -
-    das entspricht /copy, das eine Kopie an einen anderen Ort erlaubt. Die
-    erste Zeile gewinnt, jede weitere bekommt
-    werte['duplikat_von'] = Zeilennummer des ersten Vorkommens.
+    Gebindelisten führen jeden Behälter als eigene Zeile. Das ist kein
+    Duplikat im Sinne des Verzeichnisses, sondern derselbe Eintrag mehrfach -
+    die erste Zeile nimmt die weiteren auf (Mengen werden addiert). Die
+    weiteren Zeilen bekommen werte['zusammengefasst_in'] = Zeilennummer des
+    ersten Vorkommens, damit die Vorschau sie nicht als eigenen Stoff anlegt.
 
-    Rückgabe: Anzahl der markierten Zeilen.
+    Derselbe Stoff an zwei Standorten bleibt getrennt - das entspricht /copy.
+    Aufgebrauchte Zeilen und Fehlzeilen nehmen an der Zusammenfassung nicht
+    teil.
+
+    Rückgabe: Anzahl der zusammengefassten Zeilen.
     """
     gesehen = {}
     anzahl = 0
     for zeile in zeilen:
-        if not zeile.gueltig:
+        if not zeile.gueltig or zeile.werte.get('aufgebraucht'):
             continue
-        cas = (zeile.werte.get('cas_nummer') or '').strip().casefold()
-        if cas:
-            schluessel = ('cas', cas, zeile.werte.get('unterbereich_id'))
-        elif zeile.werte.get('name'):
-            schluessel = ('name', zeile.werte['name'].casefold(),
-                          zeile.werte.get('unterbereich_id'))
-        else:
+        schluessel = _duplikat_schluessel(zeile)
+        if schluessel is None:
             continue
 
         if schluessel in gesehen:
-            zeile.werte['duplikat_von'] = gesehen[schluessel]
-            zeile.warnungen.append(
-                f'Doppelt in der Datei - schon in Zeile '
-                f'{gesehen[schluessel]} enthalten.')
+            _fasse_zusammen(gesehen[schluessel], zeile)
             anzahl += 1
         else:
-            gesehen[schluessel] = zeile.zeilennummer
+            gesehen[schluessel] = zeile
     return anzahl
 
 

@@ -44,6 +44,9 @@
                 <small class="form-text">
                     .xlsx bis 5 MB und 5000 Zeilen. Das alte Format .xls wird
                     nicht unterstützt - bitte als .xlsx oder .csv speichern.
+                    Eigene Spaltennamen sind kein Hindernis: Die App ordnet die
+                    Spalten nach Beschriftung und Zellinhalt zu und zeigt die
+                    Zuordnung in der Vorschau.
                 </small>
             </div>
 
@@ -98,8 +101,21 @@
 
         <p class="text-muted">
             {{ vorschau.anzahl }} Datenzeilen gelesen.
+            {% if vorschau.zusammengefasst_anzahl %}
+                {% set n = vorschau.zusammengefasst_anzahl %}
+                {{ n }} {{ 'weitere Zeile gehört' if n == 1 else 'weitere Zeilen gehören' }}
+                zu Gebinden desselben Stoffes und
+                {{ 'wird' if n == 1 else 'werden' }} mit der ersten Zeile
+                zusammengefasst.
+            {% endif %}
+            {% if vorschau.aufgebraucht_anzahl %}
+                {% set n = vorschau.aufgebraucht_anzahl %}
+                {{ n }} {{ 'Zeile ist' if n == 1 else 'Zeilen sind' }} laut
+                Datei aufgebraucht und {{ 'wird' if n == 1 else 'werden' }}
+                nicht angelegt.
+            {% endif %}
             {% if vorschau.duplikat_anzahl %}
-                {{ vorschau.duplikat_anzahl }} davon sind bereits vorhanden oder doppelt.
+                {{ vorschau.duplikat_anzahl }} davon stehen bereits im Verzeichnis.
             {% endif %}
             {% if vorschau.standort_ersatz_anzahl %}
                 {{ vorschau.standort_ersatz_anzahl }} Zeilen nennen einen Standort, den es nicht gibt – sie landen im Ziel-Standort.
@@ -108,6 +124,34 @@
                 <strong class="text-danger">{{ vorschau.fehler_anzahl }} Zeilen haben Fehler und werden nicht importiert.</strong>
             {% endif %}
         </p>
+
+        {# Die Zuordnung ist die eigentliche Prüfung: Bei fremden Dateien hat
+           die App geraten, welche Spalte der Name ist. Ohne diese Liste wäre
+           das Ergebnis nicht nachvollziehbar. #}
+        <details class="import-zuordnung">
+            <summary>
+                Erkannte Spalten ({{ vorschau.zuordnung | length }})
+            </summary>
+            <div class="table-responsive">
+                <table class="data-table data-table--dense">
+                    <caption class="sr-only">Zuordnung der Spalten aus der Datei</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Spalte in der Datei</th>
+                            <th scope="col">Wird gelesen als</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eintrag in vorschau.zuordnung %}
+                        <tr>
+                            <td>{{ eintrag.spalte }}</td>
+                            <td>{{ eintrag.feld }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
 
         {% if ziel_id %}
         <p class="text-muted text-sm">
@@ -186,12 +230,16 @@
                 </thead>
                 <tbody>
                     {% set klassen = {'ok': 'badge-success', 'warnung': 'badge-warning',
-                                      'duplikat': 'badge-neutral', 'fehler': 'badge-danger'} %}
+                                      'duplikat': 'badge-neutral', 'fehler': 'badge-danger',
+                                      'zusammengefasst': 'badge-neutral',
+                                      'aufgebraucht': 'badge-neutral'} %}
                     {% set texte = {'ok': 'bereit', 'warnung': 'Warnung',
-                                    'duplikat': 'übersprungen', 'fehler': 'Fehler'} %}
+                                    'duplikat': 'übersprungen', 'fehler': 'Fehler',
+                                    'zusammengefasst': 'zusammengefasst',
+                                    'aufgebraucht': 'aufgebraucht'} %}
                     {% for zeile in vorschau.zeilen %}
                     {% set status = zeile.status %}
-                    {% set ueberspringen = (status == 'fehler') or zeile.werte.get('duplikat_von') %}
+                    {% set ueberspringen = status in ('fehler', 'zusammengefasst', 'aufgebraucht') %}
                     <tr>
                         <td>
                             <input type="checkbox" name="zeilen" value="{{ loop.index0 }}"
@@ -209,8 +257,14 @@
                             {% if zeile.werte.get('vorhanden_id') %}
                             <br><small class="text-light">vorhanden: {{ zeile.werte.get('vorhanden_name') }}</small>
                             {% endif %}
+                            {% if zeile.werte.get('anzahl_gebinde') %}
+                            <br><small class="text-light">{{ zeile.werte.get('anzahl_gebinde') }} Gebinde zusammengefasst</small>
+                            {% endif %}
+                            {% if zeile.werte.get('zusammengefasst_in') %}
+                            <br><small class="text-light">gehört zu Zeile {{ zeile.werte.get('zusammengefasst_in') }}</small>
+                            {% endif %}
                         </td>
-                        <td class="d-none-mobile">{{ zeile.werte.get('cas_nummer') or '–' }}</td>
+                        <td class="d-none-mobile nowrap">{{ zeile.werte.get('cas_nummer') or '–' }}</td>
                         <td class="d-none-mobile">
                             {% if zeile.werte.get('menge') is not none %}
                                 {{ zeile.werte.get('menge') }} {{ zeile.werte.get('mengeneinheit') or '' }}

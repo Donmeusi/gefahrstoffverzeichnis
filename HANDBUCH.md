@@ -494,16 +494,29 @@ hochladen und prüfen, dann auswählen und übernehmen. **Gespeichert wird erst
 nach Ihrer Bestätigung** — im ersten Schritt passiert nichts.
 
 **Die Datei.** `.xlsx`, `.xlsm` oder `.csv`, bis 5 MB und 5000 Zeilen. Die
-Kopfzeile muss nicht in der ersten Zeile stehen. Deutsches Excel schreibt CSV
-mit Semikolon; das wird erkannt, Sie müssen beim Speichern nichts umstellen.
-Das alte Format `.xls` wird nicht unterstützt — bitte als `.xlsx` speichern.
+Kopfzeile muss nicht in der ersten Zeile stehen; Titelzeilen und Deckblätter
+davor stören nicht. Bei einer Arbeitsmappe mit mehreren Blättern wird das Blatt
+mit der passendsten Tabelle gelesen, nicht einfach das erste. Deutsches Excel
+schreibt CSV mit Semikolon; das wird erkannt, Sie müssen beim Speichern nichts
+umstellen. Das alte Format `.xls` wird nicht unterstützt — bitte als `.xlsx`
+speichern.
 
 **Die Spalten.** Die Beschriftungen dürfen heißen, wie sie in Ihrem Verzeichnis
-heißen: „Stoff", „Stoffname" oder „Handelsname" für den Namen, „CAS-Nr." oder
-„CAS" für die Nummer, „Datum SDB" oder „SDB-Datum" für das Datum, „Arbeitsbereich"
-für den Standort und so weiter. Eine Spalte mit unbekannter Beschriftung wird
+heißen: „Produkt", „Stoff", „Stoffname" oder „Handelsname" für den Namen,
+„CAS-Nr." oder „CAS" für die Nummer, „Raum" oder „Lagerplatz" für den Lagerort,
+„Datum SDB" oder „SDB-Datum" für das Datum, „Arbeitsbereich" für den Standort
+und so weiter. Auch einzelne Wörter in einer längeren Beschriftung genügen
+(„Produktbezeichnung nach CLP"). Eine Spalte mit unbekannter Beschriftung wird
 übersprungen und in der Vorschau genannt — nichts wird stillschweigend
 verworfen. Die Reihenfolge der Spalten ist beliebig.
+
+**Wenn die Beschriftungen gar nicht passen,** bestimmt die App die Spalten aus
+dem Zellinhalt: Eine Spalte mit CAS-Nummern wird als CAS-Nummer gelesen, eine
+mit `H225`-Werten als H-Sätze, eine mit `GHS02` als Piktogramme, und die
+überzeugendste Textspalte gilt als Stoffname. Eine Tabelle ganz ohne Kopfzeile
+wird ebenfalls gelesen. Was die App wie gelesen hat, steht in der Vorschau
+unter **Erkannte Spalten** — bitte dort nachsehen, wenn die Datei fremd
+aussieht.
 
 Wer keine eigene Tabelle hat, lädt unter **Import → Vorlage herunterladen** eine
 leere `.xlsx` mit allen Spalten herunter. Das zweite Blatt erklärt jede Spalte.
@@ -530,26 +543,36 @@ bitte den vollständigen Pfad angeben, dann greift die Zeile richtig.
 
 * **bereit** — wird beim Bestätigen angelegt.
 * **Warnung** — wird angelegt, aber etwas fehlt oder ist ungewöhnlich (keine
-  CAS-Nummer, Menge ohne Einheit, unbekannter H-Satz, Standort nicht gefunden).
-  Bitte lesen.
-* **Fehler** — wird **nicht** angelegt. Das trifft nur Pflichtangaben und klar
-  Falsches: fehlender Name, negative Menge, ein Piktogramm, das es nicht gibt.
+  CAS-Nummer, Menge ohne Einheit, unbekannter H-Satz, Standort nicht gefunden,
+  ein Piktogramm, das es nicht gibt, eine unlesbare Menge). Bitte lesen.
+* **Fehler** — wird **nicht** angelegt. Das trifft nur, wenn der Name fehlt oder
+  ein genannter Standort ohne Ziel-Standort nicht aufgelöst werden kann; alles
+  andere wird übernommen und gemeldet.
 * **bereit / vorhanden** — der Stoff steht schon im Verzeichnis (gleicher Name
   oder gleiche CAS-Nummer **am selben Standort**). Was damit geschieht,
   entscheiden Sie über den Schalter *Überspringen* oder *Aktualisieren – nur
   leere Felder füllen*. Ein zweiter Standort gilt nicht als Duplikat.
+* **zusammengefasst** — dieselbe Stoffangabe am selben Ort (gleiche CAS-Nummer
+  oder gleicher Name, gleicher Standort, gleicher Lagerort) steht mehrfach in
+  der Datei, etwa ein Gebinde je Zeile. Daraus wird **ein** Verzeichniseintrag;
+  die Mengen werden addiert, sofern die Einheit gleich ist. Die erste Zeile
+  zeigt, wie viele Gebinde zusammengefasst wurden.
+* **aufgebraucht** — die Zeile ist laut Datei (Spalte „Aufgebraucht" mit „ja")
+  verbraucht und wird nicht angelegt. Sie bleibt zur Kontrolle sichtbar.
 
-An- und abwählen lassen sich alle Zeilen, die keinen Fehler haben. Fehlerhafte
-Zeilen sind gesperrt, damit sie nicht aus Versehen halb übernommen werden.
+An- und abwählen lassen sich alle Zeilen, die keinen Fehler haben. Fehlerhafte,
+zusammengefasste und aufgebrauchte Zeilen sind gesperrt, damit sie nicht aus
+Versehen halb übernommen werden.
 
 **Was der Import nie tut:** vorhandene Werte überschreiben. Auch beim
 Aktualisieren werden nur Felder gefüllt, die leer sind. Wenn ein Stoff mit seiner
 Sicherheitsdatenblatt-Einstufung im Verzeichnis steht und die Tabelle etwas
 anderes sagt, bleibt das Verzeichnis stehen.
 
-**CMR-Stoffe** aus dem Import warten wie beim Anlegen auf Freigabe. Ergänzt der
-Import bei einem vorhandenen Stoff H-Sätze, die ihn zum CMR-Stoff machen, fällt
-er auf „wartet" zurück.
+**CMR-Stoffe** aus dem Import warten wie beim Anlegen auf Freigabe. Das gilt
+auch, wenn die Datei CMR in einer eigenen Spalte führt, ohne H-Sätze zu nennen.
+Ergänzt der Import bei einem vorhandenen Stoff H-Sätze, die ihn zum CMR-Stoff
+machen, oder kennzeichnet er ihn als CMR-Stoff, fällt er auf „wartet" zurück.
 
 Die Rolle `Lesen` darf weder importieren noch die Vorlage laden. Jeder Import
 erscheint in der Systemhistorie (`IMPORT`) mit Dateiname und der Zahl der
