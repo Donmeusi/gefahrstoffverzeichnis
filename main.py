@@ -539,15 +539,21 @@ class Gefahrstoff(db.Model):
 
     @property
     def trgs_warnings(self):
+        """Zusammenlagerungsverbote dieses Stoffes (für die Detailseite).
+
+        Für Listen gibt es trgs_warnungen_fuer(): Diese Eigenschaft lädt je
+        Stoff den Lagerabschnitt und prüft paarweise - bei 1000 Stoffen ist
+        das eine Abfrage und ein vollständiger Durchlauf je Zeile.
+        """
         try:
             from trgs510 import check_zusammenlagerung
         except ImportError:
             return []
-            
+
         warnings = []
         if not self.unterbereich_id or not self.lagerklasse:
             return warnings
-            
+
         for other in self.unterbereich.gefahrstoffe:
             if other.id != self.id and other.lagerklasse and not getattr(other, 'is_deleted', False):
                 allowed, msg = check_zusammenlagerung(self.lagerklasse, other.lagerklasse)
@@ -556,6 +562,64 @@ class Gefahrstoff(db.Model):
         return warnings
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
+
+def trgs_warnungen_fuer(gefahrstoffe):
+    """IDs aller Stoffe der Liste mit einem Zusammenlagerungsverbot.
+
+    Dieselbe Regel wie Gefahrstoff.trgs_warnings, aber für die ganze Liste in
+    einem Durchgang: Die Stoffe der betroffenen Lagerabschnitte kommen mit
+    einer Abfrage, und geprüft wird je Abschnitt über die vorkommenden
+    Lagerklassen statt über alle Paare von Stoffen. Bei 1000 Stoffen im selben
+    Raum sind das rund 10 statt 1000 Abfragen und 24 statt einer Million
+    Vergleiche.
+
+    Die Paarregel bleibt exakt: Ein Stoff wird markiert, wenn im selben
+    Lagerabschnitt ein anderer Stoff mit einer unverträglichen Lagerklasse
+    steht. Stehen zwei Stoffe derselben unverträglichen Klasse zusammen, gilt
+    das ebenfalls als Konflikt.
+    """
+    try:
+        from trgs510 import check_zusammenlagerung
+    except ImportError:
+        return set()
+
+    orte = {stoff.unterbereich_id for stoff in gefahrstoffe
+            if stoff.unterbereich_id and stoff.lagerklasse}
+    if not orte:
+        return set()
+
+    # Die Beziehung unterbereich.gefahrstoffe enthält auch Stoffe, die der
+    # aktuelle Filter nicht zeigt; die Prüfung gilt dem Lagerabschnitt, nicht
+    # der Ansicht. Deshalb wird hier bewusst nicht die übergebene Liste
+    # verwendet.
+    im_abschnitt = Gefahrstoff.query.filter(
+        Gefahrstoff.is_deleted == False,
+        Gefahrstoff.unterbereich_id.in_(orte)).all()
+
+    je_ort = {}
+    for stoff in im_abschnitt:
+        if not stoff.lagerklasse:
+            continue
+        klasse = str(stoff.lagerklasse).strip().upper()
+        je_ort.setdefault(stoff.unterbereich_id, {}).setdefault(
+            klasse, []).append(stoff.id)
+
+    warnungen = set()
+    for klassen in je_ort.values():
+        vorhanden = list(klassen)
+        verboten = {(a, b): not check_zusammenlagerung(a, b)[0]
+                    for a in vorhanden for b in vorhanden}
+        for klasse, ids in klassen.items():
+            trifft = any(
+                verboten[(klasse, andere)]
+                for andere in vorhanden
+                if andere != klasse or len(klassen[andere]) > 1)
+            if trifft:
+                warnungen.update(ids)
+    # Nur Stoffe der übergebenen Liste zurückgeben: Der Aufrufer markiert
+    # Zeilen, die er anzeigt. Die Mitbewohner des Lagerabschnitts haben die
+    # Prüfung beeinflusst, gehören aber nicht in das Ergebnis.
+    return warnungen & {stoff.id for stoff in gefahrstoffe}
 
 def log_audit_event(action, entity_type, entity_id, details="", user_id=None):
     """Schreibt einen Eintrag in die Systemhistorie.
@@ -1182,6 +1246,17 @@ def fristen_liste(heute=None):
     eintraege = []
     stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
 
+    # standort_text() lädt den Unterbereich über die Sitzung. Die Sitzung hält
+    # Objekte nur schwach fest: Ohne eigenen Zwischenspeicher wird derselbe
+    # Unterbereich je Stoff erneut abgefragt (bei 1000 Stoffen 1000 Abfragen
+    # für zehn Standorte). Der Cache gilt nur für diesen Aufruf.
+    ort_texte = {}
+
+    def ort_text(unterbereich_id):
+        if unterbereich_id not in ort_texte:
+            ort_texte[unterbereich_id] = standort_text(unterbereich_id)
+        return ort_texte[unterbereich_id]
+
     for stoff in stoffe:
         stufe, faellig_seit = sdb_status(stoff, heute)
         if stufe == 'ok':
@@ -1191,7 +1266,7 @@ def fristen_liste(heute=None):
             'stufe': stufe,
             'objekt': stoff.name,
             'objekt_link': url_for('view_stoff', id=stoff.id),
-            'ort': standort_text(stoff.unterbereich_id),
+            'ort': ort_text(stoff.unterbereich_id),
             'faellig_seit': faellig_seit,
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
             'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
@@ -1217,7 +1292,7 @@ def fristen_liste(heute=None):
             'stufe': stufe,
             'objekt': stoff.name,
             'objekt_link': url_for('view_stoff', id=stoff.id),
-            'ort': standort_text(stoff.unterbereich_id),
+            'ort': ort_text(stoff.unterbereich_id),
             'faellig_seit': faellig_seit,
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
             'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
@@ -1242,7 +1317,7 @@ def fristen_liste(heute=None):
         eintraege.append({
             'kategorie': 'Inventur',
             'stufe': 'inventur',
-            'objekt': standort_text(unterbereich_id),
+            'objekt': ort_text(unterbereich_id),
             'objekt_link': url_for('index', unterbereich_id=unterbereich_id),
             'ort': f'{len(stoffe_dort)} Gefahrstoff(e)',
             'faellig_seit': faellig_seit,
@@ -1308,10 +1383,15 @@ def mengenschwellen_liste():
     """
     stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
     eintraege = []
+    # Je Lagerabschnitt kann es mehrere Befunde geben; ohne Cache würde der
+    # Standort dafür jedes Mal neu geladen (siehe fristen_liste()).
+    ort_texte = {}
     for befund in mengenschwellen.alle_befunde(stoffe):
         ub_id = befund['unterbereich_id']
+        if ub_id not in ort_texte:
+            ort_texte[ub_id] = standort_text(ub_id)
         eintraege.append({
-            'objekt': standort_text(ub_id),
+            'objekt': ort_texte[ub_id],
             'objekt_link': url_for('index', unterbereich_id=ub_id),
             'bezeichnung': befund['bezeichnung'],
             'status': befund['status'],
@@ -1720,6 +1800,11 @@ def index():
     mengen_auffaellig = {b['unterbereich_id']
                          for b in mengenschwellen.alle_befunde(gefahrstoffe)}
 
+    # Zusammenlagerung ebenfalls einmal für die ganze Liste statt je Zeile
+    # (und statt dreimal je Stoff, weil Tabelle und Kartenansicht beide
+    # gerendert werden). Siehe trgs_warnungen_fuer().
+    trgs_warnungen = trgs_warnungen_fuer(gefahrstoffe)
+
     return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
                            bereiche=bereiche,
@@ -1728,7 +1813,8 @@ def index():
                            today=today,
                            sdb_stufen=sdb_stufen,
                            stats_locations=stats_locations,
-                           mengen_auffaellig=mengen_auffaellig)
+                           mengen_auffaellig=mengen_auffaellig,
+                           trgs_warnungen=trgs_warnungen)
 
 @app.route('/betriebsanweisungen')
 @login_required

@@ -2,6 +2,13 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.43 – Übersicht skaliert mit der Zahl der Stoffe (November 2026, APP_VERSION 2.6.4)
+
+* **Zusammenlagerung einmal statt je Zeile** (`trgs_warnungen_fuer` in `main.py`): Die Übersicht prüft je Lagerabschnitt über die vorkommenden Lagerklassen statt je Stoffpaar; `Gefahrstoff.trgs_warnings` bleibt für die Detailseite. Gemessen mit 3000 Stoffen: **2,9 s → 0,44 s**, 3057 → 38 SQL-Abfragen.
+* **`standort_text()` wird in `fristen_liste` und `mengenschwellen_liste` je Aufruf zwischengespeichert.** Die Sitzung hält Objekte nur schwach fest, deshalb wurde derselbe Unterbereich je Stoff neu geladen (1000 Abfragen für 10 Standorte). `/fristen` bei 3000 Stoffen: **871 → 160 ms**, 6065 → 45 Abfragen.
+* **Test:** neu `test_trgs_warnungen.py` (6 Tests), darunter die Gegenprobe der Listenberechnung gegen die Eigenschaft je Stoff. Gesamtstand 378.
+* **Bekannt, nicht geändert:** Die Übersicht rendert Tabelle **und** Kachelansicht. Bei 3000 Stoffen sind das 15 MB HTML (Instanz mit 671 Stoffen: rund 3,3 MB). Das belastet den Browser, nicht den Server.
+
 ### v3.42 – Import toleranter gegenüber fremden Tabellen (November 2026, APP_VERSION 2.6.4)
 
 * **Fremde Beschriftungen werden gedeutet.** Alias-Liste um „Produkt“, „Raum“, „Gebinde-Nummer“ und weitere erweitert; zusätzlich greifen einzelne Wörter einer Beschriftung. Eine Datei mit „Produkt“ statt „Name“ wurde bisher vollständig abgelehnt.
