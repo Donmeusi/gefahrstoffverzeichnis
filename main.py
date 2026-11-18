@@ -1805,6 +1805,12 @@ def index():
     # gerendert werden). Siehe trgs_warnungen_fuer().
     trgs_warnungen = trgs_warnungen_fuer(gefahrstoffe)
 
+    # Die Kachelansicht wird erst beim Umschalten geladen (index_kacheln).
+    # Die aktuellen Filter reisen in der URL mit, damit sie dieselbe Auswahl
+    # zeigt wie die Tabelle.
+    kacheln_url = url_for('index_kacheln',
+                          **request.args.to_dict(flat=True))
+
     return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
                            bereiche=bereiche,
@@ -1814,7 +1820,37 @@ def index():
                            sdb_stufen=sdb_stufen,
                            stats_locations=stats_locations,
                            mengen_auffaellig=mengen_auffaellig,
-                           trgs_warnungen=trgs_warnungen)
+                           trgs_warnungen=trgs_warnungen,
+                           kacheln_url=kacheln_url)
+
+
+@app.route('/index/kacheln')
+@login_required
+def index_kacheln():
+    """Kachelansicht der Übersicht als HTML-Fragment.
+
+    Die Übersicht liefert die Kacheln nicht mehr mit aus: Bei 3000 Stoffen
+    waren Tabelle und Kacheln zusammen 15 MB, die Hälfte davon Kacheln. Der
+    Umschalter lädt dieses Fragment beim ersten Wechsel nach.
+
+    Dieselben Filter wie index() (Bereich/Unterbereich aus der Abfrage), damit
+    die Kacheln zur Tabelle passen. Ein Zugriffsfehler wird nicht als
+    Blitzmeldung gemeldet - das Fragment hat keinen Seitenrahmen; die
+    Übersicht zeigt die Meldung selbst.
+    """
+    query, _, _, error_message = get_filtered_gefahrstoff_query_for_request()
+    if error_message:
+        abort(403)
+
+    gefahrstoffe = query.order_by(Gefahrstoff.name).all()
+    heute = datetime.utcnow().date()
+    return render_template(
+        '_kacheln.html',
+        gefahrstoffe=gefahrstoffe,
+        sdb_stufen={stoff.id: sdb_status(stoff, heute)[0]
+                    for stoff in gefahrstoffe},
+        trgs_warnungen=trgs_warnungen_fuer(gefahrstoffe))
+
 
 @app.route('/betriebsanweisungen')
 @login_required

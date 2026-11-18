@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.44 – Kachelansicht wird nachgeladen (November 2026, APP_VERSION 2.6.4)
+
+* Die Übersicht liefert nur noch die Tabelle. Die Kacheln kommen von **`/index/kacheln`** (`templates/_kacheln.html`), wenn der Umschalter sie zum ersten Mal braucht.
+* Die aktuellen Filter (`bereich_id`, `unterbereich_id`) reisen in `data-kacheln-url` mit; nach dem Einsetzen läuft der Suchfilter erneut, eine bereits getippte Suche gilt also weiter.
+* Bleibt das Laden aus, schaltet die Ansicht **nicht** um und zeigt einen Hinweis – die Tabelle bleibt stehen, statt dass eine leere Fläche erscheint.
+* Gemessen mit 3000 Stoffen: **15,0 → 9,8 MB** HTML, 437 → 365 ms.
+* Test: neu `test_kacheln.py` (6 Tests: Fragment ohne Seitenrahmen, Bereichsfilter, fremder Bereich 403, Anmeldung, gesperrte Downloads für die Leser-Rolle). Gesamtstand 384.
+
 ### v3.43 – Übersicht skaliert mit der Zahl der Stoffe (November 2026, APP_VERSION 2.6.4)
 
 * **Zusammenlagerung einmal statt je Zeile** (`trgs_warnungen_fuer` in `main.py`): Die Übersicht prüft je Lagerabschnitt über die vorkommenden Lagerklassen statt je Stoffpaar; `Gefahrstoff.trgs_warnings` bleibt für die Detailseite. Gemessen mit 3000 Stoffen: **2,9 s → 0,44 s**, 3057 → 38 SQL-Abfragen.
