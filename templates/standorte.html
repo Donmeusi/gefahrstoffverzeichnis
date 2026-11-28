@@ -20,42 +20,47 @@
 {# Flache Liste statt Baum: je Standort die Stoffzahl (mit den Unter-Standorten)
    und eine Marke, wenn im Teilbaum eine Mengenschwelle nach TRGS 510
    überschritten ist. Der Überblick, den die Standortansicht nicht mehr
-   leisten muss. #}
+   leisten muss. Aufbau wie in locations.html: card > card-body > section-header. #}
 {% for gruppe in gruppen %}
-<section class="card">
-    <h2>{{ gruppe.bereich.name }}</h2>
-    {% if gruppe.standorte %}
-    <table class="data-table data-table--dense">
-        <caption class="sr-only">Standorte im Bereich {{ gruppe.bereich.name }}</caption>
-        <thead>
-            <tr>
-                <th scope="col">Standort</th>
-                <th scope="col">Stoffe</th>
-                <th scope="col">Hinweis</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for eintrag in gruppe.standorte %}
-            <tr>
-                <td>
-                    <a class="table-link" href="{{ url_for('standort', unterbereich_id=eintrag.standort.id) }}">
-                        {{ eintrag.standort.name }}
-                    </a>
-                </td>
-                <td>{{ eintrag.anzahl }}</td>
-                <td>
-                    {% if eintrag.warnung %}
-                    <span class="badge badge-danger">Mengenschwelle</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="no-results">In diesem Bereich gibt es noch keine Standorte.</p>
-    {% endif %}
-</section>
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="section-header">
+            <i class="fa-solid fa-map-marker-alt icon-primary" aria-hidden="true"></i>
+            <h3>{{ gruppe.bereich.name }}</h3>
+        </div>
+        {% if gruppe.standorte %}
+        <table class="data-table data-table--dense">
+            <caption class="sr-only">Standorte im Bereich {{ gruppe.bereich.name }}</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Standort</th>
+                    <th scope="col">Stoffe</th>
+                    <th scope="col">Hinweis</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eintrag in gruppe.standorte %}
+                <tr>
+                    <td>
+                        <a class="table-link" href="{{ url_for('standort', unterbereich_id=eintrag.standort.id) }}">
+                            {{ eintrag.standort.name }}
+                        </a>
+                    </td>
+                    <td>{{ eintrag.anzahl }}</td>
+                    <td>
+                        {% if eintrag.warnung %}
+                        <span class="badge badge-danger">Mengenschwelle</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-results">In diesem Bereich gibt es noch keine Standorte.</p>
+        {% endif %}
+    </div>
+</div>
 {% else %}
 <p class="no-results">Dir sind noch keine Bereiche zugeordnet. Ein Administrator kann das in der Benutzerverwaltung nachtragen.</p>
 {% endfor %}
