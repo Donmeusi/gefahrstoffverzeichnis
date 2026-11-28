@@ -41,9 +41,11 @@
             {% if aktiver_unterbereich %}
                 Standort: <strong>{{ aktiver_unterbereich.get_full_path() }}</strong>
                 · <a href="{{ url_for('standorte') }}">Standort wechseln</a>
+                · <a href="{{ url_for('suche') }}">in allen Standorten suchen</a>
             {% elif aktiver_bereich %}
                 Standort: <strong>{{ aktiver_bereich.name }}</strong>
                 · <a href="{{ url_for('standorte') }}">Standort wechseln</a>
+                · <a href="{{ url_for('suche') }}">in allen Standorten suchen</a>
             {% else %}
                 Alle Standorte
             {% endif %}

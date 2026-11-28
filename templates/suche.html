@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Suche – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-magnifying-glass h1-icon" aria-hidden="true"></i> Stoffsuche</h1>
+        <p class="text-muted subline">
+            Durchsucht Name, CAS-, EG-Nummer und H-Sätze in allen Standorten, die du sehen darfst.
+        </p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('suche') }}" class="filters mobile-stack">
+            <div class="search-bar-wrapper search-field">
+                <label class="sr-only" for="sucheFeld">Gefahrstoffe in allen Standorten durchsuchen</label>
+                <i class="fa-solid fa-search" aria-hidden="true"></i>
+                <input type="text" class="search-bar" id="sucheFeld" name="q"
+                       value="{{ q }}" placeholder="Name, CAS, H-Satz…"
+                       autofocus>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Suchen
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if q %}
+    {% if treffer %}
+    <div class="card">
+        <div class="card-body">
+            <div class="section-header">
+                <i class="fa-solid fa-list-ul icon-primary" aria-hidden="true"></i>
+                <h3>
+                    {{ gesamt }} {{ 'Treffer' if gesamt == 1 else 'Treffer' }} für „{{ q }}"
+                    {%- if gesamt > grenze %} (die ersten {{ grenze }} werden gezeigt){% endif %}
+                </h3>
+            </div>
+            <table class="data-table data-table--dense">
+                <caption class="sr-only">Treffer für {{ q }}</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">CAS / EG-Nr.</th>
+                        <th scope="col">Standort</th>
+                        <th scope="col">Signalwort</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stoff in treffer %}
+                    <tr>
+                        <td>
+                            <a class="table-link" href="{{ url_for('view_stoff', id=stoff.id) }}">{{ stoff.name }}</a>
+                        </td>
+                        <td>
+                            {% if stoff.cas_nummer %}CAS {{ stoff.cas_nummer }}{% endif %}
+                            {% if stoff.eg_nummer %}{% if stoff.cas_nummer %} · {% endif %}EG {{ stoff.eg_nummer }}{% endif %}
+                            {% if not stoff.cas_nummer and not stoff.eg_nummer %}–{% endif %}
+                        </td>
+                        <td>
+                            {% if stoff.unterbereich_id %}
+                            <a class="table-link" href="{{ url_for('standort', unterbereich_id=stoff.unterbereich_id) }}">{{ orte.get(stoff.unterbereich_id) }}</a>
+                            {% else %}
+                            ohne Standort
+                            {% endif %}
+                        </td>
+                        <td>{{ stoff.signalwort or '–' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="no-results">Kein Stoff gefunden für „{{ q }}". Gesucht wird in Name, CAS-, EG-Nummer und H-Sätzen.</p>
+    {% endif %}
+{% else %}
+<p class="no-results">Gib einen Suchbegriff ein. Die Suche läuft über alle Standorte, die du sehen darfst — nicht nur über den zuletzt geöffneten.</p>
+{% endif %}
+{% endblock %}

@@ -2,6 +2,32 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.46 – Stoffsuche über alle Standorte (November 2026, APP_VERSION 2.6.4)
+
+* **Neu `/suche`**: durchsucht Name, CAS-, EG-Nummer und H-Sätze in allen Standorten, die
+  der Benutzer sehen darf. Bisher filterte die Livesuche nur die Zeilen, die gerade im DOM
+  standen — mit standortbezogenen Ansichten hätte „wo liegt Aceton" damit nicht mehr
+  funktioniert.
+* **Die Berechtigungsgrenze ist dieselbe** wie überall (`get_gefahrstoff_query()`); ein
+  fremder Bereich erscheint nicht im Ergebnis. Die Standortspalte ist auf die
+  Standortansicht verlinkt.
+* **Groß-/Kleinschreibung mit Umlauten:** gefiltert wird in Python über `casefold()`, nicht
+  per SQL-`LIKE` — SQLite vergleicht nur ASCII ohne Rücksicht auf die Schreibweise, „äth"
+  hätte „Äthanol" sonst nicht gefunden. Gelesen werden dafür nur vier Textspalten; die
+  Objekte lädt erst die Trefferliste.
+* **Treffer gedeckelt** auf `SUCHERGEBNISSE_MAX` (200), die Gesamtzahl wird trotzdem
+  gemeldet („5 Treffer, die ersten 2 werden gezeigt"). Eine breite Suche würde sonst wieder
+  tausende Zeilen rendern — genau der Fall, den v3.45 abgeschafft hat.
+* **Messung, 3.000 Stoffe, serverseitig:** `q=Aceton` **89 ms**, `q=H226` (1.000 Treffer,
+  gedeckelt) **138 ms**, breite Suche `q=e` **91 ms**. Messlatte der Spec war 500 ms.
+  Zum Vergleich: `/standort/<id>` mit 3.000 Stoffen 190 ms.
+* Einstieg ohne neuen Navigationseintrag (die Leiste ist an der Breitengrenze): Knopf
+  „Stoff suchen" auf der Auswahlseite und Link „in allen Standorten suchen" im Kopf der
+  Standortansicht.
+* Test: neu `test_suche.py` (8 Tests: Berechtigungsgrenze, CAS, H-Satz, Umlaut-Schreibweise,
+  leere Suche, Deckel). Gesamtstand **402**.
+* Noch offen aus der Spec: die Druckroute `/verzeichnis/druck`.
+
 ### v3.45 – Übersicht nach Standort (November 2026, APP_VERSION 2.6.4)
 
 * **Die Übersicht zeigt einen Standort, nicht mehr das ganze Verzeichnis.** Neu ist

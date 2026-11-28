@@ -119,6 +119,11 @@ def handle_csrf_error(e):
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
 APP_VERSION = "2.6.4"
 
+# Obergrenze der Trefferliste in /suche. Eine breite Suche ("e") würde sonst
+# wieder tausende Zeilen rendern - genau der Fall, den die Standortansicht
+# abgeschafft hat. Die Zahl der Treffer wird trotzdem vollständig gemeldet.
+SUCHERGEBNISSE_MAX = 200
+
 @app.context_processor
 def inject_globals():
     return {
@@ -1926,6 +1931,54 @@ def standort(unterbereich_id):
                            # Tabelle - die Adresse trägt ihn jetzt ausdrücklich.
                            kacheln_url=url_for('index_kacheln',
                                                unterbereich_id=unterbereich.id))
+
+
+@app.route('/suche')
+@login_required
+def suche():
+    """Stoffsuche über alle Standorte, die der Benutzer sehen darf.
+
+    Serverseitig, weil die Standortansicht nur einen Ausschnitt im DOM hat:
+    eine Suche über die geladenen Zeilen fände Stoffe in anderen Standorten
+    nicht. Die Grenze ist dieselbe wie überall - get_gefahrstoff_query().
+    Grundlage: docs/specs/SPEC-uebersicht-standort.md (Q5).
+    """
+    q = (request.args.get('q') or '').strip()
+
+    treffer = []
+    gesamt = 0
+    if q:
+        nadel = q.casefold()
+        # Erst nur die vier Textspalten lesen: bei 3.000 Stoffen kostet das
+        # Bruchteile einer Objektladung, und die Suche bleibt ohne ORM-Aufwand.
+        zeilen = (get_gefahrstoff_query()
+                  .with_entities(Gefahrstoff.id, Gefahrstoff.name,
+                                 Gefahrstoff.cas_nummer, Gefahrstoff.eg_nummer,
+                                 Gefahrstoff.h_saetze)
+                  .all())
+        # Python statt SQL-LIKE: SQLite vergleicht nur ASCII ohne Rücksicht auf
+        # Groß-/Kleinschreibung - "äthanol" fände "Äthanol" sonst nicht.
+        ids = [zeile.id for zeile in zeilen
+               if any(nadel in (wert or '').casefold()
+                      for wert in (zeile.name, zeile.cas_nummer,
+                                   zeile.eg_nummer, zeile.h_saetze))]
+        gesamt = len(ids)
+        if ids:
+            treffer = (Gefahrstoff.query
+                       .filter(Gefahrstoff.id.in_(ids))
+                       .order_by(Gefahrstoff.name)
+                       .limit(SUCHERGEBNISSE_MAX)
+                       .all())
+
+    orte = {stoff.unterbereich_id: standort_text(stoff.unterbereich_id)
+            for stoff in treffer}
+
+    return render_template('suche.html',
+                           q=q,
+                           treffer=treffer,
+                           orte=orte,
+                           gesamt=gesamt,
+                           grenze=SUCHERGEBNISSE_MAX)
 
 
 @app.route('/index/kacheln')

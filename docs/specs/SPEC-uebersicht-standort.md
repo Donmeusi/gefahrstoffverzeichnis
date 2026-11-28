@@ -140,8 +140,11 @@ Die bestehenden 384 bleiben grün. Neu:
 ## Abweichungen
 
 **28.11.2026 — Teil 1 umgesetzt** (Commit „feat(uebersicht): Standortansicht"):
-Auswahlseite, Standortansicht und die Weiterleitung der alten Adressen. Die globale
-Suche und die Druckroute `/verzeichnis/druck` stehen noch aus.
+Auswahlseite, Standortansicht und die Weiterleitung der alten Adressen.
+
+**28.11.2026 — Suche umgesetzt** (Commit „feat(suche)"): `/suche`, serverseitig und
+berechtigungsgefiltert. Gemessen bei 3.000 Stoffen: 89–138 ms (Messlatte 500 ms).
+**Es fehlt noch die Druckroute `/verzeichnis/druck`.**
 
 - Die **Auswahlseite liegt auf `/standorte`**, nicht auf `/`. `/` leitet dorthin weiter
   (oder direkt in den Standort). Nötig, weil die Auswahlseite sonst durch die Merkregel
@@ -152,3 +155,9 @@ Suche und die Druckroute `/verzeichnis/druck` stehen noch aus.
   Baum im Kopfbereich hätte sie doppelt gebaut.
 - Der **Bereich** bleibt als Beschriftung in der Seitenleiste stehen (ohne Link), damit
   die Zuordnung der Standorte sichtbar bleibt.
+- Die **Trefferliste ist auf 200 gedeckelt** (`SUCHERGEBNISSE_MAX`), die Gesamtzahl wird
+  genannt. Diese Grenze stand nicht in der Spec; sie folgt aus derselben Überlegung wie
+  Q4 — eine breite Suche darf nicht wieder tausende Zeilen rendern.
+- **Kein Navigationseintrag für die Suche.** Die Leiste ist laut `base.html` an der
+  Breitengrenze (elf Einträge liefen über den Rand). Einstieg über den Knopf auf der
+  Auswahlseite und den Link im Kopf der Standortansicht.
