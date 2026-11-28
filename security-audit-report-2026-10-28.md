@@ -270,7 +270,7 @@ Die Zahl der Routen ist von 34 auf 51 gestiegen (einschließlich der `/api/*`-En
 | CSRF | `CSRFProtect(app)` global, unverändert; die Suche ist ein GET ohne Zustandsänderung |
 | Umfang der Suche | Treffer auf `SUCHERGEBNISSE_MAX` (200) gedeckelt, die Gesamtzahl wird nur gezählt. Eine breite Suche rendert damit nicht wieder tausende Zeilen — dieselbe Überlegung, die v3.45 für die Übersicht durchgesetzt hat |
 | Abhängigkeiten | `pillow` 12.3.0 → **13.0.0**, `werkzeug` 3.1.3 → **3.1.9**, `flask` 3.1.0 → **3.1.3**; Installation weiterhin nur mit `--require-hashes`. Die Befunde K4 und M6 sind damit weiter überholt, nicht zurückgefallen |
-| Testsuite | 408 Tests grün (zum Auditzeitpunkt 256) |
+| Testsuite | 417 Tests grün, davon 24 für die neuen Wege (zum Auditzeitpunkt 256) |
 
 **Nicht geprüft:** kein DAST, keine Penetrationstests, keine Lastmessung. Die Bewertung der neuen
 Routen stützt sich auf Quellcodeprüfung und die Regressionstests. `static/*.js` ist weiterhin
