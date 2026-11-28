@@ -351,13 +351,19 @@ Beurteilung der Transport- und Zugangsmaßnahmen davon abhängt.
 
 ### R-8 — Archivierte Datensätze nicht wiederherstellbar · **niedrig**
 
-* **Was:** Gelöschte Gefahrstoffe bleiben in der Datenbank, ein
-  Wiederherstellen gibt es in der Oberfläche aber nicht.
+* **Was:** Gelöschte Gefahrstoffe bleiben in der Datenbank (Soft-Delete), waren
+  in der Oberfläche aber nicht wiederherstellbar.
 * **Wirkung:** Kein Datenschutzproblem — ein Datenintegritätsthema. Ein
-  Fehlklick ist nur über einen Eingriff in die Datenbank umkehrbar.
-* **Maßnahme:** Papierkorb-Ansicht mit Wiederherstellen.
-* **Aufwand:** klein bis mittel.
-* **Status:** bewusst offen, im Handbuch benannt.
+  Fehlklick war nur über einen Eingriff in die Datenbank umkehrbar.
+* **Maßnahme:** **umgesetzt in v3.48.** In der Systemhistorie steht neben dem
+  Eintrag eines gelöschten Gefahrstoffs ein Knopf „Wiederherstellen". Er ist
+  Administratoren vorbehalten — wer schreiben darf, darf löschen; das
+  Rückgängigmachen bleibt der Verwaltung. Der Löschvorgang bleibt in der
+  Historie stehen, die Wiederherstellung schreibt einen eigenen Eintrag (keine
+  stille Rücknahme). Der Knopf erscheint nur, solange der Datensatz noch im
+  Archiv liegt.
+* **Aufwand:** klein.
+* **Status:** behoben.
 
 ### R-9 — PubChem-Abruf dokumentieren · **niedrig**
 

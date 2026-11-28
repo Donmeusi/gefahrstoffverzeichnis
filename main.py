@@ -117,7 +117,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.6.4"
+APP_VERSION = "2.6.5"
 
 # Obergrenze der Trefferliste in /suche. Eine breite Suche ("e") würde sonst
 # wieder tausende Zeilen rendern - genau der Fall, den die Standortansicht
@@ -2837,6 +2837,44 @@ def delete_stoff(id):
     return redirect(url_for('index'))
 
 
+@app.route('/restore/<int:id>', methods=['POST'])
+@login_required
+def restore_stoff(id):
+    """Holt einen gelöschten Gefahrstoff aus dem Archiv.
+
+    Löschen setzt seit jeher nur `is_deleted`; das Objekt blieb also erhalten,
+    war aber über die Oberfläche nicht mehr erreichbar. Dieses Gegenstück gibt
+    es nur für Administratoren: Wer löschen darf, ist nicht automatisch der,
+    der versehentliche Löschungen rückgängig macht.
+
+    Der Eintrag in der Historie bleibt stehen - gelöscht wurde ja -, und die
+    Wiederherstellung schreibt einen eigenen hinzu. Eine Historie, die den
+    Vorgang wieder ausblendet, wäre keine.
+    """
+    if not current_user.is_admin:
+        flash('Keine Berechtigung, einen gelöschten Gefahrstoff wiederherzustellen.', 'error')
+        return redirect(url_for('index'))
+
+    stoff = Gefahrstoff.query.get_or_404(id)
+
+    if not stoff.is_deleted:
+        flash(f'„{stoff.name}" ist nicht gelöscht - nichts wiederherzustellen.', 'info')
+        return redirect(url_for('audit_logs'))
+
+    try:
+        stoff.is_deleted = False
+        stoff.deleted_at = None
+        db.session.commit()
+
+        log_audit_event('RESTORE', 'Gefahrstoff', stoff.id, {'name': stoff.name})
+        flash(f'Gefahrstoff „{stoff.name}" wurde wiederhergestellt.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Fehler beim Wiederherstellen')
+        flash('Fehler beim Wiederherstellen. Details stehen im Server-Log.', 'error')
+    return redirect(url_for('audit_logs'))
+
+
 @app.route('/move/<int:id>', methods=['GET', 'POST'])
 @login_required
 def move_stoff(id):
@@ -4328,7 +4366,17 @@ def audit_logs():
         return redirect(url_for('index'))
     
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(100).all()
-    return render_template('audit_logs.html', logs=logs)
+
+    # Welche gelöschten Stoffe lassen sich noch zurückholen? Nur die bekommen
+    # in der Historie einen Knopf; ein Knopf, der auf einen längst entfernten
+    # Datensatz zeigt, wäre ein Versprechen ohne Deckung.
+    wiederherstellbar = {
+        zeile.id for zeile in
+        db.session.query(Gefahrstoff.id).filter(Gefahrstoff.is_deleted == True).all()
+    }
+
+    return render_template('audit_logs.html', logs=logs,
+                           wiederherstellbar=wiederherstellbar)
 
 @app.route('/admin/system')
 @login_required

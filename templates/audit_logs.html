@@ -64,6 +64,8 @@
                         <span class="badge badge-warning"><i class="fa-solid fa-pen" aria-hidden="true"></i> Geändert</span>
                     {% elif log.action == 'DELETE' %}
                         <span class="badge badge-danger"><i class="fa-solid fa-trash" aria-hidden="true"></i> Gelöscht</span>
+                    {% elif log.action == 'RESTORE' %}
+                        <span class="badge badge-success"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Wiederhergestellt</span>
                     {% elif log.action == 'MOVE' %}
                         <span class="badge badge-info"><i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i> Verschoben</span>
                     {% elif log.action == 'COPY' %}
@@ -104,6 +106,22 @@
                     {# Systemeinträge haben keine Datensatz-ID; ohne die Abfrage
                        stünde dort "System #None". #}
                     <small class="text-light">{{ log.entity_type }}{% if log.entity_id is not none %} #{{ log.entity_id }}{% endif %}</small>
+                    {# Wiederherstellen: nur bei gelöschten Gefahrstoffen, die noch
+                       im Archiv liegen. Das Löschen setzt nur ein Kennzeichen -
+                       der Datensatz ist also da, war aber bisher unerreichbar.
+                       Die alte Meldung bleibt stehen; die Wiederherstellung
+                       schreibt einen eigenen Eintrag darüber. #}
+                    {% if log.action == 'DELETE' and log.entity_type == 'Gefahrstoff'
+                          and log.entity_id in wiederherstellbar %}
+                    <form method="post" action="{{ url_for('restore_stoff', id=log.entity_id) }}"
+                          class="form-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline btn-sm">
+                            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                            Wiederherstellen
+                        </button>
+                    </form>
+                    {% endif %}
                 </td>
                 <td class="d-none-mobile">
                     <code class="detail-code">{{ log.details }}</code>

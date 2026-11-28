@@ -2611,6 +2611,11 @@ footer i { color: var(--primary-ink); }
    Sie ersetzen Inline-Stile, die dort mehrfach standen oder Farben direkt
    im HTML trugen. Die Namen sagen, was gemeint ist, nicht wie es aussieht. */
 .btn-row      { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Ein Formular, das nur einen Knopf trägt und in einer Tabellenzelle oder
+   hinter einem Badge steht (Systemhistorie: "Wiederherstellen"). Ohne eigene
+   Klasse nimmt ein <form> die Standardabstände mit und reißt die Zeile auf. */
+.form-inline  { display: inline-block; margin: 0.35rem 0 0 0; }
 .h1-icon      { color: var(--primary-ink); margin-right: 0.4rem; }
 .subline      { margin-top: 0.2rem; font-size: var(--fs-sm); }
 .text-main    { color: var(--text-main) !important; }
