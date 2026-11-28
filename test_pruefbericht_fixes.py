@@ -308,7 +308,7 @@ class TestLogoutInvalidiertSitzung(unittest.TestCase):
         """Neuer Client mit dem kopierten Cookie, wie ein Angreifer ihn haette."""
         angreifer = app.test_client()
         angreifer.set_cookie('session', wert)
-        return angreifer.get('/')
+        return angreifer.get('/standorte')
 
     def test_kopiertes_cookie_gilt_vor_dem_logout(self):
         wert = self._sitzungswert()

@@ -54,7 +54,7 @@
                     {% if current_user.is_authenticated %}
                     {# Reihenfolge nach Wichtigkeit: erst die taegliche Arbeit,
                        dann das Buendel der Verwaltung (siehe unten). #}
-                    <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}aria-current="page"{% endif %}><i class="fa-solid fa-table-list"></i> Übersicht</a></li>
+                    <li><a href="{{ url_for('index') }}" {% if request.endpoint in ('index', 'standort', 'standorte') %}aria-current="page"{% endif %}><i class="fa-solid fa-table-list"></i> Übersicht</a></li>
                     <li><a href="{{ url_for('betriebsanweisungen_list') }}" {% if request.endpoint == 'betriebsanweisungen_list' %}aria-current="page"{% endif %}><i class="fa-solid fa-file-pdf"></i> Betriebsanweisungen</a></li>
                     <li><a href="{{ url_for('sicherheitsdatenblaetter_list') }}" {% if request.endpoint == 'sicherheitsdatenblaetter_list' %}aria-current="page"{% endif %}><i class="fa-solid fa-file-shield"></i> Sicherheitsdatenblätter</a></li>
                     {# Der Zähler ist bewusst ein schmaler Aufsatz am Text statt eines

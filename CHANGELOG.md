@@ -2,6 +2,29 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.45 – Übersicht nach Standort (November 2026, APP_VERSION 2.6.4)
+
+* **Die Übersicht zeigt einen Standort, nicht mehr das ganze Verzeichnis.** Neu ist
+  `/standort/<id>`; gerendert wird der Standort samt seiner Unter-Standorte. Grund und
+  Abwägung stehen in `docs/specs/SPEC-uebersicht-standort.md`: Bei über 3.000 Stoffen
+  insgesamt, verteilt auf Standorte, ist die Gesamtliste die einzige teure Ansicht — und
+  der Administrator war der einzige, der sie überhaupt zu sehen bekam.
+* **`/` führt hinein**: genau ein Bereich mit genau einem Standort geht direkt auf, sonst
+  die zuletzt gewählte Ansicht aus der Sitzung, sonst die Auswahl. Kein Cookie.
+* **Neu `/standorte`**: flache Liste der sichtbaren Standorte, nach Bereich gruppiert,
+  mit Stoffzahl (inklusive Unter-Standorten) und Marke bei einer Mengenschwellen-
+  Überschreitung nach TRGS 510. Der Überblick, den die Liste nicht mehr tragen muss.
+* **Alte Adressen bleiben gültig**: `?unterbereich_id=` leitet auf `/standort/<id>`, `?bereich_id=`
+  auf die gefilterte Auswahl. Auch gedruckte QR-Etiketten und Lesezeichen laufen weiter.
+* **Der Bereich ist nur noch Gliederung**, kein eigenes Ziel; die Seitenleiste führt zu den
+  Standorten, „Standort wechseln" steht zusätzlich im Kopfbereich.
+* **Berechtigung unverändert**: `darf_unterbereich()` zieht dieselbe Grenze wie
+  `get_gefahrstoff_query()` — ein fremder Standort führt auf die Auswahl, nicht auf Daten.
+* Test: neu `test_standort_ansicht.py` (10 Tests: Weiterleitungen, direkter Einstieg,
+  Merkregel und ihr Verfall bei Rechteverlust, gesperrter Standort, Teilbaum-Zählung,
+  Warnmarke). Gesamtstand **394**.
+* Noch offen aus der Spec: globale Suche und die Druckroute `/verzeichnis/druck`.
+
 ### v3.44 – Kachelansicht wird nachgeladen (November 2026, APP_VERSION 2.6.4)
 
 * Die Übersicht liefert nur noch die Tabelle. Die Kacheln kommen von **`/index/kacheln`** (`templates/_kacheln.html`), wenn der Umschalter sie zum ersten Mal braucht.

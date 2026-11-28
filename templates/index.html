@@ -14,7 +14,7 @@
    Spaltenbreite und laeuft bei langen Woertern heraus.
    Ab Ebene 6 waechst die Einrueckung nicht weiter (Schutz vor Zyklen und
    absurden Tiefen), der Rest erscheint auf gleicher Hoehe. #}
-<a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
+<a href="{{ url_for('standort', unterbereich_id=unterbereich.id) }}"
    class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
    title="{{ unterbereich.name }}">
     <span class="location-name">{{ unterbereich.name }}</span>
@@ -40,8 +40,10 @@
         <p class="text-muted subline">
             {% if aktiver_unterbereich %}
                 Standort: <strong>{{ aktiver_unterbereich.get_full_path() }}</strong>
+                · <a href="{{ url_for('standorte') }}">Standort wechseln</a>
             {% elif aktiver_bereich %}
                 Standort: <strong>{{ aktiver_bereich.name }}</strong>
+                · <a href="{{ url_for('standorte') }}">Standort wechseln</a>
             {% else %}
                 Alle Standorte
             {% endif %}
@@ -81,16 +83,17 @@
     <aside class="sidebar-locations card">
         <h3><i class="fa-solid fa-building"></i> Standorte</h3>
         <nav class="location-nav">
-            <a href="{{ url_for('index') }}" class="location-link {% if not aktiver_bereich %}active{% endif %}">
+            <a href="{{ url_for('standorte') }}" class="location-link {% if request.endpoint == 'standorte' %}active{% endif %}">
                 <i class="fa-solid fa-globe"></i> <span class="location-name">Alle Standorte</span>
             </a>
             <hr class="nav-divider">
             {% for bereich in bereiche %}
-            <a href="{{ url_for('index', bereich_id=bereich.id) }}"
-               title="{{ bereich.name }}"
-               class="location-link location-link--gruppe {% if aktiver_bereich and aktiver_bereich.id == bereich.id and not aktiver_unterbereich %}active{% endif %}">
+            {# Der Bereich ist nur noch Gliederung, kein Ziel: angesehen wird
+               immer ein Standort (Spec SPEC-uebersicht-standort.md). #}
+            <span title="{{ bereich.name }}"
+                  class="location-link location-link--gruppe {% if aktiver_bereich and aktiver_bereich.id == bereich.id %}active{% endif %}">
                 <i class="fa-solid fa-map-marker-alt"></i> <span class="location-name">{{ bereich.name }}</span>
-            </a>
+            </span>
             {% if bereich.unterbereiche %}
             {# Auch die erste Ebene bekommt eine Schiene, sonst haengen die
                Unterbereiche unter dem getoenten Bereichskopf ohne Linie. #}

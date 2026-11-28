@@ -139,4 +139,16 @@ Die bestehenden 384 bleiben grün. Neu:
 
 ## Abweichungen
 
-Noch keine — beim Umsetzen hier nachziehen.
+**28.11.2026 — Teil 1 umgesetzt** (Commit „feat(uebersicht): Standortansicht"):
+Auswahlseite, Standortansicht und die Weiterleitung der alten Adressen. Die globale
+Suche und die Druckroute `/verzeichnis/druck` stehen noch aus.
+
+- Die **Auswahlseite liegt auf `/standorte`**, nicht auf `/`. `/` leitet dorthin weiter
+  (oder direkt in den Standort). Nötig, weil die Auswahlseite sonst durch die Merkregel
+  unerreichbar wäre: „Standort wechseln" braucht eine Adresse, die nicht selbst
+  weiterleitet.
+- Der **Standortwechsel sitzt zusätzlich in der Seitenleiste**, nicht nur in der
+  Kopfzeile — die Leiste war schon da und ist auf lange Namen eingestellt; ein zweiter
+  Baum im Kopfbereich hätte sie doppelt gebaut.
+- Der **Bereich** bleibt als Beschriftung in der Seitenleiste stehen (ohne Link), damit
+  die Zuordnung der Standorte sichtbar bleibt.

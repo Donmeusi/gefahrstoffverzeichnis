@@ -60,6 +60,7 @@ class TestKacheln(unittest.TestCase):
 
             self.bereich_a_id = bereich_a.id
             self.bereich_b_id = bereich_b.id
+            self.raum_a_id = raum_a.id
 
     def tearDown(self):
         with app.app_context():
@@ -73,11 +74,12 @@ class TestKacheln(unittest.TestCase):
 
     def test_uebersicht_enthaelt_keine_kacheln(self):
         self._login()
-        html = self.client.get('/').get_data(as_text=True)
+        html = self.client.get(f'/standort/{self.raum_a_id}').get_data(as_text=True)
 
-        # Die Tabelle steht, die Kacheln nicht - aber die Adresse ist da.
+        # Die Tabelle steht, die Kacheln nicht - aber die Adresse ist da,
+        # und sie traegt den Standort mit (sonst laedt das Fragment alles).
         self.assertIn('id="gefahrstoffTable"', html)
-        self.assertIn('data-kacheln-url="/index/kacheln"', html)
+        self.assertIn('data-kacheln-url="/index/kacheln?unterbereich_id=', html)
         self.assertNotIn('stoff-card', html)
         self.assertIn('Aceton', html)
 

@@ -1318,7 +1318,7 @@ def fristen_liste(heute=None):
             'kategorie': 'Inventur',
             'stufe': 'inventur',
             'objekt': ort_text(unterbereich_id),
-            'objekt_link': url_for('index', unterbereich_id=unterbereich_id),
+            'objekt_link': url_for('standort', unterbereich_id=unterbereich_id),
             'ort': f'{len(stoffe_dort)} Gefahrstoff(e)',
             'faellig_seit': faellig_seit,
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
@@ -1392,7 +1392,7 @@ def mengenschwellen_liste():
             ort_texte[ub_id] = standort_text(ub_id)
         eintraege.append({
             'objekt': ort_texte[ub_id],
-            'objekt_link': url_for('index', unterbereich_id=ub_id),
+            'objekt_link': url_for('standort', unterbereich_id=ub_id),
             'bezeichnung': befund['bezeichnung'],
             'status': befund['status'],
             'summe_kg': befund['summe_kg'],
@@ -1763,35 +1763,141 @@ def get_filtered_gefahrstoff_query_for_request():
     return query, aktiver_bereich, aktiver_unterbereich, error_message
 
 
+def unterbereich_ids_mit_kindern(unterbereich):
+    """Der Standort selbst und alle Unter-Standorte darunter."""
+    ids = [unterbereich.id]
+    for child in unterbereich.children:
+        ids.extend(unterbereich_ids_mit_kindern(child))
+    return ids
+
+
+def darf_unterbereich(unterbereich):
+    """Darf der aktuelle Benutzer diesen Standort sehen?
+
+    Dieselbe Grenze wie in get_gefahrstoff_query(): Administrator alles,
+    Moderator die eigenen und zugewiesenen Bereiche, sonst die zugewiesenen.
+    """
+    if current_user.is_admin:
+        return True
+    bereich = unterbereich.bereich
+    if bereich is None:
+        return False
+    return (can_manage_bereich(bereich)
+            or bereich in current_user.assigned_bereiche.all())
+
+
 @app.route('/')
 @login_required
 def index():
-    query, aktiver_bereich, aktiver_unterbereich, error_message = get_filtered_gefahrstoff_query_for_request()
-    
-    if error_message:
-        flash(error_message, 'error')
-        if request.args.get('bereich_id') or request.args.get('unterbereich_id'):
-            return redirect(url_for('index'))
-            
+    """Einstieg: führt in den Standort, sonst auf die Auswahlseite.
+
+    Alte Adressen mit ?unterbereich_id= oder ?bereich_id= bleiben gültig -
+    Lesezeichen sollen nicht brechen. Grundlage:
+    docs/specs/SPEC-uebersicht-standort.md.
+    """
+    alt_unterbereich = request.args.get('unterbereich_id', type=int)
+    if alt_unterbereich:
+        return redirect(url_for('standort', unterbereich_id=alt_unterbereich))
+
+    alt_bereich = request.args.get('bereich_id', type=int)
+    if alt_bereich:
+        return redirect(url_for('standorte', bereich_id=alt_bereich))
+
+    # Zuletzt gewählter Standort, solange die Berechtigung noch steht.
+    gemerkt = session.get('letzter_standort')
+    if gemerkt:
+        unterbereich = Unterbereich.query.get(gemerkt)
+        if unterbereich and darf_unterbereich(unterbereich):
+            return redirect(url_for('standort', unterbereich_id=unterbereich.id))
+        session.pop('letzter_standort', None)
+
+    # Genau ein Bereich mit genau einem Standort: kein Zwischenschritt.
     bereiche = get_accessible_bereiche()
-    gefahrstoffe = query.order_by(Gefahrstoff.name).all()
-    
-    # KPIs berechnen.
-    # Die Gesamtzahl stand hier als stats_total und speiste eine eigene
-    # Kachel - die wiederholte nur, was die Kopf-Unterzeile ohnehin mit
-    # {{ gefahrstoffe|length }} zeigt. Die Kachel ist entfallen.
-    #
-    # stats_expired_sdb speiste ebenfalls eine Kachel (Veraltete SDBs); auch
-    # die ist entfallen - die Fristenzahl steht nur noch als Menuepunkt in der
-    # Kopfzeile und in der Fristenliste selbst.
+    if len(bereiche) == 1:
+        oben = (Unterbereich.query
+                .filter_by(bereich_id=bereiche[0].id, parent_id=None)
+                .order_by(Unterbereich.name).all())
+        if len(oben) == 1:
+            return redirect(url_for('standort', unterbereich_id=oben[0].id))
+
+    return redirect(url_for('standorte'))
+
+
+@app.route('/standorte')
+@login_required
+def standorte():
+    """Auswahlseite: alle sichtbaren Standorte, nach Bereich gruppiert.
+
+    Flache Liste statt Baum - je Eintrag die Stoffzahl und die Marke für eine
+    Mengenschwellen-Überschreitung nach TRGS 510. Damit trägt diese Seite den
+    Überblick, den die Standortansicht nicht mehr leisten muss.
+    """
+    bereiche = get_accessible_bereiche()
+
+    gefilterter_bereich = None
+    bereich_id = request.args.get('bereich_id', type=int)
+    if bereich_id:
+        gefilterter_bereich = next((b for b in bereiche if b.id == bereich_id), None)
+        if gefilterter_bereich is None:
+            flash('Kein Zugriff auf diesen Bereich.', 'error')
+            return redirect(url_for('standorte'))
+        bereiche = [gefilterter_bereich]
+
+    # Eine Abfrage für alles Sichtbare: Zahlen je Standort und Mengenschwellen
+    # entstehen daraus, statt je Standort erneut zu laden.
+    sichtbar = get_gefahrstoff_query().all()
+    zahlen = {}
+    for stoff in sichtbar:
+        if stoff.unterbereich_id:
+            zahlen[stoff.unterbereich_id] = zahlen.get(stoff.unterbereich_id, 0) + 1
+    auffaellig = {befund['unterbereich_id']
+                  for befund in mengenschwellen.alle_befunde(sichtbar)}
+
+    gruppen = []
+    for bereich in bereiche:
+        staende = []
+        for unterbereich in (Unterbereich.query
+                             .filter_by(bereich_id=bereich.id, parent_id=None)
+                             .order_by(Unterbereich.name).all()):
+            ids = unterbereich_ids_mit_kindern(unterbereich)
+            staende.append({
+                'standort': unterbereich,
+                'anzahl': sum(zahlen.get(i, 0) for i in ids),
+                'warnung': any(i in auffaellig for i in ids),
+            })
+        gruppen.append({
+            'bereich': bereich,
+            'standorte': staende,
+            'anzahl': sum(s['anzahl'] for s in staende),
+        })
+
+    return render_template('standorte.html',
+                           gruppen=gruppen,
+                           gefilterter_bereich=gefilterter_bereich)
+
+
+@app.route('/standort/<int:unterbereich_id>')
+@login_required
+def standort(unterbereich_id):
+    """Übersicht eines Standorts samt seiner Unter-Standorte.
+
+    Ersetzt die frühere Gesamtliste: gerendert wird immer genau ein Standort.
+    """
+    unterbereich = Unterbereich.query.get_or_404(unterbereich_id)
+    if not darf_unterbereich(unterbereich):
+        flash('Kein Zugriff auf diesen Standort.', 'error')
+        return redirect(url_for('standorte'))
+
+    ids = unterbereich_ids_mit_kindern(unterbereich)
+    gefahrstoffe = (get_gefahrstoff_query()
+                    .filter(Gefahrstoff.unterbereich_id.in_(ids))
+                    .order_by(Gefahrstoff.name).all())
+
+    # KPIs berechnen - jetzt für den Standort, nicht für das Verzeichnis.
     today = datetime.utcnow().date()
-    # Die Stufe wird einmal je Stoff bestimmt und trägt die Dokumentenspalte.
-    # Das Template rechnete dafür bisher selbst "(heute - sdb_datum).days / 365
-    # >= 3" nach - mit der harten 3 statt SDB_FRIST_JAHRE, und an zwei Stellen
-    # (Tabelle und Kachelansicht) doppelt.
     sdb_stufen = {stoff.id: sdb_status(stoff, today)[0] for stoff in gefahrstoffe}
 
-    # Anzahl der Standorte (distinct unterbereich_id)
+    # Anzahl der Standorte (distinct unterbereich_id) im Teilbaum
     stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
 
     # Lagerabschnitte mit einer Mengenschwellen-Überschreitung (TRGS 510). Einmal
@@ -1800,28 +1906,26 @@ def index():
     mengen_auffaellig = {b['unterbereich_id']
                          for b in mengenschwellen.alle_befunde(gefahrstoffe)}
 
-    # Zusammenlagerung ebenfalls einmal für die ganze Liste statt je Zeile
-    # (und statt dreimal je Stoff, weil Tabelle und Kartenansicht beide
-    # gerendert werden). Siehe trgs_warnungen_fuer().
+    # Zusammenlagerung ebenfalls einmal für die ganze Liste statt je Zeile.
     trgs_warnungen = trgs_warnungen_fuer(gefahrstoffe)
 
-    # Die Kachelansicht wird erst beim Umschalten geladen (index_kacheln).
-    # Die aktuellen Filter reisen in der URL mit, damit sie dieselbe Auswahl
-    # zeigt wie die Tabelle.
-    kacheln_url = url_for('index_kacheln',
-                          **request.args.to_dict(flat=True))
+    # Für den nächsten Aufruf von / merken (Spec, Q7). Sitzung, kein Cookie.
+    session['letzter_standort'] = unterbereich.id
 
     return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
-                           bereiche=bereiche,
-                           aktiver_bereich=aktiver_bereich,
-                           aktiver_unterbereich=aktiver_unterbereich,
+                           bereiche=get_accessible_bereiche(),
+                           aktiver_bereich=unterbereich.bereich,
+                           aktiver_unterbereich=unterbereich,
                            today=today,
                            sdb_stufen=sdb_stufen,
                            stats_locations=stats_locations,
                            mengen_auffaellig=mengen_auffaellig,
                            trgs_warnungen=trgs_warnungen,
-                           kacheln_url=kacheln_url)
+                           # Die Kacheln brauchen denselben Ausschnitt wie die
+                           # Tabelle - die Adresse trägt ihn jetzt ausdrücklich.
+                           kacheln_url=url_for('index_kacheln',
+                                               unterbereich_id=unterbereich.id))
 
 
 @app.route('/index/kacheln')
@@ -2003,7 +2107,7 @@ def location_qr(id):
         return redirect(url_for('locations'))
 
     # Generate URL filtering by this unterbereich
-    url = url_for('index', unterbereich_id=unterbereich.id, _external=True)
+    url = url_for('standort', unterbereich_id=unterbereich.id, _external=True)
     
     # Create QR code
     qr = qrcode.QRCode(
@@ -2044,7 +2148,7 @@ def location_print(id):
     ).order_by(Gefahrstoff.name.asc()).all()
 
     # Generate QR code for quick scan link
-    url = url_for('index', unterbereich_id=unterbereich.id, _external=True)
+    url = url_for('standort', unterbereich_id=unterbereich.id, _external=True)
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
