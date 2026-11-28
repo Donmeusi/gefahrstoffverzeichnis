@@ -106,6 +106,8 @@ Was beim Aufruf passiert:
 * Beim ersten Aufruf, oder wenn die Berechtigung für den gemerkten Standort
   entfallen ist, erscheint die **Standortauswahl**.
 
+![Standortauswahl](handbuch-bilder/01-standortauswahl.png)
+
 Die Standortauswahl listet alle Standorte, die Sie sehen dürfen, nach Bereichen
 gruppiert. Je Zeile stehen die Zahl der Gefahrstoffe (einschließlich der
 Unter-Standorte) und, falls zutreffend, die Marke **Mengenschwelle**. Von hier
@@ -130,6 +132,8 @@ führen zwei Knöpfe weiter: **Stoff suchen** und **Verzeichnis drucken**.
 
 ### 3.4 Suche über alle Standorte
 
+![Suche über alle Standorte](handbuch-bilder/07-suche.png)
+
 Das Suchfeld in der Standortansicht findet nur, was gerade angezeigt wird. Für
 die Frage „wo liegt Aceton" gibt es **Übersicht → Stoff suchen** (`/suche`):
 
@@ -142,6 +146,8 @@ die Frage „wo liegt Aceton" gibt es **Übersicht → Stoff suchen** (`/suche`)
   nehmen Sie einen genaueren Suchbegriff oder das gedruckte Verzeichnis.
 
 ### 3.5 Verzeichnis drucken
+
+![Gesamtverzeichnis drucken](handbuch-bilder/08-verzeichnis-druck.png)
 
 **Übersicht → Verzeichnis drucken** (`/verzeichnis/druck`) erzeugt das
 **vollständige** Gefahrstoffverzeichnis als Druckseite:
