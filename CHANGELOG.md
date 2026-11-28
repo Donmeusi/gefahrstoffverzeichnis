@@ -2,6 +2,26 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.47 – Gedrucktes Gesamtverzeichnis (November 2026, APP_VERSION 2.6.4)
+
+* **Neu `/verzeichnis/druck`**: das vollständige Gefahrstoffverzeichnis auf Papier — Titel und
+  **Inhaltsverzeichnis** mit Stoffzahl je Standort auf Seite 1, danach **je Standort eine eigene
+  Seite** mit Kopfzeile (Q6/Q12 der Spec). Damit lässt sich das Verzeichnis lagerabschnittsweise
+  abheften, ohne dass die Zuordnung beim Umblättern verloren geht.
+* **Gedruckt wird nur, was das Konto sehen darf** — dieselbe Grenze `get_gefahrstoff_query()`.
+  Für den Administrator ist das das vollständige Verzeichnis, für einen Benutzer seine Bereiche.
+* **Sortierung:** Standorte nach Bereich und Name, innerhalb eines Standorts die Stoffe nach
+  Namen über die Unter-Standorte hinweg. Der Unter-Standort steht je Zeile dabei, wenn er nicht
+  die Gruppe selbst ist; `Lagerort` ebenso.
+* **Leere Standorte fehlen nicht stillschweigend**, sie stehen mit „keine Gefahrstoffe
+  eingetragen" im Verzeichnis — ein Verzeichnis, das einen Standort verschweigt, ist keines.
+* Spalten wie in der Schrank-Druckansicht: Name, CAS-Nr., Menge, LGK, GHS-Kennzeichnung.
+* Einstieg über den Knopf „Verzeichnis drucken" auf der Auswahlseite.
+* Test: neu `test_verzeichnis_druck.py` (6 Tests: Anmeldung, Berechtigungsgrenze, leerer
+  Standort, Inhaltsverzeichnis und Umbruch je Standort, Sortierung, Admin sieht alles).
+  Gesamtstand **408**.
+* **Damit ist die Spec `SPEC-uebersicht-standort.md` vollständig umgesetzt.**
+
 ### v3.46 – Stoffsuche über alle Standorte (November 2026, APP_VERSION 2.6.4)
 
 * **Neu `/suche`**: durchsucht Name, CAS-, EG-Nummer und H-Sätze in allen Standorten, die

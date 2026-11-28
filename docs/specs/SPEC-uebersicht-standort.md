@@ -144,7 +144,10 @@ Auswahlseite, Standortansicht und die Weiterleitung der alten Adressen.
 
 **28.11.2026 — Suche umgesetzt** (Commit „feat(suche)"): `/suche`, serverseitig und
 berechtigungsgefiltert. Gemessen bei 3.000 Stoffen: 89–138 ms (Messlatte 500 ms).
-**Es fehlt noch die Druckroute `/verzeichnis/druck`.**
+
+**28.11.2026 — Druck umgesetzt** (Commit „feat(verzeichnis)"): `/verzeichnis/druck` mit
+Inhaltsverzeichnis und Seitenumbruch je Standort. Im erzeugten A4-PDF geprüft: Seite 1
+Inhalt, danach je Standort eine Seite. **Die Spec ist damit vollständig umgesetzt.**
 
 - Die **Auswahlseite liegt auf `/standorte`**, nicht auf `/`. `/` leitet dorthin weiter
   (oder direkt in den Standort). Nötig, weil die Auswahlseite sonst durch die Merkregel

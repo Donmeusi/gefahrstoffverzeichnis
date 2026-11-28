@@ -1981,6 +1981,55 @@ def suche():
                            grenze=SUCHERGEBNISSE_MAX)
 
 
+@app.route('/verzeichnis/druck')
+@login_required
+def verzeichnis_druck():
+    """Das Gefahrstoffverzeichnis als Ganzes, berechtigungsgefiltert.
+
+    Die Bildschirmliste zeigt nur einen Standort (Q3/Q4 der Spec) - Papier ist
+    der Ort, an dem eine lange Liste richtig ist: linear, ohne Filtern. Gedruckt
+    wird, was der Benutzer sehen darf; für den Administrator ist das das
+    vollständige Verzeichnis. Je Standort ein Seitenumbruch, davor ein
+    Inhaltsverzeichnis (Q6/Q12).
+    """
+    sichtbar = (get_gefahrstoff_query()
+                .order_by(Gefahrstoff.name)
+                .all())
+
+    je_standort = {}
+    for stoff in sichtbar:
+        if stoff.unterbereich_id:
+            je_standort.setdefault(stoff.unterbereich_id, []).append(stoff)
+
+    gruppen = []
+    gesamt = 0
+    for bereich in get_accessible_bereiche():
+        for unterbereich in (Unterbereich.query
+                             .filter_by(bereich_id=bereich.id, parent_id=None)
+                             .order_by(Unterbereich.name).all()):
+            ids = unterbereich_ids_mit_kindern(unterbereich)
+            stoffe = []
+            for ub_id in ids:
+                stoffe.extend(je_standort.get(ub_id, []))
+            # Innerhalb des Standorts nach Namen, Unter-Standorte gemischt:
+            # ein Verzeichnis wird ueber den Namen gesucht, nicht ueber den
+            # Schrank. Der Unter-Standort steht je Zeile dabei.
+            stoffe.sort(key=lambda s: (s.name or '').casefold())
+            gesamt += len(stoffe)
+            gruppen.append({
+                'standort': unterbereich,
+                'bereich': bereich,
+                'pfad': unterbereich.get_full_path(),
+                'stoffe': stoffe,
+            })
+
+    return render_template('verzeichnis_print.html',
+                           gruppen=gruppen,
+                           gesamt=gesamt,
+                           standortzahl=len(gruppen),
+                           heute=datetime.utcnow().date())
+
+
 @app.route('/index/kacheln')
 @login_required
 def index_kacheln():
