@@ -117,7 +117,7 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.6.5"
+APP_VERSION = "2.6.6"
 
 # Obergrenze der Trefferliste in /suche. Eine breite Suche ("e") würde sonst
 # wieder tausende Zeilen rendern - genau der Fall, den die Standortansicht

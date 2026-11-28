@@ -4,13 +4,13 @@
 |---|---|
 | **Datum** | 2026-10-28 |
 | **Auditierter Stand** | `3b17a46` (Branch `beta`) |
-| **Aktueller Stand** | `efea13e` — alle Befunde unten sind behoben, sofern nicht anders vermerkt |
-| **Nachprüfung** | 2026-11-28, Stand `efea13e`: keine neuen Befunde, siehe Abschnitt 7 |
+| **Aktueller Stand** | `v3.49` — alle Befunde unten sind behoben, sofern nicht anders vermerkt |
+| **Nachprüfung** | 2026-11-28: keine neuen Befunde (Abschnitt 7); DOM-XSS-Prüfung der Skripte in Abschnitt 8, ein latenter Befund entschärft |
 | **Methode** | Claude-Code-Skill `security-audit` v1.8.0, Phasen Python/Backend, Container/Deployment, Secrets/Supply-Chain |
 | **Umfang** | Statische Analyse plus ein Laufzeit-Test des TLS-Deployments. Kein DAST, keine Penetrationstests. |
 | **Nicht geprüft** | `openwiki/`, `static/` (außer Verweisen), `data/`, `handbuch-bilder/`, Binärdateien |
 | **Repo-Sichtbarkeit** | `PUBLIC` |
-| **Testsuite** | 408 Tests, grün (Stand 28.11.2026; zum Auditzeitpunkt 256) |
+| **Testsuite** | 417 Tests, grün (Stand 28.11.2026; zum Auditzeitpunkt 256) |
 
 Dieser Bericht bewertet die Anwendung als installierbares Open-Source-Produkt. Befunde sind so formuliert, dass sie für jede Installation gelten; wo eine Auswirkung von der Deployment-Entscheidung des Betreibers abhängt, steht das dabei.
 
@@ -232,7 +232,7 @@ Im **öffentlichen** Repo stand vom 30.07.2026 (`776c0c0`) bis 21.10.2026 (`435e
 
 ## 6. Offene Punkte außerhalb des Audits
 
-- `static/*.js` wurde nicht geprüft (Client-Logik für `parse_sdb`, `autofill`, Mengenschwellen-Vorschau). Eine DOM-XSS-Prüfung dieser Skripte steht aus.
+- `static/*.js` wurde nicht geprüft (Client-Logik für `parse_sdb`, `autofill`, Mengenschwellen-Vorschau). **Nachgeholt am 28.11.2026, siehe Abschnitt 8.**
 - Keine Laufzeitmessung des PDF-Parsings auf große Dateien (DoS-Fläche für Benutzer mit Schreibrecht).
 - Die Branch-Protection erzwingt kein Review — bei einem Ein-Personen-Projekt wäre eine Required-Approval-Regel nicht erfüllbar. Force-Push und Löschen sind gesperrt.
 
@@ -254,8 +254,9 @@ Audit festgelegten Grenzen einhalten und ob die früheren Behebungen unveränder
 | `/suche` | v3.46 | Abfrage über alle sichtbaren Bereiche, serverseitig |
 | `/verzeichnis/druck` | v3.47 | Ausgabe des gesamten sichtbaren Bestands |
 | `/` | v3.45 | leitet nur noch weiter, keine eigene Datenansicht |
+| `/restore/<id>` | v3.48 | holt einen gelöschten Gefahrstoff zurück, nur Administratoren |
 
-Die Zahl der Routen ist von 34 auf 50 gestiegen (einschließlich der `/api/*`-Endpunkte).
+Die Zahl der Routen ist von 34 auf 51 gestiegen (einschließlich der `/api/*`-Endpunkte).
 
 **Ergebnis: keine neuen Befunde.**
 
@@ -278,6 +279,60 @@ ungeprüft (Abschnitt 6).
 **Empfehlung:** keine Änderung erforderlich. Der Bestand trägt, weil die Bereichsgrenze an einer
 einzigen Stelle liegt (`get_gefahrstoff_query()`) und alle neuen Wege daran hängen. Wer künftig
 eine Route ergänzt, sollte sie an dieselbe Query hängen — nicht an eine eigene Prüfung.
+
+---
+
+## 8. DOM-XSS-Prüfung der Skripte (28.11.2026)
+
+Abschnitt 6 führte als offenen Punkt: „`static/*.js` wurde nicht geprüft." Das ist nachgeholt.
+
+**Umfang:** `static/autofill.js`, `static/hp_modal.js`, `static/mengenschwellen_vorschau.js`,
+`static/sdb_import.js` sowie die Inline-Skripte in `base.html`, `index.html`, `add.html`,
+`inventur.html`, `ba_print.html` und `admin_system.html`.
+
+**Vorgehen:** Quellen und Senken. Gesucht wurde jede Stelle, an der ein Wert in das Dokument
+gelangt (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `setAttribute` auf
+`href`/`src`, `eval`/`new Function`), und für jede Fundstelle die Herkunft des Wertes bestimmt.
+
+**Zwölf Senken.** Elf davon setzen konstante Zeichenketten, leeren einen Knoten oder schreiben
+das eigene Markup eines Knopfes zurück — unbedenklich. Eine setzte Werte ein:
+
+### F1 — `hp_modal.js` baute den Satzkatalog per Template in `innerHTML` · **niedrig (latent)**, behoben
+
+```js
+textSpan.innerHTML = `<strong>${item.code}</strong>: ${item.text}`;
+```
+
+* **Herkunft:** `/static/hp_data.json`, eine mitgelieferte statische Datei (37 KB).
+* **Ausnutzbarkeit heute:** nicht. Kein Nutzereingang führt in diese Datei; sie zu ändern
+  setzt Schreibzugriff auf das Repository voraus, und dann ist jede Annahme dieses Berichts
+  ohnehin hinfällig.
+* **Warum es trotzdem behoben ist:** Es ist die einzige Stelle, an der ein fremder Wert
+  ungeprüft als Markup interpretiert wird. Sobald der Katalog einmal aus der Anwendung kommt
+  (eigene Sätze, Import, je Organisation verschiedene Kataloge), wird daraus eine echte
+  DOM-XSS-Lücke — und niemand würde sich an diese Zeile erinnern.
+* **Behebung:** Der Code wird ein `<strong>`-Element mit `textContent`, der Text ein
+  Textknoten. `test_dom_xss.py` hält die Klasse zu: kein `innerHTML` mit `${…}` in
+  `static/*.js`, keine der Ausführungsflächen, und die drei Skripte, die fremde Werte
+  anzeigen, müssen `textContent` verwenden. Die Prüfung wurde gegen die alte Zeile
+  gegengeprüft — sie schlägt dort an.
+
+**Ohne Befund:**
+
+| Weg | Befund |
+|---|---|
+| Namen aus Wikidata/PubChem (`autofill.js`) | `createElement` + `textContent`; die Auswahl im Dialog ist bewusst als DOM-Knoten gebaut |
+| Dateinamen aus dem PDF-Upload (`sdb_import.js`) | ausschließlich `textContent` — der klassische XSS-Vektor für Uploads ist damit sauber |
+| Kachel-Fragment (`index.html`: `grid.innerHTML = await antwort.text()`) | serverseitig mit Jinja-Autoescape gerendert, eigener Endpunkt mit Anmeldepflicht |
+| Suchfeld und Filter | Werte werden nur verglichen, nie in das Dokument geschrieben |
+| Mengenschwellen-Vorschau (`mengenschwellen_vorschau.js`) | Zeichen `<`, `>` und `&` werden vor dem Einsetzen ersetzt — Textkontext, damit ausreichend |
+| Dynamische Ausführung | kein `eval`, kein `new Function`, kein `document.write`, kein `insertAdjacentHTML`, kein `setTimeout` mit Zeichenkette |
+| `setAttribute` | ausschließlich feste Werte (`data-theme`, `aria-*`, `data-code`, `data-ba-generated`) |
+
+**Nicht geprüft:** keine Laufzeitprüfung mit einem Angriffsvektor (kein DAST), keine
+Bewertung der Browser-Abhängigkeiten, keine Prüfung, ob die gesetzte CSP die Skripte
+tatsächlich in jedem Browser blockt. Die Aussage stützt sich auf Quellcodeprüfung und die
+statischen Regressionstests.
 
 ---
 
