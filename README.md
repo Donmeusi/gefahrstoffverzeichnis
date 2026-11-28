@@ -9,6 +9,9 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 ## ✨ Neue & Wichtige Funktionen (2026 Edition)
 
+*   **🏢 Übersicht nach Standort**: Der Bildschirm zeigt einen Standort statt des ganzen Verzeichnisses. Ein Einstieg führt in den zuletzt geöffneten Standort, sonst erscheint die Standortauswahl mit Stoffzahl und Marke für überschrittene Mengenschwellen je Standort. Alte Adressen (`?unterbereich_id=`, `?bereich_id=`) und gedruckte QR-Codes leiten weiter.
+*   **🔍 Suche über alle Standorte**: Name, CAS-, EG-Nummer und H-Sätze in allen Bereichen, die das Konto sehen darf — mit Standortspalte. Eine Suche innerhalb der Standortansicht filtert weiterhin nur die angezeigten Zeilen.
+*   **🖨️ Gesamtverzeichnis drucken**: A4-Dokument mit Inhaltsverzeichnis und einer eigenen Seite je Standort, berechtigungsgefiltert. Leere Standorte stehen ausdrücklich als „keine Gefahrstoffe eingetragen" darin.
 *   **LDAPs-Authentifizierung (Active Directory / OpenLDAP)**: Binden Sie Ihr Unternehmens-Verzeichnis via LDAPs/TLS ein. Neue LDAP-Nutzer werden automatisch mit konfigurierbarer Standardrolle angelegt.
 *   **Schreibgeschützte Rolle „Lesen“**: Neue Benutzerrolle für reine Betrachter. Leser sehen zugewiesene Bereiche, dürfen jedoch keine Daten bearbeiten, löschen, exportieren (Excel/PDF) oder Dokumente herunterladen.
 *   **📱 Schnell-Inventur-Modus**: Touch-optimierte mobile Checkliste zum schnellen Abhaken, Vergleichen und Anpassen von Lagermengen vor Ort am Schrank inklusive automatischer Protokollierung im Audit Log.
@@ -266,7 +269,7 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
 python -m unittest discover -p 'test_*.py'
 ```
 
-256 Tests (Stand Oktober 2026). `testkonfiguration.py` legt ein Wegwerf-Datenverzeichnis an, damit die Tests nicht gegen die eigene `data/gefahrstoffe.db` laufen — deren Prüfsumme bleibt nach dem Lauf unverändert.
+408 Tests (Stand November 2026). `testkonfiguration.py` legt ein Wegwerf-Datenverzeichnis an, damit die Tests nicht gegen die eigene `data/gefahrstoffe.db` laufen — deren Prüfsumme bleibt nach dem Lauf unverändert.
 
 ## 📅 Changelog
 

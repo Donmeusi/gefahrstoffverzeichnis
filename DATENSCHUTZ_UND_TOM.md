@@ -145,6 +145,7 @@ Die Anwendung erzwingt ein striktes **Rollen- und Rechte-Modell (RBAC)** auf Dat
 
 #### Trennungskontrolle
 * Benutzer sehen ausschließlich Daten der ihnen über `user_bereiche` zugewiesenen Unternehmensbereiche.
+* Ansichten, Suche und Druckausgabe folgen derselben Zuweisung: Die Standortansicht prüft zusätzlich die Bereichszugehörigkeit, die Suche über alle Standorte liefert keine Treffer aus fremden Bereichen, und das gedruckte Gesamtverzeichnis enthält nur die sichtbaren Standorte (v3.45–v3.47, durch Regressionstests abgesichert).
 
 ---
 

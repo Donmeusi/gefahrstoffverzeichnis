@@ -95,7 +95,9 @@ hat die Datenbank im Klartext (siehe R-3).
 |---|---|---|
 | Rollenmodell (RBAC) | Vier Rollen: `admin`, `moderator`, `benutzer`, `lesen`; Fähigkeiten zentral über `can_write`, `can_edit_gefahrstoff`, `can_manage_bereich` | umgesetzt |
 | Prüfung serverseitig | Jede schreibende Route prüft die Rolle selbst; die Navigation blendet zusätzlich aus, ist aber nicht die Prüfung | umgesetzt |
-| Bereichsbezogene Sichtbarkeit | `get_gefahrstoff_query()` filtert jede Liste, jeden Export und die Fristenliste auf die zugewiesenen Bereiche | umgesetzt |
+| Bereichsbezogene Sichtbarkeit | `get_gefahrstoff_query()` filtert jede Liste, jede Suche, jeden Export und die Fristenliste auf die zugewiesenen Bereiche | umgesetzt |
+| Standortbezogene Ansicht (seit v3.45) | `/standort/<id>` prüft zusätzlich `darf_unterbereich()`; ein fremder Standort führt auf die Auswahlseite statt auf Daten. Der Bereich ist nur Gliederung, kein eigenes Ziel | umgesetzt |
+| Such- und Druckausgabe (seit v3.46/3.47) | `/suche` und `/verzeichnis/druck` nutzen dieselbe Query wie jede Liste; ein Treffer oder Standort aus einem fremden Bereich ist ausgeschlossen. Beide Grenzen sind durch Regressionstests abgesichert | umgesetzt |
 | Schreibgeschützte Rolle | `lesen` darf nicht anlegen, ändern, löschen, inventarisieren, exportieren oder Dokumente herunterladen | umgesetzt |
 | Schutz vor Selbstausschluss | Man kann sich nicht selbst löschen | umgesetzt |
 
@@ -132,7 +134,7 @@ anlegen kann.
 | Keine Weitergabe an Dritte beim Seitenaufruf | Die Anwendung lädt **keine** externen Ressourcen; Schriften und Symbole liegen in `static/` | umgesetzt |
 | Kein Cloud-Bezug | Keine Anbindung an extern betriebene Dienste im Regelbetrieb | umgesetzt |
 | Ausgehende Verbindung nur auf Anforderung | PubChem-Autofill und Wikidata-Namensabfrage (Abschnitt 5.3) — nur durch einen Klick; GitHub-Update-Prüfung nur durch einen Administrator | umgesetzt, dokumentiert |
-| Export- und Downloadrechte | `lesen` ist gesperrt; alle Exporte folgen der Bereichsfilterung | umgesetzt |
+| Export- und Downloadrechte | `lesen` ist gesperrt; alle Exporte folgen der Bereichsfilterung. Das gilt auch für die Druckausgabe des Gesamtverzeichnisses (`/verzeichnis/druck`, v3.47) | umgesetzt |
 | Nachweis der Herkunft ausgelieferter Dateien | Quell-URL, Lizenz und SHA-256 je Datei in `static/vendor/SOURCES.md` und `static/symbols/SOURCES.md` | umgesetzt |
 
 ### 4.2 Eingabekontrolle und Protokollierung
