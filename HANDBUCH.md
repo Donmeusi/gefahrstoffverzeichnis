@@ -1,6 +1,6 @@
 # 📘 Benutzerhandbuch: Gefahrstoffverzeichnis
 
-**Version 3.47 · Stand 28. November 2026**
+**Version 3.49 · Stand 28. November 2026**
 
 Willkommen im Gefahrstoffverzeichnis. Diese Anwendung verwaltet Gefahrstoffe,
 ihre Lagerorte, Sicherheitsdatenblätter und Betriebsanweisungen — und sie
@@ -882,8 +882,10 @@ Diese Anwendung wird laufend weiterentwickelt. Die vollständige Änderungsliste
 steht in `CHANGELOG.md`; die Datenschutz-Dokumentation in
 `DATENSCHUTZ_UND_TOM.md`.
 
-**Die wichtigsten Schritte bis Version 3.47:**
+**Die wichtigsten Schritte bis Version 3.49:**
 
+* **v3.49** — Gelöschte Gefahrstoffe lassen sich aus der Systemhistorie wiederherstellen; Sicherheitsprüfung der Skripte ohne offenen Befund
+* **v3.48** — *Neu:* Knopf „Wiederherstellen" in der Systemhistorie (nur Administratoren)
 * **v3.47** — *Neu:* Gedrucktes Gesamtverzeichnis mit Inhaltsverzeichnis und einer Seite je Standort
 * **v3.46** — *Neu:* Stoffsuche über alle Standorte (Name, CAS, EG, H-Sätze), mit Standortspalte und berechtigungsgefiltert
 * **v3.45** — *Neu:* Die Übersicht zeigt einen Standort statt des ganzen Verzeichnisses; Standortauswahl als Einstieg, alte Adressen und QR-Codes bleiben gültig
