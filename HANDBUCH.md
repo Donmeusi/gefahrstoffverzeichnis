@@ -59,7 +59,7 @@ wiederhergestellt wird.
 
 ## 3. Die Oberfläche
 
-![Dashboard](handbuch-bilder/01-dashboard.png)
+![Standortansicht](handbuch-bilder/01-dashboard.png)
 
 ### 3.1 Navigation
 

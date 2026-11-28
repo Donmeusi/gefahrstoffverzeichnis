@@ -1,0 +1,16 @@
+/* Fußzeile für das PDF des Sicherheitsberichts.
+   Wird NACH handbuch-druck.css geladen und überschreibt nur den Titel in der
+   Fußzeile — die übrige Typografie kommt aus der gemeinsamen Vorlage:
+
+     pandoc security-audit-report-2026-10-28.md -o <ziel>.pdf \
+            --pdf-engine=weasyprint \
+            --css=handbuch-druck.css --css=audit-druck.css --toc --toc-depth=2
+*/
+
+@page {
+    @bottom-center {
+        content: "Gefahrstoffverzeichnis · Security Audit, Stand 28.11.2026 · Seite " counter(page) " von " counter(pages);
+        font-size: 8pt;
+        color: #64748b;
+    }
+}
