@@ -10,3 +10,10 @@ openwiki/
 *.log
 .env.*
 !.env.example
+
+# Claude Code: "nicht mehr fragen" speichert komplette Befehle inklusive
+# Passwörtern und Tokens als Freigabe. Gehört nie ins Repo.
+.claude/settings.local.json
+
+# OpenWiki: Sicherung vor jedem Lauf bleibt rein lokal (16.11.2026).
+openwiki.backup-*.tgz

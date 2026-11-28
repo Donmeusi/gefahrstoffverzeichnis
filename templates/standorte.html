@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Standorte – Gefahrstoff-App{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="fa-solid fa-building h1-icon" aria-hidden="true"></i> Standorte</h1>
+        <p class="text-muted subline">
+            {% if gefilterter_bereich %}
+                Bereich: <strong>{{ gefilterter_bereich.name }}</strong>
+                · <a href="{{ url_for('standorte') }}">alle Bereiche</a>
+            {% else %}
+                Wähle den Standort, dessen Gefahrstoffe du sehen willst.
+            {% endif %}
+        </p>
+    </div>
+    <div class="btn-row">
+        <a href="{{ url_for('suche') }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Stoff suchen
+        </a>
+        <a href="{{ url_for('verzeichnis_druck') }}" target="_blank" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-print" aria-hidden="true"></i> Verzeichnis drucken
+        </a>
+    </div>
+</div>
+
+{# Flache Liste statt Baum: je Standort die Stoffzahl (mit den Unter-Standorten)
+   und eine Marke, wenn im Teilbaum eine Mengenschwelle nach TRGS 510
+   überschritten ist. Der Überblick, den die Standortansicht nicht mehr
+   leisten muss. Aufbau wie in locations.html: card > card-body > section-header. #}
+{% for gruppe in gruppen %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="section-header">
+            <i class="fa-solid fa-map-marker-alt icon-primary" aria-hidden="true"></i>
+            <h3>{{ gruppe.bereich.name }}</h3>
+        </div>
+        {% if gruppe.standorte %}
+        <table class="data-table data-table--dense">
+            <caption class="sr-only">Standorte im Bereich {{ gruppe.bereich.name }}</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Standort</th>
+                    <th scope="col">Stoffe</th>
+                    <th scope="col">Hinweis</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eintrag in gruppe.standorte %}
+                <tr>
+                    <td>
+                        <a class="table-link" href="{{ url_for('standort', unterbereich_id=eintrag.standort.id) }}">
+                            {{ eintrag.standort.name }}
+                        </a>
+                    </td>
+                    <td>{{ eintrag.anzahl }}</td>
+                    <td>
+                        {% if eintrag.warnung %}
+                        <span class="badge badge-danger">Mengenschwelle</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-results">In diesem Bereich gibt es noch keine Standorte.</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<p class="no-results">Dir sind noch keine Bereiche zugeordnet. Ein Administrator kann das in der Benutzerverwaltung nachtragen.</p>
+{% endfor %}
+{% endblock %}

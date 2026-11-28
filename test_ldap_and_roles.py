@@ -113,6 +113,7 @@ class TestLdapAndRoles(unittest.TestCase):
             db.session.add(stoff)
             db.session.commit()
             stoff_id = stoff.id
+            unter_id = unter.id
 
         # Der Administrator darf ihn ansehen (er soll ihn ja freigeben) ...
         self.client.post('/login', data={'username': 'admin_cmr', 'password': 'pass123'},
@@ -121,7 +122,8 @@ class TestLdapAndRoles(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn('CMR-Teststoff', res.get_data(as_text=True))
         # ... und er ist in der Übersicht als ungeprüft gekennzeichnet.
-        self.assertIn('Wartet auf Freigabe', self.client.get('/').get_data(as_text=True))
+        self.assertIn('Wartet auf Freigabe',
+                      self.client.get(f'/standort/{unter_id}').get_data(as_text=True))
 
         # Freigabe direkt aus der Detailansicht heraus (der Knopf am Abzeichen):
         # danach bleibt die Seite stehen statt ins Profil zu springen.

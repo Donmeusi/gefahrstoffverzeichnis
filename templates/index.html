@@ -14,7 +14,7 @@
    Spaltenbreite und laeuft bei langen Woertern heraus.
    Ab Ebene 6 waechst die Einrueckung nicht weiter (Schutz vor Zyklen und
    absurden Tiefen), der Rest erscheint auf gleicher Hoehe. #}
-<a href="{{ url_for('index', unterbereich_id=unterbereich.id) }}"
+<a href="{{ url_for('standort', unterbereich_id=unterbereich.id) }}"
    class="location-link {% if aktiver_unterbereich and aktiver_unterbereich.id == unterbereich.id %}active{% endif %}"
    title="{{ unterbereich.name }}">
     <span class="location-name">{{ unterbereich.name }}</span>
@@ -40,8 +40,12 @@
         <p class="text-muted subline">
             {% if aktiver_unterbereich %}
                 Standort: <strong>{{ aktiver_unterbereich.get_full_path() }}</strong>
+                · <a href="{{ url_for('standorte') }}">Standort wechseln</a>
+                · <a href="{{ url_for('suche') }}">in allen Standorten suchen</a>
             {% elif aktiver_bereich %}
                 Standort: <strong>{{ aktiver_bereich.name }}</strong>
+                · <a href="{{ url_for('standorte') }}">Standort wechseln</a>
+                · <a href="{{ url_for('suche') }}">in allen Standorten suchen</a>
             {% else %}
                 Alle Standorte
             {% endif %}
@@ -66,6 +70,9 @@
         </a>
         {% endif %}
         {% if current_user.can_write %}
+        <a href="{{ url_for('import_seite') }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-file-import" aria-hidden="true"></i> Import
+        </a>
         <a href="{{ url_for('add') }}" class="btn btn-primary btn-sm">
             <i class="fa-solid fa-plus"></i> Neuer Gefahrstoff
         </a>
@@ -78,16 +85,17 @@
     <aside class="sidebar-locations card">
         <h3><i class="fa-solid fa-building"></i> Standorte</h3>
         <nav class="location-nav">
-            <a href="{{ url_for('index') }}" class="location-link {% if not aktiver_bereich %}active{% endif %}">
+            <a href="{{ url_for('standorte') }}" class="location-link {% if request.endpoint == 'standorte' %}active{% endif %}">
                 <i class="fa-solid fa-globe"></i> <span class="location-name">Alle Standorte</span>
             </a>
             <hr class="nav-divider">
             {% for bereich in bereiche %}
-            <a href="{{ url_for('index', bereich_id=bereich.id) }}"
-               title="{{ bereich.name }}"
-               class="location-link location-link--gruppe {% if aktiver_bereich and aktiver_bereich.id == bereich.id and not aktiver_unterbereich %}active{% endif %}">
+            {# Der Bereich ist nur noch Gliederung, kein Ziel: angesehen wird
+               immer ein Standort (Spec SPEC-uebersicht-standort.md). #}
+            <span title="{{ bereich.name }}"
+                  class="location-link location-link--gruppe {% if aktiver_bereich and aktiver_bereich.id == bereich.id %}active{% endif %}">
                 <i class="fa-solid fa-map-marker-alt"></i> <span class="location-name">{{ bereich.name }}</span>
-            </a>
+            </span>
             {% if bereich.unterbereiche %}
             {# Auch die erste Ebene bekommt eine Schiene, sonst haengen die
                Unterbereiche unter dem getoenten Bereichskopf ohne Linie. #}
@@ -230,7 +238,7 @@
                                     {% if not stoff.is_approved %}
                                     <i class="fa-solid fa-hourglass-half text-primary" title="Wartet auf Freigabe"></i>
                                     {% endif %}
-                                    {% if stoff.trgs_warnings %}
+                                    {% if stoff.id in trgs_warnungen %}
                                     <i class="fa-solid fa-triangle-exclamation text-danger" title="Zusammenlagerungsverbot (TRGS 510)"></i>
                                     {% endif %}
                                     {# Mengenschwelle im Lagerabschnitt des Stoffes
@@ -346,88 +354,17 @@
             </table>
         </div>
 
-        <!-- Grid View (Konzept A) -->
-        <div class="stoff-grid" id="gefahrstoffGrid" style="display:none;">
-            {% for stoff in gefahrstoffe %}
-            {% set border_class = 'danger' if stoff.signalwort == 'Gefahr' else ('warning' if stoff.signalwort == 'Achtung' else 'normal') %}
-            <div class="stoff-card {{ border_class }} filter-item" 
-                 data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
-                 data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}" 
-                 data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
-                
-                <div class="stoff-card-header">
-                    <div>
-                        <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">
-                            {{ stoff.name }}
-                            {% if stoff.trgs_warnings %}
-                            <i class="fa-solid fa-triangle-exclamation card-title-warn" title="Zusammenlagerungsverbot (TRGS 510)"></i>
-                            {% endif %}
-                        </a>
-                        <div class="stoff-card-cas">{{ stoff.cas_nummer or 'Keine CAS' }}</div>
-                    </div>
-                    {% if stoff.piktogramme %}
-                    <div class="stoff-card-piktos">
-                        {% for code in stoff.piktogramme.split(',') %}
-                        {% if code %}
-                        <img src="{{ url_for('static', filename='pictograms/' ~ code.strip() ~ '.svg') }}" title="{{ code.strip() }}" alt="{{ code.strip() }}">
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="stoff-card-body">
-                    <div class="stoff-card-info">
-                        <i class="fa-solid fa-map-marker-alt icon-fixed" aria-hidden="true"></i>
-                        <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path() }}{% else %}Kein Standort{% endif %}</span>
-                    </div>
-                    <div class="stoff-card-info">
-                        <i class="fa-solid fa-scale-balanced icon-fixed" aria-hidden="true"></i>
-                        <span class="nowrap">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
-                    </div>
-                </div>
-
-                <div class="stoff-card-actions">
-                    {% if stoff.sicherheitsdatenblatt %}
-                        {% set sdb_warn = sdb_stufen[stoff.id] in ('dringend', 'pruefen') %}
-                        {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-sdb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
-                                <i class="fa-solid fa-file-pdf"></i> SDB
-                            </span>
-                        {% else %}
-                            <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
-                                <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation doc-warn" title="SDB ist veraltet"></i>{% endif %}
-                            </a>
-                        {% endif %}
-                    {% endif %}
-                    
-                    {% if stoff.betriebsanweisung %}
-                        {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-ba doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
-                                <i class="fa-solid fa-file-word"></i> BA
-                            </span>
-                        {% else %}
-                            <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="doc-btn doc-btn-ba" target="_blank">
-                                <i class="fa-solid fa-file-word"></i> BA
-                            </a>
-                        {% endif %}
-                    {% endif %}
-
-                    {% if stoff.gefaehrdungsbeurteilung %}
-                        {% if current_user.role == 'lesen' %}
-                            <span class="doc-btn doc-btn-gb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
-                                <i class="fa-solid fa-file-shield"></i> GB
-                            </span>
-                        {% else %}
-                            <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" class="doc-btn doc-btn-gb" target="_blank">
-                                <i class="fa-solid fa-file-shield"></i> GB
-                            </a>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+        {# Kachelansicht: erst beim Umschalten nachladen (/index/kacheln).
+           Das spart bei grossen Verzeichnissen die Haelfte des HTML. #}
+        {# aria-busy setzt das Skript während des Nachladens; kein aria-live:
+           Hunderte Kacheln auf einmal vorzulesen wäre keine Hilfe. #}
+        <div class="stoff-grid" id="gefahrstoffGrid" style="display:none;"
+             data-kacheln-url="{{ kacheln_url }}"></div>
+        <p id="kachelnFehler" class="no-results" hidden>
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            Die Kachelansicht konnte nicht geladen werden. Bitte die Seite neu
+            laden.
+        </p>
 
         <p id="noResultsMsg" class="no-results" style="display:none;">
             <i class="fa-solid fa-search" aria-hidden="true"></i>
@@ -451,7 +388,43 @@
 </div>
 
 <script>
-function setView(viewMode) {
+// Die Kacheln kommen erst beim Umschalten (/index/kacheln). Das Fragment
+// bringt .filter-item-Elemente mit denselben data-Attributen wie die
+// Tabellenzeilen; nach dem Einsetzen läuft der aktuelle Suchfilter erneut.
+let kachelnGeladen = false;
+
+async function ladeKacheln() {
+    const grid = document.getElementById('gefahrstoffGrid');
+    if (!grid) return false;
+    if (kachelnGeladen) return true;
+
+    const url = grid.getAttribute('data-kacheln-url');
+    if (!url) return false;
+
+    const fehlerhinweis = document.getElementById('kachelnFehler');
+    grid.setAttribute('aria-busy', 'true');
+    try {
+        const antwort = await fetch(url, {
+            headers: {'X-Requested-With': 'fetch'},
+            credentials: 'same-origin'
+        });
+        if (!antwort.ok) throw new Error('HTTP ' + antwort.status);
+        grid.innerHTML = await antwort.text();
+        kachelnGeladen = true;
+        if (fehlerhinweis) fehlerhinweis.hidden = true;
+        filterItems();
+        return true;
+    } catch (fehler) {
+        // Umschalten unterlassen: Eine leere Fläche wäre schlimmer als die
+        // weiterhin sichtbare Tabelle.
+        if (fehlerhinweis) fehlerhinweis.hidden = false;
+        return false;
+    } finally {
+        grid.removeAttribute('aria-busy');
+    }
+}
+
+async function setView(viewMode) {
     const tableView = document.getElementById('gefahrstoffTable').parentElement;
     const gridView = document.getElementById('gefahrstoffGrid');
     const btnTable = document.getElementById('btnViewTable');
@@ -465,6 +438,7 @@ function setView(viewMode) {
     if (!tableView || !gridView) return;
 
     if (viewMode === 'grid') {
+        if (!(await ladeKacheln())) return;
         tableView.style.display = 'none';
         gridView.style.display = 'grid';
         btnTable.classList.remove('active');

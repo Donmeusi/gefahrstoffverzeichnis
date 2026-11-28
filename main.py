@@ -18,7 +18,7 @@ import secrets
 import threading
 import time
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from html import escape as html_escape
 from flask_wtf.csrf import CSRFProtect, CSRFError
 import pandas as pd
@@ -38,6 +38,7 @@ import mengenschwellen
 import wikidata
 import echa_anhang_vi
 import sdb_parser
+import import_gefahrstoffe
 from piktogramme import piktogramme_fuer, signalwort_fuer, codes_aus_text, unbekannte_codes
 from types import SimpleNamespace
 
@@ -116,7 +117,12 @@ def handle_csrf_error(e):
 # (base.html: ?v={{ APP_VERSION }}). Nach Änderungen an style.css muss diese
 # Zahl hochgezählt werden, sonst liefern die Browser weiter die alte Fassung
 # aus ihrem Cache und die Änderung wirkt beim Nutzer nicht.
-APP_VERSION = "2.6.3"
+APP_VERSION = "2.6.4"
+
+# Obergrenze der Trefferliste in /suche. Eine breite Suche ("e") würde sonst
+# wieder tausende Zeilen rendern - genau der Fall, den die Standortansicht
+# abgeschafft hat. Die Zahl der Treffer wird trotzdem vollständig gemeldet.
+SUCHERGEBNISSE_MAX = 200
 
 @app.context_processor
 def inject_globals():
@@ -156,6 +162,28 @@ SIGNATUR_MAX_LAENGE = max(
 # join-Zeitlimit.
 PDF_MAX_SEITEN = 200
 PDF_MAX_PARSE_SEKUNDEN = 30
+
+# Ablage für den Excel-/CSV-Import. Zwischen Vorschau und Bestätigung liegt der
+# geprüfte Stand als JSON-Datei unter einem Zufallstoken: Die Flask-Sitzung ist
+# ein signiertes Cookie und fasst keine 5000 Zeilen. Nach einer Stunde wird
+# aufgeräumt - wer die Vorschau so lange offen lässt, lädt neu hoch.
+#
+# Bewusst neben uploads/ und nicht darin: /uploads/<filename> liefert aus
+# diesem Verzeichnis aus, und ein Zwischenstand hat dort nichts zu suchen.
+IMPORT_ORDNER = os.path.join(app_data_dir, '_import')
+IMPORT_TOKEN_MUSTER = re.compile(r'^[A-Za-z0-9_-]{16,64}$')
+IMPORT_ZWISCHENSTAND_SEKUNDEN = 3600
+
+# Felder, die beim Aktualisieren vorhandener Stoffe gefüllt werden - aber nur,
+# wenn sie dort leer sind. Der Import überschreibt nichts (dieselbe Regel wie
+# der SDB-Import); wer Werte ändern will, bearbeitet den Stoff.
+IMPORT_AKTUALISIERBARE_FELDER = (
+    'cas_nummer', 'eg_nummer', 'signalwort', 'piktogramme',
+    'gefahrenkategorien', 'h_saetze', 'p_saetze', 'lagerort', 'lagerklasse',
+    'menge', 'mengeneinheit', 'sdb_datum', 'substitutionspruefung',
+    'ersatzstoff', 'begruendung', 'substitution_geprueft_am',
+    'unterbereich_id',
+)
 
 # Mindestlaenge fuer lokal gesetzte Passwoerter. Gilt fuer Registrierung,
 # Benutzeranlage und Passwortwechsel im Profil. Die Grenze liegt bewusst
@@ -516,15 +544,21 @@ class Gefahrstoff(db.Model):
 
     @property
     def trgs_warnings(self):
+        """Zusammenlagerungsverbote dieses Stoffes (für die Detailseite).
+
+        Für Listen gibt es trgs_warnungen_fuer(): Diese Eigenschaft lädt je
+        Stoff den Lagerabschnitt und prüft paarweise - bei 1000 Stoffen ist
+        das eine Abfrage und ein vollständiger Durchlauf je Zeile.
+        """
         try:
             from trgs510 import check_zusammenlagerung
         except ImportError:
             return []
-            
+
         warnings = []
         if not self.unterbereich_id or not self.lagerklasse:
             return warnings
-            
+
         for other in self.unterbereich.gefahrstoffe:
             if other.id != self.id and other.lagerklasse and not getattr(other, 'is_deleted', False):
                 allowed, msg = check_zusammenlagerung(self.lagerklasse, other.lagerklasse)
@@ -533,6 +567,64 @@ class Gefahrstoff(db.Model):
         return warnings
 
 # ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
+
+def trgs_warnungen_fuer(gefahrstoffe):
+    """IDs aller Stoffe der Liste mit einem Zusammenlagerungsverbot.
+
+    Dieselbe Regel wie Gefahrstoff.trgs_warnings, aber für die ganze Liste in
+    einem Durchgang: Die Stoffe der betroffenen Lagerabschnitte kommen mit
+    einer Abfrage, und geprüft wird je Abschnitt über die vorkommenden
+    Lagerklassen statt über alle Paare von Stoffen. Bei 1000 Stoffen im selben
+    Raum sind das rund 10 statt 1000 Abfragen und 24 statt einer Million
+    Vergleiche.
+
+    Die Paarregel bleibt exakt: Ein Stoff wird markiert, wenn im selben
+    Lagerabschnitt ein anderer Stoff mit einer unverträglichen Lagerklasse
+    steht. Stehen zwei Stoffe derselben unverträglichen Klasse zusammen, gilt
+    das ebenfalls als Konflikt.
+    """
+    try:
+        from trgs510 import check_zusammenlagerung
+    except ImportError:
+        return set()
+
+    orte = {stoff.unterbereich_id for stoff in gefahrstoffe
+            if stoff.unterbereich_id and stoff.lagerklasse}
+    if not orte:
+        return set()
+
+    # Die Beziehung unterbereich.gefahrstoffe enthält auch Stoffe, die der
+    # aktuelle Filter nicht zeigt; die Prüfung gilt dem Lagerabschnitt, nicht
+    # der Ansicht. Deshalb wird hier bewusst nicht die übergebene Liste
+    # verwendet.
+    im_abschnitt = Gefahrstoff.query.filter(
+        Gefahrstoff.is_deleted == False,
+        Gefahrstoff.unterbereich_id.in_(orte)).all()
+
+    je_ort = {}
+    for stoff in im_abschnitt:
+        if not stoff.lagerklasse:
+            continue
+        klasse = str(stoff.lagerklasse).strip().upper()
+        je_ort.setdefault(stoff.unterbereich_id, {}).setdefault(
+            klasse, []).append(stoff.id)
+
+    warnungen = set()
+    for klassen in je_ort.values():
+        vorhanden = list(klassen)
+        verboten = {(a, b): not check_zusammenlagerung(a, b)[0]
+                    for a in vorhanden for b in vorhanden}
+        for klasse, ids in klassen.items():
+            trifft = any(
+                verboten[(klasse, andere)]
+                for andere in vorhanden
+                if andere != klasse or len(klassen[andere]) > 1)
+            if trifft:
+                warnungen.update(ids)
+    # Nur Stoffe der übergebenen Liste zurückgeben: Der Aufrufer markiert
+    # Zeilen, die er anzeigt. Die Mitbewohner des Lagerabschnitts haben die
+    # Prüfung beeinflusst, gehören aber nicht in das Ergebnis.
+    return warnungen & {stoff.id for stoff in gefahrstoffe}
 
 def log_audit_event(action, entity_type, entity_id, details="", user_id=None):
     """Schreibt einen Eintrag in die Systemhistorie.
@@ -1159,6 +1251,17 @@ def fristen_liste(heute=None):
     eintraege = []
     stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
 
+    # standort_text() lädt den Unterbereich über die Sitzung. Die Sitzung hält
+    # Objekte nur schwach fest: Ohne eigenen Zwischenspeicher wird derselbe
+    # Unterbereich je Stoff erneut abgefragt (bei 1000 Stoffen 1000 Abfragen
+    # für zehn Standorte). Der Cache gilt nur für diesen Aufruf.
+    ort_texte = {}
+
+    def ort_text(unterbereich_id):
+        if unterbereich_id not in ort_texte:
+            ort_texte[unterbereich_id] = standort_text(unterbereich_id)
+        return ort_texte[unterbereich_id]
+
     for stoff in stoffe:
         stufe, faellig_seit = sdb_status(stoff, heute)
         if stufe == 'ok':
@@ -1168,7 +1271,7 @@ def fristen_liste(heute=None):
             'stufe': stufe,
             'objekt': stoff.name,
             'objekt_link': url_for('view_stoff', id=stoff.id),
-            'ort': standort_text(stoff.unterbereich_id),
+            'ort': ort_text(stoff.unterbereich_id),
             'faellig_seit': faellig_seit,
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
             'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
@@ -1194,7 +1297,7 @@ def fristen_liste(heute=None):
             'stufe': stufe,
             'objekt': stoff.name,
             'objekt_link': url_for('view_stoff', id=stoff.id),
-            'ort': standort_text(stoff.unterbereich_id),
+            'ort': ort_text(stoff.unterbereich_id),
             'faellig_seit': faellig_seit,
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
             'aktion_link': url_for('edit_stoff', id=stoff.id) if current_user.can_write else None,
@@ -1219,8 +1322,8 @@ def fristen_liste(heute=None):
         eintraege.append({
             'kategorie': 'Inventur',
             'stufe': 'inventur',
-            'objekt': standort_text(unterbereich_id),
-            'objekt_link': url_for('index', unterbereich_id=unterbereich_id),
+            'objekt': ort_text(unterbereich_id),
+            'objekt_link': url_for('standort', unterbereich_id=unterbereich_id),
             'ort': f'{len(stoffe_dort)} Gefahrstoff(e)',
             'faellig_seit': faellig_seit,
             'tage_ueberfaellig': (heute - faellig_seit).days if faellig_seit else None,
@@ -1285,11 +1388,16 @@ def mengenschwellen_liste():
     """
     stoffe = get_gefahrstoff_query().order_by(Gefahrstoff.name).all()
     eintraege = []
+    # Je Lagerabschnitt kann es mehrere Befunde geben; ohne Cache würde der
+    # Standort dafür jedes Mal neu geladen (siehe fristen_liste()).
+    ort_texte = {}
     for befund in mengenschwellen.alle_befunde(stoffe):
         ub_id = befund['unterbereich_id']
+        if ub_id not in ort_texte:
+            ort_texte[ub_id] = standort_text(ub_id)
         eintraege.append({
-            'objekt': standort_text(ub_id),
-            'objekt_link': url_for('index', unterbereich_id=ub_id),
+            'objekt': ort_texte[ub_id],
+            'objekt_link': url_for('standort', unterbereich_id=ub_id),
             'bezeichnung': befund['bezeichnung'],
             'status': befund['status'],
             'summe_kg': befund['summe_kg'],
@@ -1660,35 +1768,141 @@ def get_filtered_gefahrstoff_query_for_request():
     return query, aktiver_bereich, aktiver_unterbereich, error_message
 
 
+def unterbereich_ids_mit_kindern(unterbereich):
+    """Der Standort selbst und alle Unter-Standorte darunter."""
+    ids = [unterbereich.id]
+    for child in unterbereich.children:
+        ids.extend(unterbereich_ids_mit_kindern(child))
+    return ids
+
+
+def darf_unterbereich(unterbereich):
+    """Darf der aktuelle Benutzer diesen Standort sehen?
+
+    Dieselbe Grenze wie in get_gefahrstoff_query(): Administrator alles,
+    Moderator die eigenen und zugewiesenen Bereiche, sonst die zugewiesenen.
+    """
+    if current_user.is_admin:
+        return True
+    bereich = unterbereich.bereich
+    if bereich is None:
+        return False
+    return (can_manage_bereich(bereich)
+            or bereich in current_user.assigned_bereiche.all())
+
+
 @app.route('/')
 @login_required
 def index():
-    query, aktiver_bereich, aktiver_unterbereich, error_message = get_filtered_gefahrstoff_query_for_request()
-    
-    if error_message:
-        flash(error_message, 'error')
-        if request.args.get('bereich_id') or request.args.get('unterbereich_id'):
-            return redirect(url_for('index'))
-            
+    """Einstieg: führt in den Standort, sonst auf die Auswahlseite.
+
+    Alte Adressen mit ?unterbereich_id= oder ?bereich_id= bleiben gültig -
+    Lesezeichen sollen nicht brechen. Grundlage:
+    docs/specs/SPEC-uebersicht-standort.md.
+    """
+    alt_unterbereich = request.args.get('unterbereich_id', type=int)
+    if alt_unterbereich:
+        return redirect(url_for('standort', unterbereich_id=alt_unterbereich))
+
+    alt_bereich = request.args.get('bereich_id', type=int)
+    if alt_bereich:
+        return redirect(url_for('standorte', bereich_id=alt_bereich))
+
+    # Zuletzt gewählter Standort, solange die Berechtigung noch steht.
+    gemerkt = session.get('letzter_standort')
+    if gemerkt:
+        unterbereich = Unterbereich.query.get(gemerkt)
+        if unterbereich and darf_unterbereich(unterbereich):
+            return redirect(url_for('standort', unterbereich_id=unterbereich.id))
+        session.pop('letzter_standort', None)
+
+    # Genau ein Bereich mit genau einem Standort: kein Zwischenschritt.
     bereiche = get_accessible_bereiche()
-    gefahrstoffe = query.order_by(Gefahrstoff.name).all()
-    
-    # KPIs berechnen.
-    # Die Gesamtzahl stand hier als stats_total und speiste eine eigene
-    # Kachel - die wiederholte nur, was die Kopf-Unterzeile ohnehin mit
-    # {{ gefahrstoffe|length }} zeigt. Die Kachel ist entfallen.
-    #
-    # stats_expired_sdb speiste ebenfalls eine Kachel (Veraltete SDBs); auch
-    # die ist entfallen - die Fristenzahl steht nur noch als Menuepunkt in der
-    # Kopfzeile und in der Fristenliste selbst.
+    if len(bereiche) == 1:
+        oben = (Unterbereich.query
+                .filter_by(bereich_id=bereiche[0].id, parent_id=None)
+                .order_by(Unterbereich.name).all())
+        if len(oben) == 1:
+            return redirect(url_for('standort', unterbereich_id=oben[0].id))
+
+    return redirect(url_for('standorte'))
+
+
+@app.route('/standorte')
+@login_required
+def standorte():
+    """Auswahlseite: alle sichtbaren Standorte, nach Bereich gruppiert.
+
+    Flache Liste statt Baum - je Eintrag die Stoffzahl und die Marke für eine
+    Mengenschwellen-Überschreitung nach TRGS 510. Damit trägt diese Seite den
+    Überblick, den die Standortansicht nicht mehr leisten muss.
+    """
+    bereiche = get_accessible_bereiche()
+
+    gefilterter_bereich = None
+    bereich_id = request.args.get('bereich_id', type=int)
+    if bereich_id:
+        gefilterter_bereich = next((b for b in bereiche if b.id == bereich_id), None)
+        if gefilterter_bereich is None:
+            flash('Kein Zugriff auf diesen Bereich.', 'error')
+            return redirect(url_for('standorte'))
+        bereiche = [gefilterter_bereich]
+
+    # Eine Abfrage für alles Sichtbare: Zahlen je Standort und Mengenschwellen
+    # entstehen daraus, statt je Standort erneut zu laden.
+    sichtbar = get_gefahrstoff_query().all()
+    zahlen = {}
+    for stoff in sichtbar:
+        if stoff.unterbereich_id:
+            zahlen[stoff.unterbereich_id] = zahlen.get(stoff.unterbereich_id, 0) + 1
+    auffaellig = {befund['unterbereich_id']
+                  for befund in mengenschwellen.alle_befunde(sichtbar)}
+
+    gruppen = []
+    for bereich in bereiche:
+        staende = []
+        for unterbereich in (Unterbereich.query
+                             .filter_by(bereich_id=bereich.id, parent_id=None)
+                             .order_by(Unterbereich.name).all()):
+            ids = unterbereich_ids_mit_kindern(unterbereich)
+            staende.append({
+                'standort': unterbereich,
+                'anzahl': sum(zahlen.get(i, 0) for i in ids),
+                'warnung': any(i in auffaellig for i in ids),
+            })
+        gruppen.append({
+            'bereich': bereich,
+            'standorte': staende,
+            'anzahl': sum(s['anzahl'] for s in staende),
+        })
+
+    return render_template('standorte.html',
+                           gruppen=gruppen,
+                           gefilterter_bereich=gefilterter_bereich)
+
+
+@app.route('/standort/<int:unterbereich_id>')
+@login_required
+def standort(unterbereich_id):
+    """Übersicht eines Standorts samt seiner Unter-Standorte.
+
+    Ersetzt die frühere Gesamtliste: gerendert wird immer genau ein Standort.
+    """
+    unterbereich = Unterbereich.query.get_or_404(unterbereich_id)
+    if not darf_unterbereich(unterbereich):
+        flash('Kein Zugriff auf diesen Standort.', 'error')
+        return redirect(url_for('standorte'))
+
+    ids = unterbereich_ids_mit_kindern(unterbereich)
+    gefahrstoffe = (get_gefahrstoff_query()
+                    .filter(Gefahrstoff.unterbereich_id.in_(ids))
+                    .order_by(Gefahrstoff.name).all())
+
+    # KPIs berechnen - jetzt für den Standort, nicht für das Verzeichnis.
     today = datetime.utcnow().date()
-    # Die Stufe wird einmal je Stoff bestimmt und trägt die Dokumentenspalte.
-    # Das Template rechnete dafür bisher selbst "(heute - sdb_datum).days / 365
-    # >= 3" nach - mit der harten 3 statt SDB_FRIST_JAHRE, und an zwei Stellen
-    # (Tabelle und Kachelansicht) doppelt.
     sdb_stufen = {stoff.id: sdb_status(stoff, today)[0] for stoff in gefahrstoffe}
 
-    # Anzahl der Standorte (distinct unterbereich_id)
+    # Anzahl der Standorte (distinct unterbereich_id) im Teilbaum
     stats_locations = len(set(stoff.unterbereich_id for stoff in gefahrstoffe if stoff.unterbereich_id))
 
     # Lagerabschnitte mit einer Mengenschwellen-Überschreitung (TRGS 510). Einmal
@@ -1697,15 +1911,152 @@ def index():
     mengen_auffaellig = {b['unterbereich_id']
                          for b in mengenschwellen.alle_befunde(gefahrstoffe)}
 
+    # Zusammenlagerung ebenfalls einmal für die ganze Liste statt je Zeile.
+    trgs_warnungen = trgs_warnungen_fuer(gefahrstoffe)
+
+    # Für den nächsten Aufruf von / merken (Spec, Q7). Sitzung, kein Cookie.
+    session['letzter_standort'] = unterbereich.id
+
     return render_template('index.html',
                            gefahrstoffe=gefahrstoffe,
-                           bereiche=bereiche,
-                           aktiver_bereich=aktiver_bereich,
-                           aktiver_unterbereich=aktiver_unterbereich,
+                           bereiche=get_accessible_bereiche(),
+                           aktiver_bereich=unterbereich.bereich,
+                           aktiver_unterbereich=unterbereich,
                            today=today,
                            sdb_stufen=sdb_stufen,
                            stats_locations=stats_locations,
-                           mengen_auffaellig=mengen_auffaellig)
+                           mengen_auffaellig=mengen_auffaellig,
+                           trgs_warnungen=trgs_warnungen,
+                           # Die Kacheln brauchen denselben Ausschnitt wie die
+                           # Tabelle - die Adresse trägt ihn jetzt ausdrücklich.
+                           kacheln_url=url_for('index_kacheln',
+                                               unterbereich_id=unterbereich.id))
+
+
+@app.route('/suche')
+@login_required
+def suche():
+    """Stoffsuche über alle Standorte, die der Benutzer sehen darf.
+
+    Serverseitig, weil die Standortansicht nur einen Ausschnitt im DOM hat:
+    eine Suche über die geladenen Zeilen fände Stoffe in anderen Standorten
+    nicht. Die Grenze ist dieselbe wie überall - get_gefahrstoff_query().
+    Grundlage: docs/specs/SPEC-uebersicht-standort.md (Q5).
+    """
+    q = (request.args.get('q') or '').strip()
+
+    treffer = []
+    gesamt = 0
+    if q:
+        nadel = q.casefold()
+        # Erst nur die vier Textspalten lesen: bei 3.000 Stoffen kostet das
+        # Bruchteile einer Objektladung, und die Suche bleibt ohne ORM-Aufwand.
+        zeilen = (get_gefahrstoff_query()
+                  .with_entities(Gefahrstoff.id, Gefahrstoff.name,
+                                 Gefahrstoff.cas_nummer, Gefahrstoff.eg_nummer,
+                                 Gefahrstoff.h_saetze)
+                  .all())
+        # Python statt SQL-LIKE: SQLite vergleicht nur ASCII ohne Rücksicht auf
+        # Groß-/Kleinschreibung - "äthanol" fände "Äthanol" sonst nicht.
+        ids = [zeile.id for zeile in zeilen
+               if any(nadel in (wert or '').casefold()
+                      for wert in (zeile.name, zeile.cas_nummer,
+                                   zeile.eg_nummer, zeile.h_saetze))]
+        gesamt = len(ids)
+        if ids:
+            treffer = (Gefahrstoff.query
+                       .filter(Gefahrstoff.id.in_(ids))
+                       .order_by(Gefahrstoff.name)
+                       .limit(SUCHERGEBNISSE_MAX)
+                       .all())
+
+    orte = {stoff.unterbereich_id: standort_text(stoff.unterbereich_id)
+            for stoff in treffer}
+
+    return render_template('suche.html',
+                           q=q,
+                           treffer=treffer,
+                           orte=orte,
+                           gesamt=gesamt,
+                           grenze=SUCHERGEBNISSE_MAX)
+
+
+@app.route('/verzeichnis/druck')
+@login_required
+def verzeichnis_druck():
+    """Das Gefahrstoffverzeichnis als Ganzes, berechtigungsgefiltert.
+
+    Die Bildschirmliste zeigt nur einen Standort (Q3/Q4 der Spec) - Papier ist
+    der Ort, an dem eine lange Liste richtig ist: linear, ohne Filtern. Gedruckt
+    wird, was der Benutzer sehen darf; für den Administrator ist das das
+    vollständige Verzeichnis. Je Standort ein Seitenumbruch, davor ein
+    Inhaltsverzeichnis (Q6/Q12).
+    """
+    sichtbar = (get_gefahrstoff_query()
+                .order_by(Gefahrstoff.name)
+                .all())
+
+    je_standort = {}
+    for stoff in sichtbar:
+        if stoff.unterbereich_id:
+            je_standort.setdefault(stoff.unterbereich_id, []).append(stoff)
+
+    gruppen = []
+    gesamt = 0
+    for bereich in get_accessible_bereiche():
+        for unterbereich in (Unterbereich.query
+                             .filter_by(bereich_id=bereich.id, parent_id=None)
+                             .order_by(Unterbereich.name).all()):
+            ids = unterbereich_ids_mit_kindern(unterbereich)
+            stoffe = []
+            for ub_id in ids:
+                stoffe.extend(je_standort.get(ub_id, []))
+            # Innerhalb des Standorts nach Namen, Unter-Standorte gemischt:
+            # ein Verzeichnis wird ueber den Namen gesucht, nicht ueber den
+            # Schrank. Der Unter-Standort steht je Zeile dabei.
+            stoffe.sort(key=lambda s: (s.name or '').casefold())
+            gesamt += len(stoffe)
+            gruppen.append({
+                'standort': unterbereich,
+                'bereich': bereich,
+                'pfad': unterbereich.get_full_path(),
+                'stoffe': stoffe,
+            })
+
+    return render_template('verzeichnis_print.html',
+                           gruppen=gruppen,
+                           gesamt=gesamt,
+                           standortzahl=len(gruppen),
+                           heute=datetime.utcnow().date())
+
+
+@app.route('/index/kacheln')
+@login_required
+def index_kacheln():
+    """Kachelansicht der Übersicht als HTML-Fragment.
+
+    Die Übersicht liefert die Kacheln nicht mehr mit aus: Bei 3000 Stoffen
+    waren Tabelle und Kacheln zusammen 15 MB, die Hälfte davon Kacheln. Der
+    Umschalter lädt dieses Fragment beim ersten Wechsel nach.
+
+    Dieselben Filter wie index() (Bereich/Unterbereich aus der Abfrage), damit
+    die Kacheln zur Tabelle passen. Ein Zugriffsfehler wird nicht als
+    Blitzmeldung gemeldet - das Fragment hat keinen Seitenrahmen; die
+    Übersicht zeigt die Meldung selbst.
+    """
+    query, _, _, error_message = get_filtered_gefahrstoff_query_for_request()
+    if error_message:
+        abort(403)
+
+    gefahrstoffe = query.order_by(Gefahrstoff.name).all()
+    heute = datetime.utcnow().date()
+    return render_template(
+        '_kacheln.html',
+        gefahrstoffe=gefahrstoffe,
+        sdb_stufen={stoff.id: sdb_status(stoff, heute)[0]
+                    for stoff in gefahrstoffe},
+        trgs_warnungen=trgs_warnungen_fuer(gefahrstoffe))
+
 
 @app.route('/betriebsanweisungen')
 @login_required
@@ -1858,7 +2209,7 @@ def location_qr(id):
         return redirect(url_for('locations'))
 
     # Generate URL filtering by this unterbereich
-    url = url_for('index', unterbereich_id=unterbereich.id, _external=True)
+    url = url_for('standort', unterbereich_id=unterbereich.id, _external=True)
     
     # Create QR code
     qr = qrcode.QRCode(
@@ -1899,7 +2250,7 @@ def location_print(id):
     ).order_by(Gefahrstoff.name.asc()).all()
 
     # Generate QR code for quick scan link
-    url = url_for('index', unterbereich_id=unterbereich.id, _external=True)
+    url = url_for('standort', unterbereich_id=unterbereich.id, _external=True)
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -2577,6 +2928,517 @@ def copy_stoff(id):
             flash(f'Fehler beim Kopieren. Details stehen im Server-Log.', 'error')
     return render_template('move_copy.html', stoff=stoff, bereiche=bereiche, action='Kopieren')
 
+# ─── Import ──────────────────────────────────────────────────────────────────
+#
+# Zwei Schritte, wie beim SDB-Import: Erst wird geprüft und angezeigt, was
+# passieren würde, gespeichert wird erst nach Bestätigung. Ein Direktimport in
+# einem POST wäre in einem Verzeichnis, das der Betrieb gegenüber der
+# Aufsicht vertritt, nicht vertretbar - eine falsch gelesene Spalte fällt
+# sonst erst beim nächsten Audit auf.
+#
+# Die Regeln selbst stehen in import_gefahrstoffe.py (Datei lesen, Spalten
+# erkennen, Zeile prüfen). Hier bleibt, was die Datenbank braucht: Standorte
+# auflösen, Duplikate finden, anlegen und protokollieren.
+
+def _import_ordner_sicherstellen():
+    os.makedirs(IMPORT_ORDNER, exist_ok=True)
+
+
+def _import_pfad(token):
+    return os.path.join(IMPORT_ORDNER, f'{token}.json')
+
+
+def _import_aufraeumen():
+    """Löscht Zwischenstände, die älter als eine Stunde sind."""
+    _import_ordner_sicherstellen()
+    grenze = time.time() - IMPORT_ZWISCHENSTAND_SEKUNDEN
+    try:
+        namen = os.listdir(IMPORT_ORDNER)
+    except OSError:
+        return
+    for name in namen:
+        pfad = os.path.join(IMPORT_ORDNER, name)
+        try:
+            if os.path.isfile(pfad) and os.path.getmtime(pfad) < grenze:
+                os.remove(pfad)
+        except OSError:
+            # Ein liegengebliebener Zwischenstand ist kein Grund, den Import
+            # scheitern zu lassen.
+            pass
+
+
+def _import_json_default(wert):
+    """Datumswerte für den Zwischenstand als ISO-Text ablegen."""
+    if isinstance(wert, (datetime, date)):
+        return wert.isoformat()
+    raise TypeError(f'{type(wert).__name__} ist nicht JSON-serialisierbar')
+
+
+def _import_als_datum(wert):
+    if isinstance(wert, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', wert):
+        try:
+            return date.fromisoformat(wert)
+        except ValueError:
+            return None
+    return wert
+
+
+def _standort_index(bereiche):
+    """Zwei Register für die Standortauflösung im Import.
+
+    'lang' enthält den vollständigen Pfad ("Bereich › Unterbereich › Kind"),
+    'kurz' den namentlichen Unterbereich. Die Normalisierung entfernt
+    Trennzeichen und Umlaute, damit "Labor > Schrank 2", "Labor › Schrank 2"
+    und "Labor/Schrank 2" denselben Eintrag treffen.
+
+    Ein Kurzname, der in zwei Bereichen vorkommt, wird auf None gesetzt: Dann
+    ist die Angabe mehrdeutig und die Zeile bekommt einen Fehler, statt im
+    falschen Bereich zu landen.
+    """
+    lang = {}
+    kurz = {}
+    for bereich in bereiche:
+        unterbereiche = Unterbereich.query.filter_by(
+            bereich_id=bereich.id).all()
+        for unter in unterbereiche:
+            lang[import_gefahrstoffe.kopf_normalisieren(
+                unter.get_full_path())] = unter.id
+            schluessel = import_gefahrstoffe.kopf_normalisieren(unter.name)
+            if schluessel in kurz:
+                if kurz[schluessel] != unter.id:
+                    kurz[schluessel] = None
+            else:
+                kurz[schluessel] = unter.id
+    return lang, kurz
+
+
+def _standort_aufloeser(lang, kurz):
+    def aufloesen(text):
+        schluessel = import_gefahrstoffe.kopf_normalisieren(text)
+        if schluessel in lang:
+            return lang[schluessel], None
+        if schluessel in kurz and kurz[schluessel] is not None:
+            return kurz[schluessel], None
+        if schluessel in kurz:
+            return None, (f'Standort „{text}“ ist nicht eindeutig - bitte '
+                          'Bereich und Unterbereich angeben.')
+        return None, f'Standort „{text}“ wurde nicht gefunden.'
+    return aufloesen
+
+
+def _import_finde_duplikat(werte):
+    """Vorhandener Stoff am selben Standort, gleiche CAS-Nummer oder gleicher
+    Name.
+
+    Der Standort gehört zum Schlüssel: Derselbe Stoff in zwei Bereichen ist im
+    Verzeichnis ein normaler Fall (so arbeitet auch /copy), und ein Import in
+    einen zweiten Standort soll diesen Eintrag nicht als Dublette abtun.
+    """
+    ziel = werte.get('unterbereich_id')
+
+    def am_standort(abfrage):
+        if ziel is None:
+            return abfrage.filter(Gefahrstoff.unterbereich_id.is_(None))
+        return abfrage.filter(Gefahrstoff.unterbereich_id == ziel)
+
+    cas = (werte.get('cas_nummer') or '').strip()
+    if cas:
+        stoff = am_standort(
+            Gefahrstoff.query.filter(
+                Gefahrstoff.is_deleted == False,
+                db.func.lower(Gefahrstoff.cas_nummer) == cas.lower())
+        ).order_by(Gefahrstoff.id).first()
+        if stoff is not None:
+            return stoff
+
+    name = (werte.get('name') or '').strip()
+    if not name:
+        return None
+    return am_standort(
+        Gefahrstoff.query.filter(
+            Gefahrstoff.is_deleted == False,
+            db.func.lower(Gefahrstoff.name) == name.lower())
+    ).order_by(Gefahrstoff.id).first()
+
+
+def _import_neuer_stoff(werte):
+    """Baut den Gefahrstoff aus geprüften Werten - dieselben Felder wie /add."""
+    return Gefahrstoff(
+        name=werte.get('name'),
+        cas_nummer=werte.get('cas_nummer'),
+        eg_nummer=werte.get('eg_nummer'),
+        signalwort=werte.get('signalwort'),
+        piktogramme=werte.get('piktogramme'),
+        gefahrenkategorien=werte.get('gefahrenkategorien'),
+        h_saetze=werte.get('h_saetze'),
+        p_saetze=werte.get('p_saetze'),
+        lagerort=werte.get('lagerort'),
+        lagerklasse=werte.get('lagerklasse'),
+        menge=werte.get('menge'),
+        mengeneinheit=werte.get('mengeneinheit'),
+        sdb_datum=_import_als_datum(werte.get('sdb_datum')),
+        substitutionspruefung=werte.get('substitutionspruefung'),
+        ersatzstoff=werte.get('ersatzstoff'),
+        begruendung=werte.get('begruendung'),
+        substitution_geprueft_am=_import_als_datum(
+            werte.get('substitution_geprueft_am')),
+        unterbereich_id=werte.get('unterbereich_id'),
+        user_id=current_user.id,
+        # Dieselbe CMR-Regel wie in /add und /copy, ergänzt um die
+        # CMR-Kennzeichnung der Quelldatei: Eine Liste, die CMR selbst führt,
+        # nennt oft keine H-Sätze.
+        is_approved=not (is_cmr_stoff(werte.get('h_saetze'))
+                         or werte.get('cmr')),
+    )
+
+
+def _import_aktualisiere(stoff, werte):
+    """Füllt leere Felder eines vorhandenen Stoffes. Rückgabe: geändert?
+
+    Vorhandene Werte bleiben stehen - der Import ist keine Rückschreib-
+    funktion für das Verzeichnis. Das entspricht dem SDB-Import, der
+    Unterschiede nur als Konflikt anzeigt.
+    """
+    geaendert = False
+    neue_h_saetze = False
+    neue_cmr_angabe = bool(werte.get('cmr'))
+    for feld in IMPORT_AKTUALISIERBARE_FELDER:
+        neuer_wert = werte.get(feld)
+        if feld in ('sdb_datum', 'substitution_geprueft_am'):
+            neuer_wert = _import_als_datum(neuer_wert)
+        if neuer_wert in (None, ''):
+            continue
+        alt = getattr(stoff, feld, None)
+        if alt not in (None, ''):
+            continue
+        setattr(stoff, feld, neuer_wert)
+        geaendert = True
+        if feld == 'h_saetze':
+            neue_h_saetze = True
+
+    # Wenn erst der Import H-Sätze ergänzt und diese einen CMR-Stoff ergeben,
+    # muss er vor der Sichtbarkeit freigegeben werden - sonst ließe sich die
+    # Freigabepflicht über einen Nachtrag umgehen.
+    if ((neue_h_saetze and is_cmr_stoff(stoff.h_saetze))
+            or neue_cmr_angabe):
+        if stoff.is_approved:
+            stoff.is_approved = False
+            geaendert = True
+    return geaendert
+
+
+def _import_zuordnung_anzeigen(tabelle, zuordnung):
+    """Spalte → Feld für die Vorschau, in der Reihenfolge der Datei.
+
+    Ohne diese Anzeige wäre bei einer fremden Datei nicht nachprüfbar, welche
+    Spalte die App als Namen, Standort oder Menge gelesen hat. Gerade weil
+    die Erkennung jetzt rät, muss das Ergebnis sichtbar sein.
+    """
+    anzeige = []
+    for feld, index in sorted(zuordnung.items(), key=lambda paar: paar[1]):
+        anzeige.append({
+            'spalte': import_gefahrstoffe.spaltenname(tabelle, index),
+            'feld': import_gefahrstoffe.FELDER[feld]['label'],
+        })
+    return anzeige
+
+
+def _import_zeile_als_dict(zeile):
+    return {
+        'zeilennummer': zeile.zeilennummer,
+        'werte': zeile.werte,
+        'fehler': zeile.fehler,
+        'warnungen': zeile.warnungen,
+        'standort_text': zeile.standort_text,
+    }
+
+
+def _import_zeile_aus_dict(daten):
+    return import_gefahrstoffe.PruefZeile(
+        zeilennummer=daten.get('zeilennummer', 0),
+        werte=daten.get('werte', {}),
+        fehler=daten.get('fehler', []),
+        warnungen=daten.get('warnungen', []),
+        standort_text=daten.get('standort_text', ''),
+    )
+
+
+@app.route('/import', methods=['GET'])
+@login_required
+def import_seite():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+    return render_template('import.html', bereiche=get_accessible_bereiche(),
+                           vorschau=None, ziel_id=None)
+
+
+@app.route('/import', methods=['POST'])
+@login_required
+def import_vorschau():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+
+    datei = request.files.get('datei')
+    if not datei or not datei.filename:
+        flash('Bitte eine Datei auswählen.', 'error')
+        return redirect(url_for('import_seite'))
+
+    # Browser schicken je nach Herkunft einen Pfad mit ("C:\\fakepath\\...").
+    # Für Anzeige und Endung zählt nur der Dateiname.
+    anzeige_name = os.path.basename(datei.filename.replace('\\', '/'))
+    endung = (anzeige_name.rsplit('.', 1)[-1].lower()
+              if '.' in anzeige_name else '')
+    if endung not in import_gefahrstoffe.UNTERSTUETZTE_ENDUNGEN:
+        flash('Nur .xlsx und .csv werden unterstützt.', 'error')
+        return redirect(url_for('import_seite'))
+
+    bereiche = get_accessible_bereiche()
+    ziel_id, fehler = ziel_standort_pruefen(
+        request.form.get('unterbereich_id'), bereiche)
+    if fehler:
+        flash(fehler, 'error')
+        return redirect(url_for('import_seite'))
+
+    try:
+        tabelle = import_gefahrstoffe.lies_datei(datei.read(), anzeige_name)
+        zuordnung, _, _ = import_gefahrstoffe.erkenne_spalten(tabelle.kopf)
+        # Was die Kopfzeile nicht hergibt, wird aus dem Zelleninhalt bestimmt
+        # (CAS-Muster, H-Sätze, GHS-Codes, Textspalte als Name). Dateien mit
+        # fremden Beschriftungen und solche ganz ohne Kopfzeile werden damit
+        # lesbar, statt abgelehnt zu werden.
+        zuordnung, inhalt_hinweise = import_gefahrstoffe.ergaenze_aus_inhalt(
+            tabelle, zuordnung)
+        tabelle.hinweise.extend(inhalt_hinweise)
+        # Eine Spalte, die der Inhalt zugeordnet hat, ist nicht mehr
+        # "ignoriert" - die Liste wird deshalb aus der endgültigen Zuordnung
+        # neu gebildet.
+        unbekannt, doppelt = import_gefahrstoffe.spalten_bericht(
+            tabelle, zuordnung)
+    except import_gefahrstoffe.ImportFehler as ausnahme:
+        flash(str(ausnahme), 'error')
+        return redirect(url_for('import_seite'))
+
+    lang, kurz = _standort_index(bereiche)
+    aufloesen = _standort_aufloeser(lang, kurz)
+    zeilen = []
+    for nummer, roh in import_gefahrstoffe.zeilen_als_dicts(tabelle, zuordnung):
+        zeilen.append(import_gefahrstoffe.pruefe_zeile(
+            roh, nummer, standort_aufloesen=aufloesen,
+            standard_standort_id=ziel_id,
+            standard_standort_name=standort_text(ziel_id),
+            epoche=tabelle.epoche))
+
+    import_gefahrstoffe.markiere_duplikate(zeilen)
+
+    # Vorhandene Stoffe gleich mitschicken: Das ist die Information, die aus
+    # einer Liste einen Import macht, der nicht 200 Dubletten anlegt.
+    # Zusammengefasste und aufgebrauchte Zeilen werden nicht angelegt und
+    # brauchen deshalb auch keinen Vergleich mit dem Bestand.
+    for zeile in zeilen:
+        if (not zeile.gueltig or zeile.werte.get('zusammengefasst_in')
+                or zeile.werte.get('aufgebraucht')):
+            continue
+        stoff = _import_finde_duplikat(zeile.werte)
+        if stoff is not None:
+            zeile.werte['vorhanden_id'] = stoff.id
+            zeile.werte['vorhanden_name'] = stoff.name
+            zeile.warnungen.append(
+                f'Bereits im Verzeichnis: „{stoff.name}“ (ID {stoff.id}).')
+
+    _import_aufraeumen()
+    token = secrets.token_urlsafe(24)
+    zwischenstand = {
+        'dateiname': anzeige_name,
+        'user_id': current_user.id,
+        'angelegt': datetime.utcnow().isoformat(),
+        'standard_standort_id': ziel_id,
+        'hinweise': tabelle.hinweise,
+        'unbekannt': unbekannt,
+        'doppelt': doppelt,
+        'zeilen': [_import_zeile_als_dict(z) for z in zeilen],
+    }
+    with open(_import_pfad(token), 'w', encoding='utf-8') as datei_obj:
+        json.dump(zwischenstand, datei_obj, ensure_ascii=False,
+                  default=_import_json_default)
+
+    return render_template(
+        'import.html', bereiche=bereiche, ziel_id=ziel_id,
+        vorschau={
+            'token': token,
+            'dateiname': anzeige_name,
+            'ziel_name': standort_text(ziel_id),
+            'hinweise': tabelle.hinweise,
+            'unbekannt': unbekannt,
+            'doppelt': doppelt,
+            'zuordnung': _import_zuordnung_anzeigen(tabelle, zuordnung),
+            'zeilen': zeilen,
+            'anzahl': len(zeilen),
+            'fehler_anzahl': sum(1 for z in zeilen if not z.gueltig),
+            'zusammengefasst_anzahl': sum(
+                1 for z in zeilen if z.werte.get('zusammengefasst_in')),
+            'aufgebraucht_anzahl': sum(
+                1 for z in zeilen if z.werte.get('aufgebraucht')),
+            'duplikat_anzahl': sum(
+                1 for z in zeilen
+                if z.gueltig and z.werte.get('vorhanden_id')),
+            'standort_ersatz_anzahl': sum(
+                1 for z in zeilen if z.werte.get('standort_ersatz')),
+        })
+
+
+@app.route('/import/vorlage')
+@login_required
+def import_vorlage():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+    return send_file(
+        BytesIO(import_gefahrstoffe.vorlage_xlsx()),
+        download_name='gefahrstoffe_import_vorlage.xlsx',
+        as_attachment=True)
+
+
+@app.route('/import/bestaetigen', methods=['POST'])
+@login_required
+def import_bestaetigen():
+    if not current_user.can_write:
+        flash('Keine Schreibberechtigung (Leser-Rolle).', 'error')
+        return redirect(url_for('index'))
+
+    token = request.form.get('token', '')
+    if not IMPORT_TOKEN_MUSTER.fullmatch(token):
+        flash('Der Import ist abgelaufen. Bitte die Datei erneut hochladen.',
+              'error')
+        return redirect(url_for('import_seite'))
+
+    pfad = _import_pfad(token)
+    try:
+        with open(pfad, encoding='utf-8') as datei_obj:
+            zwischenstand = json.load(datei_obj)
+    except (OSError, ValueError):
+        flash('Der Import ist abgelaufen. Bitte die Datei erneut hochladen.',
+              'error')
+        return redirect(url_for('import_seite'))
+
+    # Der Zwischenstand gehört dem Benutzer, der ihn erzeugt hat. Das Token
+    # allein soll nicht genügen, auch wenn es zufällig ist.
+    if zwischenstand.get('user_id') != current_user.id:
+        abort(403)
+
+    strategie = request.form.get('duplikate', 'ueberspringen')
+    if strategie not in ('ueberspringen', 'aktualisieren'):
+        strategie = 'ueberspringen'
+
+    rohdaten = zwischenstand.get('zeilen', [])
+    auswahl = set()
+    for wert in request.form.getlist('zeilen'):
+        try:
+            index = int(wert)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= index < len(rohdaten):
+            auswahl.add(index)
+
+    if not auswahl:
+        flash('Es wurde keine Zeile zum Import ausgewählt.', 'warning')
+        return redirect(url_for('import_seite'))
+
+    zugriff_ids = {b.id for b in get_accessible_bereiche()}
+    angelegt = aktualisiert = uebersprungen = abgelehnt = 0
+    zusammengefasst = aufgebraucht = 0
+    cmr_angelegt = 0
+
+    try:
+        for index in sorted(auswahl):
+            daten = rohdaten[index]
+            zeile = _import_zeile_aus_dict(daten)
+            if zeile.werte.get('zusammengefasst_in'):
+                zusammengefasst += 1
+                continue
+            if zeile.werte.get('aufgebraucht'):
+                aufgebraucht += 1
+                continue
+            if not zeile.gueltig:
+                uebersprungen += 1
+                continue
+
+            werte = zeile.werte
+            if not werte.get('name'):
+                abgelehnt += 1
+                continue
+
+            # Standort erneut prüfen: Zwischen Vorschau und Bestätigung können
+            # Bereiche gelöscht oder entzogen worden sein.
+            ziel = werte.get('unterbereich_id')
+            if ziel is not None:
+                unter = db.session.get(Unterbereich, ziel)
+                if unter is None or unter.bereich_id not in zugriff_ids:
+                    abgelehnt += 1
+                    continue
+
+            vorhanden = _import_finde_duplikat(werte)
+            if vorhanden is not None:
+                if strategie == 'ueberspringen':
+                    uebersprungen += 1
+                    continue
+                if _import_aktualisiere(vorhanden, werte):
+                    aktualisiert += 1
+                else:
+                    uebersprungen += 1
+                continue
+
+            db.session.add(_import_neuer_stoff(werte))
+            angelegt += 1
+            if is_cmr_stoff(werte.get('h_saetze')) or werte.get('cmr'):
+                cmr_angelegt += 1
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Fehler beim Import')
+        flash('Der Import wurde abgebrochen, es wurde nichts gespeichert.',
+              'error')
+        return redirect(url_for('import_seite'))
+
+    # Erst nach dem Commit aufräumen: Scheitert der Import, bleibt der
+    # Zwischenstand für einen zweiten Versuch liegen (und läuft nach einer
+    # Stunde ohnehin aus).
+    try:
+        os.remove(pfad)
+    except OSError:
+        pass
+
+    log_audit_event('IMPORT', 'Gefahrstoff', None, {
+        'datei': zwischenstand.get('dateiname', ''),
+        'angelegt': angelegt,
+        'aktualisiert': aktualisiert,
+        'uebersprungen': uebersprungen,
+        'abgelehnt': abgelehnt,
+        'zusammengefasst': zusammengefasst,
+        'aufgebraucht': aufgebraucht,
+    })
+
+    teile = [f'{angelegt} angelegt']
+    if aktualisiert:
+        teile.append(f'{aktualisiert} aktualisiert')
+    if zusammengefasst:
+        teile.append(f'{zusammengefasst} Zeilen zu Gebinden zusammengefasst')
+    if aufgebraucht:
+        teile.append(f'{aufgebraucht} als aufgebraucht übersprungen')
+    if uebersprungen:
+        teile.append(f'{uebersprungen} übersprungen')
+    if abgelehnt:
+        teile.append(f'{abgelehnt} abgelehnt')
+    kategorie = 'success' if angelegt or aktualisiert else 'warning'
+    flash('Import abgeschlossen: ' + ', '.join(teile) + '.', kategorie)
+    if cmr_angelegt:
+        flash(f'{cmr_angelegt} CMR-Stoff(e) aus dem Import warten wie beim '
+              'Anlegen auf die Freigabe.', 'info')
+    return redirect(url_for('index'))
+
+
 # ─── Export ──────────────────────────────────────────────────────────────────
 
 @app.route('/export/excel')
@@ -2594,6 +3456,18 @@ def export_excel():
     data = []
     for s in stoffe:
         standort = f"{s.unterbereich.bereich.name} > {s.unterbereich.name}" if s.unterbereich else (s.lagerort or "-")
+
+        # Getrennte Standortspalten für den Import. "Arbeitsbereich" bleibt
+        # unverändert (zwei Ebenen, für Menschen gedacht); die neuen Spalten
+        # tragen den vollständigen Pfad, sonst verlöre ein verschachtelter
+        # Unterbereich beim Reimport seine oberste Ebene.
+        if s.unterbereich:
+            pfad_teile = s.unterbereich.get_full_path().split(' › ')
+            bereich_name = pfad_teile[0]
+            unterbereich_pfad = ' › '.join(pfad_teile[1:])
+        else:
+            bereich_name = '-'
+            unterbereich_pfad = '-'
         
         piktos_str = ""
         if s.piktogramme:
@@ -2617,7 +3491,13 @@ def export_excel():
             'Datum SDB': s.sdb_datum.strftime('%d.%m.%Y') if s.sdb_datum else "-",
             'Substitutionsprüfung': s.substitutionspruefung,
             'Ersatzstoff': s.ersatzstoff,
-            'Begründung': s.begruendung
+            'Begründung': s.begruendung,
+            # Zusatzspalten, damit die exportierte Datei wieder importiert
+            # werden kann (siehe import_gefahrstoffe.py).
+            'Bereich': bereich_name,
+            'Unterbereich': unterbereich_pfad,
+            'Menge (Zahl)': s.menge,
+            'Einheit': s.mengeneinheit,
         })
     df = pd.DataFrame(data)
     output = BytesIO()

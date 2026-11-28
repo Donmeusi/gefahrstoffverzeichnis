@@ -2,6 +2,114 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.47 – Gedrucktes Gesamtverzeichnis (November 2026, APP_VERSION 2.6.4)
+
+* **Neu `/verzeichnis/druck`**: das vollständige Gefahrstoffverzeichnis auf Papier — Titel und
+  **Inhaltsverzeichnis** mit Stoffzahl je Standort auf Seite 1, danach **je Standort eine eigene
+  Seite** mit Kopfzeile (Q6/Q12 der Spec). Damit lässt sich das Verzeichnis lagerabschnittsweise
+  abheften, ohne dass die Zuordnung beim Umblättern verloren geht.
+* **Gedruckt wird nur, was das Konto sehen darf** — dieselbe Grenze `get_gefahrstoff_query()`.
+  Für den Administrator ist das das vollständige Verzeichnis, für einen Benutzer seine Bereiche.
+* **Sortierung:** Standorte nach Bereich und Name, innerhalb eines Standorts die Stoffe nach
+  Namen über die Unter-Standorte hinweg. Der Unter-Standort steht je Zeile dabei, wenn er nicht
+  die Gruppe selbst ist; `Lagerort` ebenso.
+* **Leere Standorte fehlen nicht stillschweigend**, sie stehen mit „keine Gefahrstoffe
+  eingetragen" im Verzeichnis — ein Verzeichnis, das einen Standort verschweigt, ist keines.
+* Spalten wie in der Schrank-Druckansicht: Name, CAS-Nr., Menge, LGK, GHS-Kennzeichnung.
+* Einstieg über den Knopf „Verzeichnis drucken" auf der Auswahlseite.
+* Test: neu `test_verzeichnis_druck.py` (6 Tests: Anmeldung, Berechtigungsgrenze, leerer
+  Standort, Inhaltsverzeichnis und Umbruch je Standort, Sortierung, Admin sieht alles).
+  Gesamtstand **408**.
+* **Damit ist die Spec `SPEC-uebersicht-standort.md` vollständig umgesetzt.**
+
+### v3.46 – Stoffsuche über alle Standorte (November 2026, APP_VERSION 2.6.4)
+
+* **Neu `/suche`**: durchsucht Name, CAS-, EG-Nummer und H-Sätze in allen Standorten, die
+  der Benutzer sehen darf. Bisher filterte die Livesuche nur die Zeilen, die gerade im DOM
+  standen — mit standortbezogenen Ansichten hätte „wo liegt Aceton" damit nicht mehr
+  funktioniert.
+* **Die Berechtigungsgrenze ist dieselbe** wie überall (`get_gefahrstoff_query()`); ein
+  fremder Bereich erscheint nicht im Ergebnis. Die Standortspalte ist auf die
+  Standortansicht verlinkt.
+* **Groß-/Kleinschreibung mit Umlauten:** gefiltert wird in Python über `casefold()`, nicht
+  per SQL-`LIKE` — SQLite vergleicht nur ASCII ohne Rücksicht auf die Schreibweise, „äth"
+  hätte „Äthanol" sonst nicht gefunden. Gelesen werden dafür nur vier Textspalten; die
+  Objekte lädt erst die Trefferliste.
+* **Treffer gedeckelt** auf `SUCHERGEBNISSE_MAX` (200), die Gesamtzahl wird trotzdem
+  gemeldet („5 Treffer, die ersten 2 werden gezeigt"). Eine breite Suche würde sonst wieder
+  tausende Zeilen rendern — genau der Fall, den v3.45 abgeschafft hat.
+* **Messung, 3.000 Stoffe, serverseitig:** `q=Aceton` **89 ms**, `q=H226` (1.000 Treffer,
+  gedeckelt) **138 ms**, breite Suche `q=e` **91 ms**. Messlatte der Spec war 500 ms.
+  Zum Vergleich: `/standort/<id>` mit 3.000 Stoffen 190 ms.
+* Einstieg ohne neuen Navigationseintrag (die Leiste ist an der Breitengrenze): Knopf
+  „Stoff suchen" auf der Auswahlseite und Link „in allen Standorten suchen" im Kopf der
+  Standortansicht.
+* Test: neu `test_suche.py` (8 Tests: Berechtigungsgrenze, CAS, H-Satz, Umlaut-Schreibweise,
+  leere Suche, Deckel). Gesamtstand **402**.
+* Noch offen aus der Spec: die Druckroute `/verzeichnis/druck`.
+
+### v3.45 – Übersicht nach Standort (November 2026, APP_VERSION 2.6.4)
+
+* **Die Übersicht zeigt einen Standort, nicht mehr das ganze Verzeichnis.** Neu ist
+  `/standort/<id>`; gerendert wird der Standort samt seiner Unter-Standorte. Grund und
+  Abwägung stehen in `docs/specs/SPEC-uebersicht-standort.md`: Bei über 3.000 Stoffen
+  insgesamt, verteilt auf Standorte, ist die Gesamtliste die einzige teure Ansicht — und
+  der Administrator war der einzige, der sie überhaupt zu sehen bekam.
+* **`/` führt hinein**: genau ein Bereich mit genau einem Standort geht direkt auf, sonst
+  die zuletzt gewählte Ansicht aus der Sitzung, sonst die Auswahl. Kein Cookie.
+* **Neu `/standorte`**: flache Liste der sichtbaren Standorte, nach Bereich gruppiert,
+  mit Stoffzahl (inklusive Unter-Standorten) und Marke bei einer Mengenschwellen-
+  Überschreitung nach TRGS 510. Der Überblick, den die Liste nicht mehr tragen muss.
+* **Alte Adressen bleiben gültig**: `?unterbereich_id=` leitet auf `/standort/<id>`, `?bereich_id=`
+  auf die gefilterte Auswahl. Auch gedruckte QR-Etiketten und Lesezeichen laufen weiter.
+* **Der Bereich ist nur noch Gliederung**, kein eigenes Ziel; die Seitenleiste führt zu den
+  Standorten, „Standort wechseln" steht zusätzlich im Kopfbereich.
+* **Berechtigung unverändert**: `darf_unterbereich()` zieht dieselbe Grenze wie
+  `get_gefahrstoff_query()` — ein fremder Standort führt auf die Auswahl, nicht auf Daten.
+* Test: neu `test_standort_ansicht.py` (10 Tests: Weiterleitungen, direkter Einstieg,
+  Merkregel und ihr Verfall bei Rechteverlust, gesperrter Standort, Teilbaum-Zählung,
+  Warnmarke). Gesamtstand **394**.
+* Noch offen aus der Spec: globale Suche und die Druckroute `/verzeichnis/druck`.
+
+### v3.44 – Kachelansicht wird nachgeladen (November 2026, APP_VERSION 2.6.4)
+
+* Die Übersicht liefert nur noch die Tabelle. Die Kacheln kommen von **`/index/kacheln`** (`templates/_kacheln.html`), wenn der Umschalter sie zum ersten Mal braucht.
+* Die aktuellen Filter (`bereich_id`, `unterbereich_id`) reisen in `data-kacheln-url` mit; nach dem Einsetzen läuft der Suchfilter erneut, eine bereits getippte Suche gilt also weiter.
+* Bleibt das Laden aus, schaltet die Ansicht **nicht** um und zeigt einen Hinweis – die Tabelle bleibt stehen, statt dass eine leere Fläche erscheint.
+* Gemessen mit 3000 Stoffen: **15,0 → 9,8 MB** HTML, 437 → 365 ms.
+* Test: neu `test_kacheln.py` (6 Tests: Fragment ohne Seitenrahmen, Bereichsfilter, fremder Bereich 403, Anmeldung, gesperrte Downloads für die Leser-Rolle). Gesamtstand 384.
+
+### v3.43 – Übersicht skaliert mit der Zahl der Stoffe (November 2026, APP_VERSION 2.6.4)
+
+* **Zusammenlagerung einmal statt je Zeile** (`trgs_warnungen_fuer` in `main.py`): Die Übersicht prüft je Lagerabschnitt über die vorkommenden Lagerklassen statt je Stoffpaar; `Gefahrstoff.trgs_warnings` bleibt für die Detailseite. Gemessen mit 3000 Stoffen: **2,9 s → 0,44 s**, 3057 → 38 SQL-Abfragen.
+* **`standort_text()` wird in `fristen_liste` und `mengenschwellen_liste` je Aufruf zwischengespeichert.** Die Sitzung hält Objekte nur schwach fest, deshalb wurde derselbe Unterbereich je Stoff neu geladen (1000 Abfragen für 10 Standorte). `/fristen` bei 3000 Stoffen: **871 → 160 ms**, 6065 → 45 Abfragen.
+* **Test:** neu `test_trgs_warnungen.py` (6 Tests), darunter die Gegenprobe der Listenberechnung gegen die Eigenschaft je Stoff. Gesamtstand 378.
+* **Bekannt, nicht geändert:** Die Übersicht rendert Tabelle **und** Kachelansicht. Bei 3000 Stoffen sind das 15 MB HTML (Instanz mit 671 Stoffen: rund 3,3 MB). Das belastet den Browser, nicht den Server.
+
+### v3.42 – Import toleranter gegenüber fremden Tabellen (November 2026, APP_VERSION 2.6.4)
+
+* **Fremde Beschriftungen werden gedeutet.** Alias-Liste um „Produkt“, „Raum“, „Gebinde-Nummer“ und weitere erweitert; zusätzlich greifen einzelne Wörter einer Beschriftung. Eine Datei mit „Produkt“ statt „Name“ wurde bisher vollständig abgelehnt.
+* **Rückfall über den Zellinhalt** (`ergaenze_aus_inhalt`): CAS-Muster, H-/P-Sätze, GHS-Codes und Signalwort werden erkannt, die überzeugendste Textspalte gilt als Stoffname. Tabellen ohne Kopfzeile werden gelesen. Welche Spalte was wurde, steht in der Vorschau unter „Erkannte Spalten“.
+* **Blattauswahl:** Alle Blätter werden bewertet, gelesen wird das passendste; die Kopfzeile wird bis Zeile 100 gesucht.
+* **Zeilenfehler sind Warnungen:** unbekanntes Piktogramm, unlesbare oder negative Menge, zu langer Name (wird gekürzt). Fehler bleiben nur bei fehlendem Namen und unauflösbarem Standort ohne Ziel.
+* **Spalten `CMR` und `Aufgebraucht`:** CMR aus der Quelle erzwingt die Freigabe auch ohne H-Sätze; aufgebrauchte Zeilen werden nicht angelegt.
+* **Gebinde statt Duplikate** (`markiere_duplikate`): gleicher Stoff am selben Standort und Lagerort wird zusammengefasst, Mengen gleicher Einheit addiert. Bisher fielen diese Zeilen als „doppelt“ weg.
+* Vorschau, Abschlussmeldung und Audit-Log zählen zusammengefasste und aufgebrauchte Zeilen. Gesamtstand 369 Tests.
+
+### v3.41 – Import aus Excel und CSV (November 2026, APP_VERSION 2.6.3)
+
+* **Neu: `/import`** – Gefahrstoffe aus `.xlsx`, `.xlsm` oder `.csv` übernehmen. Zwei Schritte: Vorschau prüfen, dann bestätigen. Grenzen 5 MB und 5000 Zeilen, `.xls` wird abgelehnt.
+* **`import_gefahrstoffe.py`** – Datei lesen, Spalten über Aliase erkennen, Zeile prüfen; ohne Flask und SQLAlchemy. Deutsches CSV (Semikolon, cp1252) und eine Kopfzeile unterhalb von Zeile 1 werden erkannt.
+* **Standort** über „Bereich"/„Unterbereich" oder eine kombinierte Spalte „Standort". Ohne Angabe gilt der beim Upload gewählte Ziel-Standort, bei der Bestätigung erneut geprüft.
+* **Unbekannter Standort ist eine Warnung, kein Fehler** (04.11.2026): Die Zeile landet im Ziel-Standort, die Vorschau zeigt in der Standort-Spalte „statt ‚…‘" und zählt die Fälle in der Zusammenfassung. Ohne gewählten Ziel-Standort bleibt es ein Fehler. Das gilt auch für Bereiche ohne Berechtigung — die Meldung verrät deren Existenz nicht.
+* **Duplikate** am selben Standort: überspringen (Standard) oder nur leere Felder füllen. Vorhandene Werte werden nie überschrieben; derselbe Stoff an einem zweiten Standort gilt nicht als Duplikat.
+* **CMR-Stoffe** aus dem Import warten auf Freigabe; ergänzt der Import H-Sätze, die einen vorhandenen Stoff zum CMR-Stoff machen, fällt er auf „wartet" zurück.
+* **Vorlage** unter `/import/vorlage` (`.xlsx`, zweites Blatt mit Hinweisen). Piktogramme und Signalwort werden aus den H-Sätzen abgeleitet, wenn sie fehlen.
+* **Zwischenstand** als JSON unter `APP_DATA_DIR/_import/` (Zufallstoken, an die Benutzer-ID gebunden, nach 60 Minuten gelöscht).
+* **Excel-Export** um `Bereich`, `Unterbereich`, `Menge (Zahl)` und `Einheit` erweitert – Export und Import bilden einen Rundlauf.
+* **Audit-Log:** Aktion `IMPORT` mit Dateiname und Zählern, in der Ansicht übersetzt. Rolle `Lesen` darf weder importieren noch die Vorlage laden.
+* Doku: Handbuch 10.1, TOM 5.4, `DATENSCHUTZ_UND_TOM` 2.1/2.2. Gesamtstand 358 Tests.
+
 ### v3.40 – Abhängigkeiten und Python 3.13 (Oktober 2026, APP_VERSION 2.6.3)
 
 * Die fünf Dependabot-PRs zu pip (#5 bis #9) sind in einem Lockfile zusammengeführt; die Einzel-PRs hätten sich in `requirements.txt` gegenseitig überschrieben. Neu aufgelöst mit `pip-compile --generate-hashes`, Hash-Liste vollständig aus PyPI, `--require-hashes` bleibt.

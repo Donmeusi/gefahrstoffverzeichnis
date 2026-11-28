@@ -68,7 +68,7 @@ ab:
 
 | Menüpunkt | Wofür |
 |---|---|
-| **Übersicht** | Das Dashboard mit allen Gefahrstoffen Ihrer Bereiche |
+| **Übersicht** | Der Einstieg: die Standortauswahl, bzw. direkt der zuletzt geöffnete Standort |
 | **Betriebsanweisungen** | Sammelliste aller Betriebsanweisungen |
 | **Sicherheitsdatenblätter** | Sammelliste aller Datenblätter mit Aktualitätsstand |
 | **Fristen** | Offene Aufgaben, mit der Anzahl im Menüpunkt |
@@ -91,21 +91,74 @@ folgt die Anwendung der Einstellung Ihres Betriebssystems. **Ausdrucke sind
 davon nicht betroffen** — die Betriebsanweisung und der Standortaushang werden
 immer hell gedruckt.
 
-### 3.2 Das Dashboard
+### 3.2 Der Einstieg: ein Standort, nicht das ganze Verzeichnis
 
-* **Kopfzeile:** Unter dem Seitentitel stehen die Zahl der Gefahrstoffe und die
-  Zahl der *belegten* Standorte. Die fälligen Fristen stehen im Menüpunkt
-  **Fristen** (mit Zähler) und in der Fristenliste.
-* **Standort-Spalte links:** die Hierarchie Ihrer Bereiche. Ein Klick filtert die
-  Tabelle auf diesen Standort.
-* **Suche und Filter:** Suchfeld (Name, CAS-Nummer, H-Sätze), Filter nach
-  Signalwort und Piktogrammen.
+Seit Version 3.45 zeigt der Bildschirm **einen Standort** statt aller Stoffe
+zusammen. Das ist der wichtigste Unterschied zu früheren Fassungen: Ein
+Verzeichnis mit einigen tausend Stoffen wurde im Browser unhandlich, und gelesen
+wird ohnehin standortweise.
+
+Was beim Aufruf passiert:
+
+* Wer **genau einen Bereich mit genau einem Standort** sieht, landet sofort dort.
+* Alle anderen kommen im **zuletzt geöffneten** Standort an — gemerkt für die
+  laufende Sitzung, nicht dauerhaft gespeichert.
+* Beim ersten Aufruf, oder wenn die Berechtigung für den gemerkten Standort
+  entfallen ist, erscheint die **Standortauswahl**.
+
+Die Standortauswahl listet alle Standorte, die Sie sehen dürfen, nach Bereichen
+gruppiert. Je Zeile stehen die Zahl der Gefahrstoffe (einschließlich der
+Unter-Standorte) und, falls zutreffend, die Marke **Mengenschwelle**. Von hier
+führen zwei Knöpfe weiter: **Stoff suchen** und **Verzeichnis drucken**.
+
+### 3.3 Die Standortansicht
+
+* **Kopfzeile:** Standortpfad, die Zahl der Gefahrstoffe und die Zahl der
+  *belegten* Standorte. Daneben die Links **Standort wechseln** und **in allen
+  Standorten suchen**. Die fälligen Fristen stehen im Menüpunkt **Fristen**
+  (mit Zähler) und in der Fristenliste.
+* **Standort-Spalte links:** die Hierarchie Ihrer Bereiche. Ein Klick wechselt
+  den Standort; der Bereich selbst ist nur noch Gliederung.
+* **Suche und Filter:** Suchfeld für die **angezeigten** Stoffe (Name,
+  CAS-Nummer, H-Sätze), Filter nach Signalwort und Piktogrammen. Für die Suche
+  über alle Standorte siehe 3.4.
 * **Zwei Ansichten:** Tabelle (Liste) und Kacheln — die Wahl wird im Browser
-  gemerkt. In der Tabellenansicht lassen sich über **Spalten** einzelne Spalten
-  ausblenden; der Name bleibt immer sichtbar.
-* **Export:** Die **gefilterte** Ansicht als Excel-Tabelle oder PDF.
+  gemerkt. Die Kacheln werden erst beim Umschalten geladen. In der
+  Tabellenansicht lassen sich über **Spalten** einzelne Spalten ausblenden; der
+  Name bleibt immer sichtbar.
+* **Export:** Die Ansicht des Standorts als Excel-Tabelle oder PDF.
 
-### 3.3 Was Sie sehen — und was nicht
+### 3.4 Suche über alle Standorte
+
+Das Suchfeld in der Standortansicht findet nur, was gerade angezeigt wird. Für
+die Frage „wo liegt Aceton" gibt es **Übersicht → Stoff suchen** (`/suche`):
+
+* Durchsucht **Name, CAS-Nummer, EG-Nummer und H-Sätze** in allen Standorten,
+  die Sie sehen dürfen — fremde Bereiche erscheinen nicht.
+* Die Trefferliste nennt zu jedem Stoff den **Standort**, der direkt verlinkt
+  ist.
+* Angezeigt werden höchstens 200 Treffer; die Gesamtzahl steht darüber
+  („5 Treffer, die ersten 2 werden gezeigt"). Für ein vollständiges Ergebnis
+  nehmen Sie einen genaueren Suchbegriff oder das gedruckte Verzeichnis.
+
+### 3.5 Verzeichnis drucken
+
+**Übersicht → Verzeichnis drucken** (`/verzeichnis/druck`) erzeugt das
+**vollständige** Gefahrstoffverzeichnis als Druckseite:
+
+* Seite 1 trägt Titel, Stand, die Zahl der Standorte und Gefahrstoffe sowie ein
+  **Inhaltsverzeichnis** mit der Stoffzahl je Standort.
+* Danach beginnt **jeder Standort auf einer neuen Seite** mit eigener Kopfzeile.
+  So lässt sich das Verzeichnis abschnittsweise abheften.
+* Innerhalb eines Standorts sind die Stoffe nach Namen sortiert; der
+  Unter-Standort und der Lagerort stehen in der Zeile.
+* **Gedruckt wird nur, was Ihr Konto sehen darf.** Administratoren erhalten das
+  vollständige Verzeichnis, Benutzer ihre Bereiche.
+* Standorte ohne Gefahrstoffe stehen ausdrücklich mit „keine Gefahrstoffe
+  eingetragen" im Verzeichnis. Ein Verzeichnis, das einen Standort
+  verschweigt, wäre irreführend.
+
+### 3.6 Was Sie sehen — und was nicht
 
 Sie sehen nur Gefahrstoffe aus Ihren Bereichen und die, die Sie selbst angelegt
 haben. Das gilt überall in der Anwendung, auch für Exporte und die Fristenliste.
@@ -116,7 +169,7 @@ haben. Das gilt überall in der Anwendung, auch für Exporte und die Fristenlist
 
 ![Gefahrstoff anlegen](handbuch-bilder/02-gefahrstoff-anlegen.png)
 
-**Übersicht → Neuer Gefahrstoff** (oder `/add`). Das Formular ist in vier
+**Standortansicht → Neuer Gefahrstoff** (oder `/add`). Das Formular ist in vier
 Abschnitte gegliedert:
 
 1. **Grunddaten** — Name (Pflicht), CAS-Nummer, EG-Nummer
@@ -477,14 +530,110 @@ wo die Menge entsteht:
 
 ## 10. Suche, Filter und Exporte
 
-* **Suche** im Dashboard: Name, CAS-Nummer, H-Sätze.
+* **Suche in der Standortansicht**: Name, CAS-Nummer, H-Sätze — nur in den
+  angezeigten Zeilen.
+* **Suche über alle Standorte** (Kapitel 3.4): Name, CAS-, EG-Nummer, H-Sätze,
+  mit Standortspalte.
 * **Filter**: Signalwort und Piktogramme, kombinierbar mit der Suche.
-* **Standortfilter**: über die Standort-Spalte links.
+* **Standortwechsel**: über die Standort-Spalte links oder **Standort wechseln**
+  in der Kopfzeile.
 * **Excel-Export**: alle Spalten, auch Substitutionsprüfung und Lagerklasse.
 * **PDF-Export**: druckfertige Liste der aktuell gefilterten Ansicht.
 
 Exportiert wird immer genau das, was gerade gefiltert ist. Die Rolle `Lesen`
 darf nicht exportieren.
+
+### 10.1 Import aus Excel oder CSV
+
+Über die Schaltfläche **Import** in der Standortansicht (neben „Neuer Gefahrstoff")
+lassen sich Stoffe aus einer Tabelle übernehmen. Es sind zwei Schritte:
+hochladen und prüfen, dann auswählen und übernehmen. **Gespeichert wird erst
+nach Ihrer Bestätigung** — im ersten Schritt passiert nichts.
+
+**Die Datei.** `.xlsx`, `.xlsm` oder `.csv`, bis 5 MB und 5000 Zeilen. Die
+Kopfzeile muss nicht in der ersten Zeile stehen; Titelzeilen und Deckblätter
+davor stören nicht. Bei einer Arbeitsmappe mit mehreren Blättern wird das Blatt
+mit der passendsten Tabelle gelesen, nicht einfach das erste. Deutsches Excel
+schreibt CSV mit Semikolon; das wird erkannt, Sie müssen beim Speichern nichts
+umstellen. Das alte Format `.xls` wird nicht unterstützt — bitte als `.xlsx`
+speichern.
+
+**Die Spalten.** Die Beschriftungen dürfen heißen, wie sie in Ihrem Verzeichnis
+heißen: „Produkt", „Stoff", „Stoffname" oder „Handelsname" für den Namen,
+„CAS-Nr." oder „CAS" für die Nummer, „Raum" oder „Lagerplatz" für den Lagerort,
+„Datum SDB" oder „SDB-Datum" für das Datum, „Arbeitsbereich" für den Standort
+und so weiter. Auch einzelne Wörter in einer längeren Beschriftung genügen
+(„Produktbezeichnung nach CLP"). Eine Spalte mit unbekannter Beschriftung wird
+übersprungen und in der Vorschau genannt — nichts wird stillschweigend
+verworfen. Die Reihenfolge der Spalten ist beliebig.
+
+**Wenn die Beschriftungen gar nicht passen,** bestimmt die App die Spalten aus
+dem Zellinhalt: Eine Spalte mit CAS-Nummern wird als CAS-Nummer gelesen, eine
+mit `H225`-Werten als H-Sätze, eine mit `GHS02` als Piktogramme, und die
+überzeugendste Textspalte gilt als Stoffname. Eine Tabelle ganz ohne Kopfzeile
+wird ebenfalls gelesen. Was die App wie gelesen hat, steht in der Vorschau
+unter **Erkannte Spalten** — bitte dort nachsehen, wenn die Datei fremd
+aussieht.
+
+Wer keine eigene Tabelle hat, lädt unter **Import → Vorlage herunterladen** eine
+leere `.xlsx` mit allen Spalten herunter. Das zweite Blatt erklärt jede Spalte.
+Der **Excel-Export** lässt sich ebenfalls wieder importieren.
+
+**Der Standort** kommt entweder aus zwei Spalten („Bereich" und „Unterbereich")
+oder aus einer Spalte „Standort"/„Arbeitsbereich" in der Form
+`Labor › Schrank 2`. Fehlt die Angabe in einer Zeile, gilt der Standort, den Sie
+beim Hochladen ausgewählt haben.
+
+**Nennt eine Zeile einen Standort, den es in der App nicht gibt** (oder einen
+Bereich, für den Sie keine Berechtigung haben), ist das eine Warnung: Die Zeile
+wird in den beim Hochladen gewählten Ziel-Standort übernommen, und die
+Standort-Spalte der Vorschau zeigt beides — den Ziel-Standort und den Namen aus
+der Datei, der nicht gefunden wurde. Die Zeile bleibt also importierbar, ohne
+dass die falsche Angabe unbemerkt verschwindet. **Ohne Ziel-Standort** ist ein
+unbekannter Standort dagegen ein Fehler; die App rät keinen Standort.
+
+Ein Unterbereichsname, der in **zwei Bereichen** vorkommt, wird ebenfalls nicht
+geraten, sondern nach derselben Regel in den Ziel-Standort gelegt — in dem Fall
+bitte den vollständigen Pfad angeben, dann greift die Zeile richtig.
+
+**Was in der Vorschau steht.** Jede Zeile bekommt einen Status:
+
+* **bereit** — wird beim Bestätigen angelegt.
+* **Warnung** — wird angelegt, aber etwas fehlt oder ist ungewöhnlich (keine
+  CAS-Nummer, Menge ohne Einheit, unbekannter H-Satz, Standort nicht gefunden,
+  ein Piktogramm, das es nicht gibt, eine unlesbare Menge). Bitte lesen.
+* **Fehler** — wird **nicht** angelegt. Das trifft nur, wenn der Name fehlt oder
+  ein genannter Standort ohne Ziel-Standort nicht aufgelöst werden kann; alles
+  andere wird übernommen und gemeldet.
+* **bereit / vorhanden** — der Stoff steht schon im Verzeichnis (gleicher Name
+  oder gleiche CAS-Nummer **am selben Standort**). Was damit geschieht,
+  entscheiden Sie über den Schalter *Überspringen* oder *Aktualisieren – nur
+  leere Felder füllen*. Ein zweiter Standort gilt nicht als Duplikat.
+* **zusammengefasst** — dieselbe Stoffangabe am selben Ort (gleiche CAS-Nummer
+  oder gleicher Name, gleicher Standort, gleicher Lagerort) steht mehrfach in
+  der Datei, etwa ein Gebinde je Zeile. Daraus wird **ein** Verzeichniseintrag;
+  die Mengen werden addiert, sofern die Einheit gleich ist. Die erste Zeile
+  zeigt, wie viele Gebinde zusammengefasst wurden.
+* **aufgebraucht** — die Zeile ist laut Datei (Spalte „Aufgebraucht" mit „ja")
+  verbraucht und wird nicht angelegt. Sie bleibt zur Kontrolle sichtbar.
+
+An- und abwählen lassen sich alle Zeilen, die keinen Fehler haben. Fehlerhafte,
+zusammengefasste und aufgebrauchte Zeilen sind gesperrt, damit sie nicht aus
+Versehen halb übernommen werden.
+
+**Was der Import nie tut:** vorhandene Werte überschreiben. Auch beim
+Aktualisieren werden nur Felder gefüllt, die leer sind. Wenn ein Stoff mit seiner
+Sicherheitsdatenblatt-Einstufung im Verzeichnis steht und die Tabelle etwas
+anderes sagt, bleibt das Verzeichnis stehen.
+
+**CMR-Stoffe** aus dem Import warten wie beim Anlegen auf Freigabe. Das gilt
+auch, wenn die Datei CMR in einer eigenen Spalte führt, ohne H-Sätze zu nennen.
+Ergänzt der Import bei einem vorhandenen Stoff H-Sätze, die ihn zum CMR-Stoff
+machen, oder kennzeichnet er ihn als CMR-Stoff, fällt er auf „wartet" zurück.
+
+Die Rolle `Lesen` darf weder importieren noch die Vorlage laden. Jeder Import
+erscheint in der Systemhistorie (`IMPORT`) mit Dateiname und der Zahl der
+angelegten, aktualisierten, übersprungenen und abgelehnten Zeilen.
 
 ## 11. Freigabe-Workflow
 
@@ -719,8 +868,11 @@ Diese Anwendung wird laufend weiterentwickelt. Die vollständige Änderungsliste
 steht in `CHANGELOG.md`; die Datenschutz-Dokumentation in
 `DATENSCHUTZ_UND_TOM.md`.
 
-**Die wichtigsten Schritte bis Version 3.27:**
+**Die wichtigsten Schritte bis Version 3.47:**
 
+* **v3.47** — *Neu:* Gedrucktes Gesamtverzeichnis mit Inhaltsverzeichnis und einer Seite je Standort
+* **v3.46** — *Neu:* Stoffsuche über alle Standorte (Name, CAS, EG, H-Sätze), mit Standortspalte und berechtigungsgefiltert
+* **v3.45** — *Neu:* Die Übersicht zeigt einen Standort statt des ganzen Verzeichnisses; Standortauswahl als Einstieg, alte Adressen und QR-Codes bleiben gültig
 * **v3.27** — Mengenschwellen-Prüfung im Formular: Warnung nach dem Speichern und Live-Vorschau beim Ausfüllen
 * **v3.26** — *Neu:* Mengenschwellen-Prüfung nach TRGS 510 je Lagerabschnitt (eigene Seite mit Zähler)
 * **v3.25** — *Aussehen:* eigenständiger Entwurf „Amt & Akte" (neue Schriften, Papierweiß/Tinte, flache Formen)

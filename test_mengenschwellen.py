@@ -318,6 +318,7 @@ class TestMengenschwellenSeite(unittest.TestCase):
             unterbereich = Unterbereich(name='Schrank M1', bereich_id=bereich.id)
             db.session.add(unterbereich)
             db.session.commit()
+            self.unterbereich_id = unterbereich.id
 
             db.session.add(Gefahrstoff(
                 name='Testxylol',
@@ -369,12 +370,12 @@ class TestMengenschwellenSeite(unittest.TestCase):
 
     def test_uebersicht_zeigt_das_symbol(self):
         self._umgebung(ueber_schwelle=True)
-        html = self._seite('/')
+        html = self._seite(f'/standort/{self.unterbereich_id}')
         self.assertIn('Mengenschwelle im Lagerabschnitt überschritten', html)
 
     def test_navigationszähler_vorhanden(self):
         self._umgebung(ueber_schwelle=True)
-        html = self._seite('/')
+        html = self._seite(f'/standort/{self.unterbereich_id}')
         self.assertIn('Mengenschwellen', html)
         self.assertIn('nav-count', html)
 

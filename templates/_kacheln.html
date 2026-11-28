@@ -1,0 +1,89 @@
+{# Kachelansicht der Übersicht.
+
+   Wird nicht mit der Übersicht ausgeliefert, sondern erst beim Umschalten von
+   /index/kacheln nachgeladen. Grund: Bei 671 Stoffen waren Tabelle und Kacheln
+   zusammen 3,3 MB HTML, bei 3000 Stoffen 15 MB - der Browser merkt das beim
+   Parsen und Filtern stärker als der Server. Die Kacheln brauchen dieselben
+   Variablen wie die Tabelle: gefahrstoffe, trgs_warnungen, sdb_stufen.
+   Die Klasse .filter-item und die data-Attribute sind der Haken für
+   filterItems() in index.html; nach dem Einsetzen ruft das Skript den Filter
+   erneut auf, damit eine bereits getippte Suche weiter gilt. #}
+{% for stoff in gefahrstoffe %}
+{% set border_class = 'danger' if stoff.signalwort == 'Gefahr' else ('warning' if stoff.signalwort == 'Achtung' else 'normal') %}
+<div class="stoff-card {{ border_class }} filter-item"
+     data-search="{{ stoff.name|lower }} {{ stoff.cas_nummer|lower }} {{ stoff.eg_nummer|lower }} {% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path()|lower }}{% endif %} {% if stoff.h_saetze %}{{ stoff.h_saetze|lower }}{% endif %}"
+     data-signalwort="{% if stoff.signalwort %}{{ stoff.signalwort|lower }}{% else %}keines{% endif %}"
+     data-piktogramme="{% if stoff.piktogramme %}{{ stoff.piktogramme|lower }}{% endif %}">
+
+    <div class="stoff-card-header">
+        <div>
+            <a href="{{ url_for('view_stoff', id=stoff.id) }}" class="stoff-card-title">
+                {{ stoff.name }}
+                {% if stoff.id in trgs_warnungen %}
+                <i class="fa-solid fa-triangle-exclamation card-title-warn" title="Zusammenlagerungsverbot (TRGS 510)"></i>
+                {% endif %}
+            </a>
+            <div class="stoff-card-cas">{{ stoff.cas_nummer or 'Keine CAS' }}</div>
+        </div>
+        {% if stoff.piktogramme %}
+        <div class="stoff-card-piktos">
+            {% for code in stoff.piktogramme.split(',') %}
+            {% if code %}
+            <img src="{{ url_for('static', filename='pictograms/' ~ code.strip() ~ '.svg') }}" title="{{ code.strip() }}" alt="{{ code.strip() }}">
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="stoff-card-body">
+        <div class="stoff-card-info">
+            <i class="fa-solid fa-map-marker-alt icon-fixed" aria-hidden="true"></i>
+            <span>{% if stoff.unterbereich %}{{ stoff.unterbereich.get_full_path() }}{% else %}Kein Standort{% endif %}</span>
+        </div>
+        <div class="stoff-card-info">
+            <i class="fa-solid fa-scale-balanced icon-fixed" aria-hidden="true"></i>
+            <span class="nowrap">{% if stoff.menge %}{{ stoff.menge }} {{ stoff.mengeneinheit or '' }}{% else %}Bestand nicht erfasst{% endif %}</span>
+        </div>
+    </div>
+
+    <div class="stoff-card-actions">
+        {% if stoff.sicherheitsdatenblatt %}
+            {% set sdb_warn = sdb_stufen[stoff.id] in ('dringend', 'pruefen') %}
+            {% if current_user.role == 'lesen' %}
+                <span class="doc-btn doc-btn-sdb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
+                    <i class="fa-solid fa-file-pdf"></i> SDB
+                </span>
+            {% else %}
+                <a href="{{ url_for('uploaded_file', filename=stoff.sicherheitsdatenblatt) }}" class="doc-btn doc-btn-sdb" target="_blank">
+                    <i class="fa-solid fa-file-pdf"></i> SDB {% if sdb_warn %}<i class="fa-solid fa-triangle-exclamation doc-warn" title="SDB ist veraltet"></i>{% endif %}
+                </a>
+            {% endif %}
+        {% endif %}
+
+        {% if stoff.betriebsanweisung %}
+            {% if current_user.role == 'lesen' %}
+                <span class="doc-btn doc-btn-ba doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
+                    <i class="fa-solid fa-file-word"></i> BA
+                </span>
+            {% else %}
+                <a href="{{ url_for('uploaded_file', filename=stoff.betriebsanweisung) }}" class="doc-btn doc-btn-ba" target="_blank">
+                    <i class="fa-solid fa-file-word"></i> BA
+                </a>
+            {% endif %}
+        {% endif %}
+
+        {% if stoff.gefaehrdungsbeurteilung %}
+            {% if current_user.role == 'lesen' %}
+                <span class="doc-btn doc-btn-gb doc-btn-disabled" title="Download für Leser-Rolle deaktiviert">
+                    <i class="fa-solid fa-file-shield"></i> GB
+                </span>
+            {% else %}
+                <a href="{{ url_for('uploaded_file', filename=stoff.gefaehrdungsbeurteilung) }}" class="doc-btn doc-btn-gb" target="_blank">
+                    <i class="fa-solid fa-file-shield"></i> GB
+                </a>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

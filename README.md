@@ -9,10 +9,14 @@ Die Anwendung ermöglicht Benutzern das strukturierte Anlegen von Gefahrstoffen,
 
 ## ✨ Neue & Wichtige Funktionen (2026 Edition)
 
+*   **🏢 Übersicht nach Standort**: Der Bildschirm zeigt einen Standort statt des ganzen Verzeichnisses. Ein Einstieg führt in den zuletzt geöffneten Standort, sonst erscheint die Standortauswahl mit Stoffzahl und Marke für überschrittene Mengenschwellen je Standort. Alte Adressen (`?unterbereich_id=`, `?bereich_id=`) und gedruckte QR-Codes leiten weiter.
+*   **🔍 Suche über alle Standorte**: Name, CAS-, EG-Nummer und H-Sätze in allen Bereichen, die das Konto sehen darf — mit Standortspalte. Eine Suche innerhalb der Standortansicht filtert weiterhin nur die angezeigten Zeilen.
+*   **🖨️ Gesamtverzeichnis drucken**: A4-Dokument mit Inhaltsverzeichnis und einer eigenen Seite je Standort, berechtigungsgefiltert. Leere Standorte stehen ausdrücklich als „keine Gefahrstoffe eingetragen" darin.
 *   **LDAPs-Authentifizierung (Active Directory / OpenLDAP)**: Binden Sie Ihr Unternehmens-Verzeichnis via LDAPs/TLS ein. Neue LDAP-Nutzer werden automatisch mit konfigurierbarer Standardrolle angelegt.
 *   **Schreibgeschützte Rolle „Lesen“**: Neue Benutzerrolle für reine Betrachter. Leser sehen zugewiesene Bereiche, dürfen jedoch keine Daten bearbeiten, löschen, exportieren (Excel/PDF) oder Dokumente herunterladen.
 *   **📱 Schnell-Inventur-Modus**: Touch-optimierte mobile Checkliste zum schnellen Abhaken, Vergleichen und Anpassen von Lagermengen vor Ort am Schrank inklusive automatischer Protokollierung im Audit Log.
 *   **🖨️ Schrank-Aushang & Druckansicht**: Generieren Sie A4-optimierte Inhaltsverzeichnisse für Sicherheitsschränke inklusive GHS-Piktogrammen, Notfallhinweisen, Lagerklassen und QR-Code zum Aushang vor Ort.
+*   **📥 Import aus Excel oder CSV**: Übernehmen Sie ein bestehendes Verzeichnis als Tabelle. Die App erkennt die Spalten an ihren Beschriftungen, zeigt vor dem Speichern eine Vorschau mit Fehlern, Warnungen und Duplikaten je Zeile und übernimmt nur, was Sie ankreuzen. Vorhandene Stoffe werden übersprungen oder – auf Wunsch – nur in leeren Feldern ergänzt; überschrieben wird nie. Eine Vorlage mit Hinweisblatt steht zum Herunterladen bereit, und der Excel-Export lässt sich wieder einlesen.
 *   **SDB Auto-Parsing (Automatischer Import)**: Laden Sie ein Sicherheitsdatenblatt (SDB) als PDF hoch. Das System extrahiert vollautomatisch Name, CAS-Nr, EG-Nr, Signalwort, H-/P-Sätze und Piktogramme und füllt das Formular für Sie aus!
 *   **Mobile Ready (Responsiv)**: Die gesamte Anwendung wurde mit einem "Mobile First" Ansatz überarbeitet. Auf Smartphones und kleinen Bildschirmen blenden Tabellen unwichtige Spalten aus und Eingabefelder stapeln sich dynamisch, für ein optimales Nutzungserlebnis unterwegs.
 *   **CAS-Autofill mit amtlicher Einstufung**: Tippen Sie eine CAS-Nummer ein und laden Sie mit einem Klick alle GHS-Informationen (Piktogramme, Signalwort, H-/P-Sätze, Gefahrenkategorien). Die Einstufung kommt aus **Anhang VI der CLP-Verordnung** — der amtlichen Liste der harmonisierten Einstufungen, die mitgeliefert wird und ohne Netzzugriff arbeitet. Steht ein Stoff dort nicht (selbsteingestufte Stoffe), wird auf PubChem zurückgegriffen. Die deutsche Bezeichnung liefert Wikidata.
@@ -265,7 +269,7 @@ Wenn Sie die App auf Unraid betreiben, klonen Sie das Projekt idealerweise nach 
 python -m unittest discover -p 'test_*.py'
 ```
 
-256 Tests (Stand Oktober 2026). `testkonfiguration.py` legt ein Wegwerf-Datenverzeichnis an, damit die Tests nicht gegen die eigene `data/gefahrstoffe.db` laufen — deren Prüfsumme bleibt nach dem Lauf unverändert.
+408 Tests (Stand November 2026). `testkonfiguration.py` legt ein Wegwerf-Datenverzeichnis an, damit die Tests nicht gegen die eigene `data/gefahrstoffe.db` laufen — deren Prüfsumme bleibt nach dem Lauf unverändert.
 
 ## 📅 Changelog
 
