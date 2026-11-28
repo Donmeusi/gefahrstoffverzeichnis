@@ -82,7 +82,14 @@ function renderHpList(inputId, selectedValues, filterText) {
         checkbox.checked = isChecked;
         
         const textSpan = document.createElement('span');
-        textSpan.innerHTML = `<strong>${item.code}</strong>: ${item.text}`;
+        // Kein innerHTML mit eingesetzten Werten: der Katalog liegt heute als
+        // statische Datei daneben, aber sobald er einmal aus der Anwendung
+        // kommt (eigene Sätze, Import), wäre das eine DOM-XSS-Lücke. Die
+        // Hervorhebung des Codes entsteht deshalb als eigenes Element.
+        const codeTeil = document.createElement('strong');
+        codeTeil.textContent = item.code;
+        textSpan.appendChild(codeTeil);
+        textSpan.appendChild(document.createTextNode(': ' + item.text));
         
         label.appendChild(checkbox);
         label.appendChild(textSpan);

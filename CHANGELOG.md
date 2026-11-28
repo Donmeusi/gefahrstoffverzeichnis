@@ -2,6 +2,25 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.49 – DOM-XSS-Prüfung der Skripte (November 2026, APP_VERSION 2.6.6)
+
+* **Geprüft:** `static/autofill.js`, `hp_modal.js`, `mengenschwellen_vorschau.js`,
+  `sdb_import.js` und die Inline-Skripte der Vorlagen — Quellen und Senken, jede Fundstelle mit
+  ihrer Herkunft. Ergebnis als Abschnitt 8 im Sicherheitsbericht.
+* **Ein latenter Befund, behoben:** `hp_modal.js` baute den H-Satz-Katalog per Template in
+  `innerHTML`. Die Werte stammen aus der mitgelieferten `static/hp_data.json` und sind heute
+  nicht beeinflussbar — sobald der Katalog aber einmal aus der Anwendung kommt (eigene Sätze,
+  Import), wäre es eine echte Lücke. Jetzt: `<strong>`-Element mit `textContent`, Text als
+  Textknoten.
+* **Ohne Befund:** Wikidata-Namen, Dateinamen aus dem Upload und der Katalog nutzen
+  `textContent`; kein `eval`, `new Function`, `document.write` oder `insertAdjacentHTML`;
+  `setAttribute` nur mit festen Werten; das Kachel-Fragment ist serverseitig escaped.
+* **Neuer Regressionstest** `test_dom_xss.py`: kein `innerHTML` mit `${…}` in `static/*.js`,
+  keine der Ausführungsflächen, und die drei Skripte mit fremden Daten bleiben bei
+  `textContent`. Gegen die alte Zeile gegengeprüft — der Test schlägt dort an.
+* **APP_VERSION 2.6.6**, weil `hp_modal.js` am Cache-Buster hängt.
+* Gesamtstand **417 Tests**.
+
 ### v3.48 – Gelöschte Gefahrstoffe wiederherstellen (November 2026, APP_VERSION 2.6.5)
 
 * **Neu: Wiederherstellen aus der Systemhistorie.** Das Löschen setzt seit jeher nur
