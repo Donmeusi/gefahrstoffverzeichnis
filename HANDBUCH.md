@@ -1,6 +1,6 @@
 # 📘 Benutzerhandbuch: Gefahrstoffverzeichnis
 
-**Version 3.20 · Stand 27. September 2026**
+**Version 3.47 · Stand 28. November 2026**
 
 Willkommen im Gefahrstoffverzeichnis. Diese Anwendung verwaltet Gefahrstoffe,
 ihre Lagerorte, Sicherheitsdatenblätter und Betriebsanweisungen — und sie
