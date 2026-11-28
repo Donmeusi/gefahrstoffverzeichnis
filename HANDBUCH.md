@@ -730,6 +730,14 @@ freigeben, ablehnen, Inventur), Betriebsanweisungen, Benutzer (anlegen, ändern,
 Rolle, Bereiche, löschen), Standorte (anlegen, löschen), die Passwortänderung im
 eigenen Profil, der lokale Login und die Wartungsaktionen.
 
+**Wiederherstellen:** Neben dem Eintrag eines gelöschten Gefahrstoffs steht ein
+Knopf **Wiederherstellen**. Löschen entfernt den Datensatz nicht, es setzt nur
+ein Kennzeichen — der Stoff ist also noch vorhanden und wird damit wieder
+sichtbar, an seinem bisherigen Standort. Der Vorgang erscheint als eigener
+Eintrag „Wiederhergestellt"; die ursprüngliche Löschung bleibt in der Liste
+stehen. Nur Administratoren sehen den Knopf, und er steht nur dort, wo es
+wirklich etwas zu holen gibt.
+
 **Bewusst nicht enthalten:** Passwörter (nur „Passwort neu gesetzt") und der
 Inhalt einer Unterschrift (nur „Unterschrift gesetzt" bzw. „entfernt"). Beides
 sind personenbezogene Daten, die in eine breit einsehbare Historie nicht

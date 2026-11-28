@@ -2,6 +2,29 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+### v3.48 – Gelöschte Gefahrstoffe wiederherstellen (November 2026, APP_VERSION 2.6.5)
+
+* **Neu: Wiederherstellen aus der Systemhistorie.** Das Löschen setzt seit jeher nur
+  `is_deleted` — der Datensatz blieb also liegen, war über die Oberfläche aber
+  unerreichbar (TOM, R-8). Neben dem Eintrag eines gelöschten Gefahrstoffs steht jetzt
+  ein Knopf **Wiederherstellen**, der `is_deleted` und `deleted_at` zurücksetzt.
+  Der Stoff ist danach wieder sichtbar, an seinem bisherigen Standort.
+* **Nur Administratoren.** Wer schreiben darf, darf löschen; das Rückgängigmachen
+  bleibt der Verwaltung. Moderator und Benutzer bekommen eine Meldung, der Datensatz
+  bleibt gelöscht. Die Route ist POST und damit CSRF-geschützt wie jede andere.
+* **Die Historie bleibt ehrlich:** Der Löschvorgang bleibt stehen, die
+  Wiederherstellung schreibt einen eigenen Eintrag (`RESTORE`) — keine stille
+  Rücknahme. Ohne das ließe sich später nicht mehr sagen, dass gelöscht wurde.
+* **Der Knopf erscheint nur, wo es etwas zu holen gibt:** Die Historie prüft einmal
+  gegen die gelöschten Datensätze; für bereits wiederhergestellte oder endgültig
+  entfernte Stoffe steht kein Knopf. Ein Knopf ins Leere wäre ein Versprechen ohne
+  Deckung.
+* **Neue CSS-Klasse `.form-inline`** für das Ein-Knopf-Formular in der Tabellenzelle —
+  deshalb **APP_VERSION 2.6.5** (Cache-Buster).
+* Test: neu `test_wiederherstellen.py` (6 Tests: Anmeldepflicht, Wiederherstellen durch
+  den Administrator, verweigerte Rolle, unberührter nicht gelöschter Stoff, 404 bei
+  unbekannter ID, Knopf erscheint und verschwindet). Gesamtstand **414**.
+
 ### v3.47 – Gedrucktes Gesamtverzeichnis (November 2026, APP_VERSION 2.6.4)
 
 * **Neu `/verzeichnis/druck`**: das vollständige Gefahrstoffverzeichnis auf Papier — Titel und
