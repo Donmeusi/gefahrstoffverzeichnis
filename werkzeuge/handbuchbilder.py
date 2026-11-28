@@ -43,15 +43,24 @@ CHROME = os.environ.get(
 # (Name, Kürzel, Breite, Höhe, eingeloggt, Menüs offen)
 SEITEN = [
     ('00-login', '/login', 1440, 760, False, False),
-    ('01-dashboard', '/', 1440, 1000, True, False),
+    # Seit v3.45 ist der Einstieg die Standortauswahl; '/' leitet weiter.
+    ('01-standortauswahl', '/standorte', 1440, 820, True, False),
+    # Die Standortansicht ersetzt das fruehere Dashboard (ein Standort
+    # statt des ganzen Verzeichnisses).
+    ('01-dashboard', '@raum102', 1440, 1000, True, False),
     # Für Abschnitt 3.1 des Handbuchs: beide Aufklappmenüs der Leiste offen,
     # sonst sind Standorte, Benutzer, Historie, Profil und Logout auf keinem Bild.
-    ('01b-dashboard-menue', '/', 1440, 1000, True, True),
+    ('01b-dashboard-menue', '@raum102', 1440, 1000, True, True),
     ('02-gefahrstoff-anlegen', '/add', 1440, 1700, True, False),
     ('03-gefahrstoff-detail', '@aceton', 1440, 1000, True, False),
     ('04-fristen', '/fristen', 1440, 900, True, False),
     ('05-schrank-aushang', '@lager/print', 1440, 1150, True, False),
     ('06-betriebsanweisung', '@aceton/ba', 1440, 1250, True, False),
+    # Suche ueber alle Standorte: H314 trifft Natriumhydroxid (Raum 102) und
+    # Salzsaeure (zentrales Lager) - so ist die Standortspalte sinnvoll belegt.
+    ('07-suche', '/suche?q=H314', 1440, 700, True, False),
+    # Gedrucktes Gesamtverzeichnis: Titel, Inhalt, erster Standort.
+    ('08-verzeichnis-druck', '/verzeichnis/druck', 1440, 1150, True, False),
 ]
 
 
@@ -66,6 +75,10 @@ def instanz_laden():
     """
     daten = tempfile.mkdtemp(prefix='gsv-handbuch-')
     os.environ['APP_DATA_DIR'] = daten
+    # Die Anwendung hat keinen Rueckfallwert fuer den Sitzungsschluessel und
+    # bricht beim Import ab, wenn er fehlt (seit der Haertung im Betrieb).
+    # Fur die Aufnahmen genuegt ein Wegwerfwert.
+    os.environ.setdefault('FLASK_SECRET_KEY', 'handbuch-bilder-only-key')
     sys.path.insert(0, REPO)
 
     import main as m
@@ -164,7 +177,8 @@ def daten_anlegen(m, daten):
                              menge=250.0, mengeneinheit='g',
                              unterbereich_id=lager510.id, user_id=chef.id))
 
-        # CMR-Stoff: wartet auf Freigabe und ist deshalb nicht sichtbar
+        # CMR-Stoff: wartet auf Freigabe. Der Administrator sieht ihn
+        # (seit v3.24), deshalb steht er mit Sanduhr auf dem Bild.
         db.add(m.Gefahrstoff(name='Chloroform', cas_nummer='67-66-3',
                              eg_nummer='200-663-8', signalwort='Gefahr',
                              piktogramme='GHS06,GHS08',
@@ -209,23 +223,26 @@ def daten_anlegen(m, daten):
         aceton_id = aceton.id
         lager_id = m.Unterbereich.query.filter_by(
             name='Gefahrstofflager (TRGS 510)').first().id
+        raum102_id = m.Unterbereich.query.filter_by(
+            name='Raum 102 – Chemikalienschrank').first().id
         print(f"Beispieldaten: {m.Gefahrstoff.query.count()} Gefahrstoffe, "
               f"{m.Bereich.query.count()} Bereiche, "
               f"{m.Unterbereich.query.count()} Standorte")
 
-    return aceton_id, lager_id
+    return aceton_id, lager_id, raum102_id
 
 
-def pfad_aufloesen(kuerzel, aceton_id, lager_id):
+def pfad_aufloesen(kuerzel, aceton_id, lager_id, raum102_id):
     """Ersetzt die Platzhalter in SEITEN durch echte Adressen."""
     return {
         '@aceton': f'/view/{aceton_id}',
         '@aceton/ba': f'/gefahrstoff/{aceton_id}/betriebsanweisung',
         '@lager/print': f'/location/{lager_id}/print',
+        '@raum102': f'/standort/{raum102_id}',
     }.get(kuerzel, kuerzel)
 
 
-def aufnahmen_machen(m, aceton_id, lager_id, arbeitsverzeichnis):
+def aufnahmen_machen(m, aceton_id, lager_id, raum102_id, arbeitsverzeichnis):
     """Rendert die Seiten und lässt Chrome Aufnahmen machen."""
     client = m.app.test_client()
     client.post('/login',
@@ -234,7 +251,7 @@ def aufnahmen_machen(m, aceton_id, lager_id, arbeitsverzeichnis):
 
     os.makedirs(ZIEL, exist_ok=True)
     for name, kuerzel, breite, hoehe, eingeloggt, menues_offen in SEITEN:
-        pfad = pfad_aufloesen(kuerzel, aceton_id, lager_id)
+        pfad = pfad_aufloesen(kuerzel, aceton_id, lager_id, raum102_id)
         c = client if eingeloggt else m.app.test_client()
         antwort = c.get(pfad)
         if antwort.status_code != 200:
@@ -285,8 +302,8 @@ def main():
     m, daten = instanz_laden()
     arbeitsverzeichnis = tempfile.mkdtemp(prefix='gsv-handbuch-html-')
     print(f"Isolierte Instanz unter {daten}")
-    aceton_id, lager_id = daten_anlegen(m, daten)
-    aufnahmen_machen(m, aceton_id, lager_id, arbeitsverzeichnis)
+    aceton_id, lager_id, raum102_id = daten_anlegen(m, daten)
+    aufnahmen_machen(m, aceton_id, lager_id, raum102_id, arbeitsverzeichnis)
     print(f"\nFertig. Bilder in {ZIEL}")
     print("PDF neu erzeugen: siehe Kopf von handbuch-druck.css")
 
