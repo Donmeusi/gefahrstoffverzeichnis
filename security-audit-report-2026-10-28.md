@@ -5,7 +5,7 @@
 | **Datum** | 2026-10-28 |
 | **Auditierter Stand** | `3b17a46` (Branch `beta`) |
 | **Aktueller Stand** | `v3.49` — alle Befunde unten sind behoben, sofern nicht anders vermerkt |
-| **Nachprüfung** | 2026-11-28: keine neuen Befunde (Abschnitt 7); DOM-XSS-Prüfung der Skripte in Abschnitt 8, ein latenter Befund entschärft |
+| **Nachprüfung** | 2026-11-28: keine neuen Befunde (Abschnitt 7); DOM-XSS-Prüfung der Skripte in Abschnitt 8, ein latenter Befund entschärft; Lastmessung des PDF-Parsings und Browser-Abhängigkeiten bewertet in Abschnitt 9 |
 | **Methode** | Claude-Code-Skill `security-audit` v1.8.0, Phasen Python/Backend, Container/Deployment, Secrets/Supply-Chain |
 | **Umfang** | Statische Analyse plus ein Laufzeit-Test des TLS-Deployments. Kein DAST, keine Penetrationstests. |
 | **Nicht geprüft** | `openwiki/`, `static/` (außer Verweisen), `data/`, `handbuch-bilder/`, Binärdateien |
@@ -233,7 +233,7 @@ Im **öffentlichen** Repo stand vom 30.07.2026 (`776c0c0`) bis 21.10.2026 (`435e
 ## 6. Offene Punkte außerhalb des Audits
 
 - `static/*.js` wurde nicht geprüft (Client-Logik für `parse_sdb`, `autofill`, Mengenschwellen-Vorschau). **Nachgeholt am 28.11.2026, siehe Abschnitt 8.**
-- Keine Laufzeitmessung des PDF-Parsings auf große Dateien (DoS-Fläche für Benutzer mit Schreibrecht).
+- ~~Keine Laufzeitmessung des PDF-Parsings auf große Dateien (DoS-Fläche für Benutzer mit Schreibrecht).~~ **Gemessen am 28.11.2026, siehe Abschnitt 9.1.**
 - Die Branch-Protection erzwingt kein Review — bei einem Ein-Personen-Projekt wäre eine Required-Approval-Regel nicht erfüllbar. Force-Push und Löschen sind gesperrt.
 
 ---
@@ -333,6 +333,91 @@ textSpan.innerHTML = `<strong>${item.code}</strong>: ${item.text}`;
 Bewertung der Browser-Abhängigkeiten, keine Prüfung, ob die gesetzte CSP die Skripte
 tatsächlich in jedem Browser blockt. Die Aussage stützt sich auf Quellcodeprüfung und die
 statischen Regressionstests.
+
+---
+
+## 9. Die beiden offenen Punkte, bewertet (28.11.2026)
+
+### 9.1 Lastmessung des SDB-PDF-Parsings · **niedrig**
+
+Die Sorge war, ein großer Upload könne den Dienst ausbremsen. Vor der Messung stehen bereits
+vier Grenzen im Code: **16 MB** Upload (`MAX_CONTENT_LENGTH`), **200 Seiten**
+(`PDF_MAX_SEITEN`), **30 Sekunden** (`PDF_MAX_PARSE_SEKUNDEN`, Antwort per Arbeits-Thread),
+und Schreibrecht (`can_write`) — die Rolle `lesen` kommt nicht an den Endpunkt.
+
+Gemessen an drei eigens erzeugten Dateien, jeweils der ganze Weg
+(`pdf_seiten_auslesen` = öffnen, Text der ersten 15 Seiten, Tabellen der ersten 6 Seiten
+mit Stichwort, höchstens 12 Tabellen):
+
+| Testdatei | Größe | Seiten | Dauer | Tabellen | Ergebnis |
+|---|---|---|---|---|---|
+| Dichte Vektortabellen | 0,05 MB | 15 | **1,56 s** | 12 (Deckel erreicht) | in Ordnung |
+| SDB-Text ohne Tabellenlinien | 0,23 MB | 114 | 0,60 s | 0 | in Ordnung |
+| Eine Seite mit 13,9 MB Bild | 13,87 MB | 1 | **0,01 s** | 0 | in Ordnung |
+| Seite über der Seitengrenze | 0,05 MB | 15 (Limit 1) | 0,00 s | — | sauber abgewiesen |
+| Dieselbe Datei, 10 Läufe | 0,05 MB | 15 | 1,6 s je Lauf | 12 | kein Rückhalt (Peak 247 → 298 MB) |
+
+**Was die Zahlen sagen**
+
+* **Die Dateigröße treibt die Kosten nicht.** Eine 13,87-MB-Datei wird in 0,01 s ausgewertet,
+  weil das eingebettete Bild nie dekodiert wird — gelesen wird Text, nicht Grafik.
+* **Der Kostentreiber ist die Tabellendichte**, und genau dort greift der Deckel: 12 Tabellen
+  waren in 1,56 s erreicht, danach bricht die Schleife ab.
+* **Der schlimmste gemessene Lauf liegt bei 1,6 s** — das sind 5 % des Zeitdeckels von 30 s.
+  Um ihn zu erreichen, müsste ein PDF konstruiert werden, das pdfplumber auf sechs Seiten zu
+  zehntausenden Tabellenfragmenten verleitet.
+* **Kein Speicherrückhalt:** zehn Läufe hintereinander erhöhen den Spitzenverbrauch nicht
+  (247 → 298 MB inklusive Aufwärmen der Bibliotheken).
+
+**Restrisiko:** Der 30-Sekunden-Deckel begrenzt die **Antwort**, nicht die Arbeit — der
+Arbeits-Thread läuft als Daemon weiter, bis er fertig ist. Es gibt keine Begrenzung
+gleichzeitiger Auswertungen. Bei 2 CPU-Kernen und 1 GB Speicher könnten sich mehrere
+Parser-Threads stapeln. Das setzt allerdings ein Konto mit Schreibrecht voraus und ein PDF,
+das den Deckel überhaupt erreicht; nach den Messungen liegt der Abstand dazu bei Faktor 20.
+
+**Empfehlung (nicht dringend):** ein Zähler, der gleichzeitige Auswertungen auf zwei begrenzt
+und weitere Anfragen mit „gerade ausgelastet" beantwortet. Das ist eine kleine Änderung an
+einer Stelle; nötig ist sie nicht, solange nur bekannte Konten hochladen.
+
+**Bewertung: niedrig. Der Punkt ist mit dieser Messung erledigt.**
+
+### 9.2 Browser-Abhängigkeiten · **sehr niedrig**
+
+**Umfang.** Die Anwendung lädt beim Seitenaufruf nichts von außen. Mitgeliefert werden
+ausschließlich:
+
+| Was | Dateien | Lizenz |
+|---|---|---|
+| Font Awesome 6.4.0 Free | `all.min.css`, 4 × `.woff2`, `LICENSE.txt` | Icons CC BY 4.0, Fonts SIL OFL 1.1, Code MIT |
+| Inter, Source Sans 3, Source Serif 4 | 8 × `.woff2`, 2 × `.css`, `LICENSE.txt`, `OFL-Source.txt` | SIL OFL 1.1 |
+
+**Kein Fremd-JavaScript.** Die vier Skripte der Anwendung (`autofill.js`, `hp_modal.js`,
+`mengenschwellen_vorschau.js`, `sdb_import.js`) sind eigener Code — es gibt keine
+Bibliothek eines Dritten, die im Browser ausgeführt wird. Damit entfällt die gesamte
+Klasse „veraltete JS-Bibliothek mit CVE".
+
+**Geprüft:**
+
+* **Prüfsummen:** alle **14** in `static/vendor/SOURCES.md` hinterlegten SHA-256 stimmen mit
+  den ausgelieferten Dateien überein. Damit ist der Bestand gegen unbemerkte Änderung
+  abgesichert; nach einem Update müssen sie neu erzeugt werden.
+* **Keine automatisch geladenen externen Ressourcen:** Die beiden `https://fontawesome.com`-
+  Adressen in `all.min.css` stehen im Lizenzkommentar und werden nicht abgerufen. In den
+  Vorlagen gibt es drei ausgehende Links auf `gestis.dguv.de` — das sind Klicks des Nutzers
+  in einem neuen Tab, keine Einbettung.
+* **Lizenz:** dokumentiert und eingehalten; die Namensnennung steckt in den Dateien selbst,
+  es braucht keine Attributionszeile in der Oberfläche.
+
+**Was bleibt:** Die Fassung 6.4.0 ist älter als die aktuelle. Für Schrift- und CSS-Dateien
+sind keine Sicherheitslücken dieser Art bekannt; die Angriffsfläche wäre der Fontparser des
+Browsers, also Browser-Code und nicht Anwendungscode. Ein Nachziehen ist eine
+Aktualisierungsfrage, keine Sicherheitsfrage — und es kostet Arbeit, weil danach alle
+Prüfsummen und die Icon-Liste nachzuziehen sind.
+
+**Nicht geprüft:** kein Test in älteren Browsern, keine Bewertung, ob die gesetzte CSP die
+Skripte in jedem Browser blockt.
+
+**Bewertung: sehr niedrig. Der Punkt ist erledigt; ein Versionssprung ist optional.**
 
 ---
 
